@@ -16,6 +16,7 @@ import dao.CalibresDao;
 import dao.RombosDao;
 import dao.ProduccionDao;
 import dao.HistorialDao;
+import dao.LookupDao;
 import java.awt.Desktop;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -1088,150 +1089,53 @@ public class DashboardController implements Initializable {
     
     // COMBO BOX FILLS
     public void fillComboBoxGenero(){
-        try{
-            String query = "select genero from genero";
-            pst = con.prepareStatement(query);
-            ResultSet rs = pst.executeQuery();
-            while(rs.next()){
-                GeneroOpcion.add(rs.getString("genero"));
-            }
-            cbGenero.setValue(cbGenero.getValue());
-            pst.close();
-            rs.close();
-        }catch (SQLException ex){
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        
+        GeneroOpcion.clear();
+        GeneroOpcion.addAll(LookupDao.getGeneros());
+        cbGenero.setValue(cbGenero.getValue());
     }
     
     public void fillComboBoxTipoUsuario(){
-        try{
-            String query = "select puesto from tipo_usuario";
-            pst = con.prepareStatement(query);
-            ResultSet rs = pst.executeQuery();
-            while(rs.next()){
-                TipoUsuarioOpcion.add(rs.getString("puesto"));
-            }
-            cbTipoUsuario.setValue(cbTipoUsuario.getValue());
-            pst.close();
-            rs.close();
-        }catch (SQLException ex){
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        
+        TipoUsuarioOpcion.clear();
+        TipoUsuarioOpcion.addAll(LookupDao.getTipoUsuario());
+        cbTipoUsuario.setValue(cbTipoUsuario.getValue());
     }
     
     public void fillComboBoxPago(){
-        try{
-            String query = "select metodo from tipo_pago";
-            pst = con.prepareStatement(query);
-            ResultSet rs = pst.executeQuery();
-            while(rs.next()){
-                PagoOpcion.add(rs.getString("metodo"));
-            }
-            cbMetodoPago.setValue(cbMetodoPago.getValue());
-            pst.close();
-            rs.close();
-        }catch (SQLException ex){
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        
+        PagoOpcion.clear();
+        PagoOpcion.addAll(LookupDao.getMetodosPago());
+        cbMetodoPago.setValue(cbMetodoPago.getValue());
     }
     
     public void fillComboBoxBanco(){
-        try{
-            String query = "select nombre from bancos";
-            pst = con.prepareStatement(query);
-            ResultSet rs = pst.executeQuery();
-            while(rs.next()){
-                BancoOpcion.add(rs.getString("nombre"));
-            }
-            cbBanco.setValue(cbBanco.getValue());
-            pst.close();
-            rs.close();
-        }catch (SQLException ex){
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        
+        BancoOpcion.clear();
+        BancoOpcion.addAll(LookupDao.getBancos());
+        cbBanco.setValue(cbBanco.getValue());
     }
     
     public void fillComboBoxPeriodoPago(){
-        try{
-            String query = "select periodo from periodicidad_pago";
-            pst = con.prepareStatement(query);
-            ResultSet rs = pst.executeQuery();
-            while(rs.next()){
-                PeriodoPagoOpcion.add(rs.getString("periodo"));
-            }
-            cbPeriodoPago.setValue(cbPeriodoPago.getValue());
-            pst.close();
-            rs.close();
-        }catch (SQLException ex){
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        
+        PeriodoPagoOpcion.clear();
+        PeriodoPagoOpcion.addAll(LookupDao.getPeriodosPago());
+        cbPeriodoPago.setValue(cbPeriodoPago.getValue());
     }
     
     public void fillComboBoxContrato(){
-        try{
-            String query = "select contrato from tipo_contratos";
-            pst = con.prepareStatement(query);
-            ResultSet rs = pst.executeQuery();
-            while(rs.next()){
-                ContratoOpcion.add(rs.getString("contrato"));
-            }
-            cbContrato.setValue(cbContrato.getValue());
-            pst.close();
-            rs.close();
-        }catch (SQLException ex){
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        
+        ContratoOpcion.clear();
+        ContratoOpcion.addAll(LookupDao.getContratos());
+        cbContrato.setValue(cbContrato.getValue());
     }
     
     public void fillComboBoxPais(){
-        try{
-            String query = "select name from paises";
-            pst = con.prepareStatement(query);
-            ResultSet rs = pst.executeQuery();
-            while(rs.next()){
-                PaisOpcion.add(rs.getString("name"));
-            }
-            cbPais.setValue(cbPais.getValue());
-            pst.close();
-            rs.close();
-        }catch (SQLException ex){
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        
+        PaisOpcion.clear();
+        PaisOpcion.addAll(LookupDao.getPaises());
+        cbPais.setValue(cbPais.getValue());
     }
     
     public void fillComboBoxEstados(){
         String pais = cbPais.getValue();
         EstadoOpcion.clear();
         if (pais == null) return;
-        String sqlPais = "select id from paises where name = ?";
-        try (PreparedStatement ps = con.prepareStatement(sqlPais)) {
-            ps.setString(1, pais);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    String pais_s = rs.getString("id");
-                    LOGGER.log(Level.FINE, "Pais seleccionado {0}", pais_s);
-                    String sqlEstados = "select name from estados where country_id = ?";
-                    try (PreparedStatement ps2 = con.prepareStatement(sqlEstados)) {
-                        ps2.setString(1, pais_s);
-                        try (ResultSet rs2 = ps2.executeQuery()) {
-                            while (rs2.next()) {
-                                EstadoOpcion.add(rs2.getString("name"));
-                            }
-                        }
-                    }
-                    cbEstado.setValue(cbEstado.getValue());
-                }
-            }
-        } catch (SQLException ex) {
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
-        }
+        EstadoOpcion.addAll(LookupDao.getEstadosByCountryName(pais));
+        cbEstado.setValue(cbEstado.getValue());
     }
     
     
@@ -1240,28 +1144,8 @@ public class DashboardController implements Initializable {
             String estado = cbEstado.getValue();
             CiudadOpcion.clear();
             if (estado == null) return;
-            String sqlEstado = "select id from estados where name = ?";
-            try (PreparedStatement ps = con.prepareStatement(sqlEstado)) {
-                ps.setString(1, estado);
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) {
-                        String estado_s = rs.getString("id");
-                        LOGGER.log(Level.FINE, "Estado seleccionado {0}", estado_s);
-                        String sqlCiudades = "select name from ciudades where state_id = ?";
-                        try (PreparedStatement ps2 = con.prepareStatement(sqlCiudades)) {
-                            ps2.setString(1, estado_s);
-                            try (ResultSet rs2 = ps2.executeQuery()) {
-                                while (rs2.next()) {
-                                    CiudadOpcion.add(rs2.getString("name"));
-                                }
-                            }
-                        }
-                        cbEstado.setValue(cbEstado.getValue());
-                    }
-                }
-            } catch (SQLException ex) {
-                Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
-            }
+            CiudadOpcion.addAll(LookupDao.getCiudadesByStateName(estado));
+            cbEstado.setValue(cbEstado.getValue());
         }
     
     
@@ -1936,79 +1820,43 @@ public class DashboardController implements Initializable {
     }
     
     public void fillComboBoxMaterial(){
-        try{
-            String query = "select nombre from materiales";
-            pst = con.prepareStatement(query);
-            ResultSet rs = pst.executeQuery();
-            while(rs.next()){
-                MaterialOpcion.add(rs.getString("nombre"));
-                EditarMaterialOpcion.add(rs.getString("nombre"));
-            }
-            cbMaterial.setValue(cbMaterial.getValue());
-            cbMaterialEditar.setValue(cbMaterialEditar.getValue());
-            pst.close();
-            rs.close();
-        }catch (SQLException ex){
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        
+        ObservableList<String> list = LookupDao.getMateriales();
+        MaterialOpcion.clear();
+        EditarMaterialOpcion.clear();
+        MaterialOpcion.addAll(list);
+        EditarMaterialOpcion.addAll(list);
+        cbMaterial.setValue(cbMaterial.getValue());
+        cbMaterialEditar.setValue(cbMaterialEditar.getValue());
     }
     
     public void fillComboBoxAltura(){
-        try{
-            String query = "select altura from alturas";
-            pst = con.prepareStatement(query);
-            ResultSet rs = pst.executeQuery();
-            while(rs.next()){
-                AlturaOpcion.add(rs.getString("altura"));
-                EditarAlturaOpcion.add(rs.getString("altura"));
-            }
-            cbAltura.setValue(cbAltura.getValue());
-            cbAlturaEditar.setValue(cbAlturaEditar.getValue());
-            pst.close();
-            rs.close();
-        }catch (SQLException ex){
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        
+        ObservableList<String> list = LookupDao.getAlturas();
+        AlturaOpcion.clear();
+        EditarAlturaOpcion.clear();
+        AlturaOpcion.addAll(list);
+        EditarAlturaOpcion.addAll(list);
+        cbAltura.setValue(cbAltura.getValue());
+        cbAlturaEditar.setValue(cbAlturaEditar.getValue());
     }
     
     public void fillComboBoxCalibre(){
-        try{
-            String query = "select calibre from calibres";
-            pst = con.prepareStatement(query);
-            ResultSet rs = pst.executeQuery();
-            while(rs.next()){
-                CalibreOpcion.add(rs.getString("calibre"));
-                EditarCalibreOpcion.add(rs.getString("calibre"));
-            }
-            cbCalibre.setValue(cbCalibre.getValue());
-            cbCalibreEditar.setValue(cbCalibreEditar.getValue());
-            pst.close();
-            rs.close();
-        }catch (SQLException ex){
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        
+        ObservableList<String> list = LookupDao.getCalibres();
+        CalibreOpcion.clear();
+        EditarCalibreOpcion.clear();
+        CalibreOpcion.addAll(list);
+        EditarCalibreOpcion.addAll(list);
+        cbCalibre.setValue(cbCalibre.getValue());
+        cbCalibreEditar.setValue(cbCalibreEditar.getValue());
     }
     
     public void fillComboBoxRombo(){
-        try{
-            String query = "select rombo from rombos";
-            pst = con.prepareStatement(query);
-            ResultSet rs = pst.executeQuery();
-            while(rs.next()){
-                RomboOpcion.add(rs.getString("rombo"));
-                EditarRomboOpcion.add(rs.getString("rombo"));
-            }
-            cbRombo.setValue(cbRombo.getValue());
-            cbRomboEditar.setValue(cbRomboEditar.getValue());
-            pst.close();
-            rs.close();
-        }catch (SQLException ex){
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        
+        ObservableList<String> list = LookupDao.getRombos();
+        RomboOpcion.clear();
+        EditarRomboOpcion.clear();
+        RomboOpcion.addAll(list);
+        EditarRomboOpcion.addAll(list);
+        cbRombo.setValue(cbRombo.getValue());
+        cbRomboEditar.setValue(cbRomboEditar.getValue());
     }
     public void AgregarProduccion(){
         System.out.println("AGREGAR PRODUCCION BOTON PRESSED");

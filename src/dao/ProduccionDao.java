@@ -31,4 +31,59 @@ public class ProduccionDao {
         }
         return list;
     }
+
+    public static boolean insert(String material, String calibre, String altura, String rombos, String metros, String cantidad, String autorId, String fechaRegistro, String dia) {
+        String sql = "insert into produccion (material, calibre, altura, rombos, metros, cantidad, autor_id, fecha_registro, dia) values(?,?,?,?,?,?,?,?,?)";
+        try (Connection con = ConnectionUtil.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, material);
+            ps.setString(2, calibre);
+            ps.setString(3, altura);
+            ps.setString(4, rombos);
+            ps.setString(5, metros);
+            ps.setString(6, cantidad);
+            ps.setString(7, autorId);
+            ps.setString(8, fechaRegistro);
+            ps.setString(9, dia);
+            int status = ps.executeUpdate();
+            return status == 1;
+        } catch (SQLException ex) {
+            LOGGER.log(Level.SEVERE, null, ex);
+            return false;
+        }
+    }
+
+    public static boolean update(String id, String material, String calibre, String altura, String rombos, String metros, String cantidad, String fechaRegistro, String dia) {
+        String sql = "update produccion set material=?, calibre=?, altura=?, rombos=?, metros=?, cantidad=?, fecha_registro=?, dia=? where id=?";
+        try (Connection con = ConnectionUtil.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, material);
+            ps.setString(2, calibre);
+            ps.setString(3, altura);
+            ps.setString(4, rombos);
+            ps.setString(5, metros);
+            ps.setString(6, cantidad);
+            ps.setString(7, fechaRegistro);
+            ps.setString(8, dia);
+            ps.setString(9, id);
+            int status = ps.executeUpdate();
+            return status == 1;
+        } catch (SQLException ex) {
+            LOGGER.log(Level.SEVERE, null, ex);
+            return false;
+        }
+    }
+
+    public static boolean delete(String id) {
+        String sql = "delete from produccion where id = ?";
+        try (Connection con = ConnectionUtil.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, id);
+            int status = ps.executeUpdate();
+            return status == 1;
+        } catch (SQLException ex) {
+            LOGGER.log(Level.SEVERE, null, ex);
+            return false;
+        }
+    }
 }
