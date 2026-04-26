@@ -45,6 +45,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import util.ImageUtils;
 import util.DateUtils;
+import controllers.helpers.ProfileBinder;
+import services.UsuariosService;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.collections.FXCollections;
@@ -649,9 +651,6 @@ public class DashboardController implements Initializable {
     @Override
     public void initialize(URL url, ResourceBundle rb) {
         
-        VerificarTipoEmpleado();
-        
-        LOGGER.log(Level.FINE, "EL TIPO DE EMPLEADO ES: {0}", tipo_empleado);
         
         cbPais.setValue("Mexico");
         cbPais.setItems(PaisOpcion);
@@ -721,6 +720,8 @@ public class DashboardController implements Initializable {
         UpdateCalibres();
         UpdateRombos();
         UpdateProduccionSemanal(); 
+        VerificarTipoEmpleado();
+        LOGGER.log(Level.INFO, "EL TIPO DE EMPLEADO ES: {0}", tipo_empleado);
         UpdateHistorial();
         }
 
@@ -815,29 +816,20 @@ public class DashboardController implements Initializable {
     //PERFIL EMPLEADO
     
     public void VerificarTipoEmpleado(){
-        
-        ResultSet rs = null;
-        PreparedStatement ps = null;        
-        try{
-            ps = con.prepareStatement("SELECT * FROM usuarios Where usuario_id = ?");
-            ps.setString(1,usuario);
-            rs = ps.executeQuery();
-                        
-            if(rs.next()){
-                
-                tipo_empleado = rs.getString("tipo_empleado");
-                
-                if(tipo_empleado.contains("SUPERVISOR")){
+        try {
+            String tipo = UsuariosService.getTipoEmpleado(usuario);
+            if (tipo != null) {
+                tipo_empleado = tipo;
+                if (tipo_empleado.contains("SUPERVISOR")) {
                     DashboardSupervisor();
-                }else if(tipo_empleado.contains("EMPLEADO GENERAL")){
-                    
+                } else if (tipo_empleado.contains("EMPLEADO GENERAL")) {
                     DashboardGeneral();
                 }
-               
-            }else{
-            }   
-        }catch (Exception e){
-            
+            } else {
+                LOGGER.log(Level.FINE, "Tipo de empleado no encontrado para usuario {0}", usuario);
+            }
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error in VerificarTipoEmpleado", e);
         }
         
     }
@@ -907,133 +899,77 @@ public class DashboardController implements Initializable {
     public void Perfil(){
         UsuarioDetalle u = UsuariosDao.findById(usuario);
         try {
-            if (u != null) {
-                lbCodigoUsuario.setText(u.getUsuarioId());
-                lbNombreEmpleado.setText(u.getNombre());
-                lbAPaternoEmpleado.setText(u.getApellidoPaterno());
-                lbAMaternoEmpleado.setText(u.getApellidoMaterno());
-                lbCurp.setText(u.getCurp());
-                lbRfc.setText(u.getRfc());
-                lbNss.setText(u.getNss());
-
-                String timestamp = u.getFechaNacimiento();
-                if (timestamp != null && timestamp.length() >= 10) {
-                    lbHFecha.setText(DateUtils.formatLongDate(timestamp, true));
-                    lbFechaNacimiento.setText(DateUtils.formatLongDate(timestamp, false));
-                }
-
-                String fechaContr = u.getFechaContratacion();
-                if (fechaContr != null && fechaContr.length() >= 10) {
-                    lbFechaContratacio.setText(DateUtils.formatLongDate(fechaContr, false));
-                }
-
-                lbEmailEmpleado.setText(u.getEmail());
-                lbGenero.setText(u.getGenero());
-                lbTipoUsuario.setText(u.getTipoEmpleado());
-                lbSueldoEmpleado.setText(u.getSueldo());
-                lbMetodoPago.setText(u.getMetodoPago());
-                lbBanco.setText(u.getBanco());
-                lbNCuenta.setText(u.getNumeroCuenta());
-                lbPeriodoPago.setText(u.getPeriodoPago());
-                lbContrato.setText(u.getTipoContrato());
-
-                lbPais.setText(u.getPais());
-                lbEstado.setText(u.getEstado());
-                lbLocalidad.setText(u.getLocalidad());
-                lbColonia.setText(u.getColonia());
-                lbNExterior.setText(u.getNumeroExterior());
-
-                lbCiudad.setText(u.getCiudad());
-                lbCalle.setText(u.getCalle());
-                lbCodigoPostal.setText(u.getCodigoPostal());
-                lbNInterior.setText(u.getNumeroInterior());
-            } else {
-                LOGGER.log(Level.FINE, "No hay informacion de domicilio");
-            }
+            ProfileBinder.bindProfile(u,
+                    lbCodigoUsuario, lbNombreEmpleado, lbAPaternoEmpleado, lbAMaternoEmpleado,
+                    lbCurp, lbRfc, lbNss, lbHFecha, lbFechaNacimiento, lbFechaContratacio,
+                    lbEmailEmpleado, lbGenero, lbTipoUsuario, lbSueldoEmpleado, lbMetodoPago,
+                    lbBanco, lbNCuenta, lbPeriodoPago, lbContrato, lbPais, lbEstado, lbLocalidad,
+                    lbColonia, lbNExterior, lbCiudad, lbCalle, lbCodigoPostal, lbNInterior,
+                    imgPerfil, backup, sinperfil);
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Error in Perfil", e);
         }
     }
     
     public void CambiarContraseña(){
-        
-        ResultSet rs = null;
-        PreparedStatement ps = null;
         String contraseña = tbContraseñaActual.getText();
         LOGGER.log(Level.FINE, "ENTRE A CAMBIAR CONTRASEÑA");
-        
-        try{
-            ps = con.prepareStatement("SELECT * FROM usuarios Where usuario_id = ? and password = ?");
-            ps.setString(1,usuario);
-            ps.setString(2,contraseña);
-            rs = ps.executeQuery();
-                        
-            if(rs.next()){
-                
+        try {
+            if (UsuariosService.verifyPassword(usuario, contraseña)) {
                 UpdateContraseña();
-               
-            }else{
-            Alert alert = new Alert(AlertType.ERROR);
-            alert.setHeaderText("La contraseña actual no es correcta");
-            alert.setContentText("Vuelva a intentarlo de nuevo");
-            Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-            stage.getIcons().add(new Image("icons/IconBlanco.png"));
-            alert.showAndWait();
-        }   
-        }catch (Exception e){
-            
-        }  
+            } else {
+                Alert alert = new Alert(AlertType.ERROR);
+                alert.setHeaderText("La contraseña actual no es correcta");
+                alert.setContentText("Vuelva a intentarlo de nuevo");
+                Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
+                stage.getIcons().add(new Image("icons/IconBlanco.png"));
+                alert.showAndWait();
+            }
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error in CambiarContraseña", e);
+        }
+    
     }
     
     public void UpdateContraseña(){
-        ResultSet rs = null;
-        PreparedStatement ps = null;
         String contraseñanueva = tbContraseñaNueva.getText();
         LOGGER.log(Level.FINE, "CONTRASEÑA NUEVA {0}", contraseñanueva);
-        try{
-            LOGGER.log(Level.FINE, "CASI CAMBIO CONTRASEÑA");
-            ps = con.prepareStatement("update usuarios set password='"+contraseñanueva+"', pimera_sesion='1' where usuario_id='"+usuario+"'");
-            ps.execute();
-            ps.close();
-            
-            LOGGER.log(Level.INFO, "SE CAMBIO CONTRASEÑA");
-            Alert alert = new Alert(AlertType.INFORMATION);
-            alert.setTitle("Operacion exitosa");
-            alert.setHeaderText(null);
-            alert.setContentText("Se cambio contraseña de manera exitosa");
-            Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-            stage.getIcons().add(new Image("icons/IconBlanco.png"));
-            alert.showAndWait();
-            pnDashboard.setDisable(false);
-            btnVolverContraseña.setDisable(false);
-            btnVolverContraseña.setVisible(true);
-            Perfil();
-            pnBlanco.toFront();
-            pnPerfil.toFront();
-        }catch (Exception e){
+        try {
+            boolean changed = UsuariosService.changePassword(usuario, contraseñanueva);
+            if (changed) {
+                LOGGER.log(Level.INFO, "SE CAMBIO CONTRASEÑA");
+                Alert alert = new Alert(AlertType.INFORMATION);
+                alert.setTitle("Operacion exitosa");
+                alert.setHeaderText(null);
+                alert.setContentText("Se cambio contraseña de manera exitosa");
+                Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
+                stage.getIcons().add(new Image("icons/IconBlanco.png"));
+                alert.showAndWait();
+                pnDashboard.setDisable(false);
+                btnVolverContraseña.setDisable(false);
+                btnVolverContraseña.setVisible(true);
+                Perfil();
+                pnBlanco.toFront();
+                pnPerfil.toFront();
+            } else {
+                LOGGER.log(Level.WARNING, "No se pudo cambiar la contraseña para usuario {0}", usuario);
+            }
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error in UpdateContraseña", e);
         }
         
     }
     
     public void ComprobarPrimerSesion(){
-    
-        ResultSet rs = null;
-        PreparedStatement ps = null;  
-        String primera = "0";
-        try{
-            ps = con.prepareStatement("SELECT * FROM usuarios Where usuario_id = ? and pimera_sesion = ?");
-            ps.setString(1,usuario);
-            ps.setString(2,primera);
-            rs = ps.executeQuery();
-                        
-            if(rs.next()){
+        try {
+            if (UsuariosService.isFirstSession(usuario)) {
                 CambiarContraseñaPrimera();
-                LOGGER.log(Level.FINE, "USUARIO NO HA CAMBIO CONTRASEÑA");  
-            }else{
-            LOGGER.log(Level.FINE, "USUARIO YA CAMBIO CONTRASEÑA");
-        }   
-        }catch (Exception e){
-            
+                LOGGER.log(Level.FINE, "USUARIO NO HA CAMBIO CONTRASEÑA");
+            } else {
+                LOGGER.log(Level.FINE, "USUARIO YA CAMBIO CONTRASEÑA");
+            }
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error in ComprobarPrimerSesion", e);
         }
         
     }
