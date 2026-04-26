@@ -6,6 +6,16 @@
 package controllers;
 
 import database.ConnectionUtil;
+import dao.UsuariosDao;
+import models.UsuarioDetalle;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import dao.MaterialesDao;
+import dao.AlturasDao;
+import dao.CalibresDao;
+import dao.RombosDao;
+import dao.ProduccionDao;
+import dao.HistorialDao;
 import java.awt.Desktop;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -86,6 +96,7 @@ import net.sf.jasperreports.view.JasperViewer;
  * @author LuisBravo
  */
 public class DashboardController implements Initializable {
+    private static final Logger LOGGER = Logger.getLogger(DashboardController.class.getName());
     
     @FXML
     private Button btnPefil;
@@ -638,7 +649,7 @@ public class DashboardController implements Initializable {
         
         VerificarTipoEmpleado();
         
-        System.out.println("EL TIPO DE EMPLEADO ES: "+tipo_empleado);
+        LOGGER.log(Level.FINE, "EL TIPO DE EMPLEADO ES: {0}", tipo_empleado);
         
         cbPais.setValue("Mexico");
         cbPais.setItems(PaisOpcion);
@@ -657,8 +668,8 @@ public class DashboardController implements Initializable {
         cbContrato.setValue("INDEFINIDO");
         cbContrato.setItems(ContratoOpcion);
         
-        System.out.println("ESTE ES EL ARCHIVO "+file.getAbsolutePath());
-        System.out.println("ESTE ES EL ARCHIVO "+file.getPath());
+        LOGGER.log(Level.FINE, "ESTE ES EL ARCHIVO {0}", file.getAbsolutePath());
+        LOGGER.log(Level.FINE, "ESTE ES EL ARCHIVO {0}", file.getPath());
         
         cbHistorialMes.setItems(HistorialOpcion);
         
@@ -709,24 +720,12 @@ public class DashboardController implements Initializable {
         UpdateRombos();
         UpdateProduccionSemanal(); 
         UpdateHistorial();
-        
-        Filtro();
-        
-        DiasSemana();
-        UpdateMesHistorial();
-        
-        new animatefx.animation.ZoomIn(pnInicio).play();
-            
-        pnProduccion.toFront();
-        
-        ComprobarPrimerSesion();
-        
-    }
-    
+        }
+
     public void Filtro(){
         
         FilteredList<Empleados> filteredData = new FilteredList<>(dataList, b -> true);
-        // FILTRO ID
+            LOGGER.log(Level.WARNING, "RECORD FAILED");
         filtroIdUsuario.textProperty().addListener((observable, oldValue, newValue) -> {
 			filteredData.setPredicate(empleados -> {
                                 // Si el filtro esta vacio despliega a todas las personas
@@ -904,98 +903,90 @@ public class DashboardController implements Initializable {
     }
     
     public void Perfil(){
-        
-        BusquedaEmpleado busqueda = new BusquedaEmpleado() {};
-        ResultSet rs = null;
-        rs = busqueda.find(usuario);
-        
-        try{
-            if(rs.next()){
-                lbCodigoUsuario.setText(rs.getString("usuario_id"));
-                lbNombreEmpleado.setText(rs.getString("nombre"));
-                lbAPaternoEmpleado.setText(rs.getString("apellido_paterno"));
-                lbAMaternoEmpleado.setText(rs.getString("apellido_materno"));
-                lbCurp.setText(rs.getString("curp"));
-                lbRfc.setText(rs.getString("rfc"));
-                lbNss.setText(rs.getString("nss"));
-                
-                String timestamp = rs.getString("fecha_nacimiento");
-                String año = timestamp.substring(0,4);
-                String dia = timestamp.substring(8,10);
-                String mes = timestamp.substring(5,7);
-                String mesn = "mes";
-                switch (mes){
-                    case "01": mesn = "ENERO"; break;
-                    case "02": mesn = "FEBRERO"; break;
-                    case "03": mesn = "MARZO"; break;
-                    case "04": mesn = "ABRIL"; break;
-                    case "05": mesn = "MAYO"; break;
-                    case "06": mesn = "JUNIO"; break;
-                    case "07": mesn = "JULIO"; break;
-                    case "08": mesn = "AGOSTO"; break;
-                    case "09": mesn = "SEPTIEMBRE"; break;
-                    case "10": mesn = "OCTUBRE"; break;
-                    case "11": mesn = "NOVIEMBRE"; break;
-                    case "12": mesn = "DICIEMBRE"; break;
-                }
-                System.out.println("AÑO "+año);
-                System.out.println("DIA "+dia);
-                System.out.println("MES "+mes);
-                lbHFecha.setText( dia + " DE "+ mesn +" DEL "+ año);
-                
-                lbFechaNacimiento.setText( dia + " DE "+ mesn +" DE "+ año);
-                
-                timestamp = rs.getString("fecha_contratacion");
-                año = timestamp.substring(0,4);
-                dia = timestamp.substring(8,10);
-                mes = timestamp.substring(5,7);
-                mesn = "mes";
-                switch (mes){
-                    case "01": mesn = "ENERO"; break;
-                    case "02": mesn = "FEBRERO"; break;
-                    case "03": mesn = "MARZO"; break;
-                    case "04": mesn = "ABRIL"; break;
-                    case "05": mesn = "MAYO"; break;
-                    case "06": mesn = "JUNIO"; break;
-                    case "07": mesn = "JULIO"; break;
-                    case "08": mesn = "AGOSTO"; break;
-                    case "09": mesn = "SEPTIEMBRE"; break;
-                    case "10": mesn = "OCTUBRE"; break;
-                    case "11": mesn = "NOVIEMBRE"; break;
-                    case "12": mesn = "DICIEMBRE"; break;
-                }
-                System.out.println("AÑO "+año);
-                System.out.println("DIA "+dia);
-                System.out.println("MES "+mes);
-                
-                lbFechaContratacio.setText( dia + " DE "+ mesn +" DE "+ año);
+        UsuarioDetalle u = UsuariosDao.findById(usuario);
+        try {
+            if (u != null) {
+                lbCodigoUsuario.setText(u.getUsuarioId());
+                lbNombreEmpleado.setText(u.getNombre());
+                lbAPaternoEmpleado.setText(u.getApellidoPaterno());
+                lbAMaternoEmpleado.setText(u.getApellidoMaterno());
+                lbCurp.setText(u.getCurp());
+                lbRfc.setText(u.getRfc());
+                lbNss.setText(u.getNss());
 
-                lbEmailEmpleado.setText(rs.getString("email"));
-                lbGenero.setText(rs.getString("genero"));
-                lbTipoUsuario.setText(rs.getString("tipo_empleado"));
-                lbSueldoEmpleado.setText(rs.getString("sueldo"));
-                lbMetodoPago.setText(rs.getString("metodo_pago"));
-                lbBanco.setText(rs.getString("banco"));
-                lbNCuenta.setText(rs.getString("numero_cuenta"));
-                lbPeriodoPago.setText(rs.getString("periodo_pago"));
-                lbContrato.setText(rs.getString("tipo_contrato"));
-                
-                lbPais.setText(rs.getString("pais"));
-                lbEstado.setText(rs.getString("estado"));
-                lbLocalidad.setText(rs.getString("localidad"));
-                lbColonia.setText(rs.getString("colonia"));
-                lbNExterior.setText(rs.getString("numero_exterior"));
-                
-                lbCiudad.setText(rs.getString("ciudad"));
-                lbCalle.setText(rs.getString("calle"));
-                lbCodigoPostal.setText(rs.getString("codigo_postal"));
-                lbNInterior.setText(rs.getString("numero_interior"));
-            }else{
-            System.out.println("No hay informacion de domicilio ");
-        }   
-        }catch (Exception e){
-            
-        }  
+                String timestamp = u.getFechaNacimiento();
+                if (timestamp != null && timestamp.length() >= 10) {
+                    String año = timestamp.substring(0, 4);
+                    String dia = timestamp.substring(8, 10);
+                    String mes = timestamp.substring(5, 7);
+                    String mesn = "mes";
+                    switch (mes) {
+                        case "01": mesn = "ENERO"; break;
+                        case "02": mesn = "FEBRERO"; break;
+                        case "03": mesn = "MARZO"; break;
+                        case "04": mesn = "ABRIL"; break;
+                        case "05": mesn = "MAYO"; break;
+                        case "06": mesn = "JUNIO"; break;
+                        case "07": mesn = "JULIO"; break;
+                        case "08": mesn = "AGOSTO"; break;
+                        case "09": mesn = "SEPTIEMBRE"; break;
+                        case "10": mesn = "OCTUBRE"; break;
+                        case "11": mesn = "NOVIEMBRE"; break;
+                        case "12": mesn = "DICIEMBRE"; break;
+                    }
+                    lbHFecha.setText(dia + " DE " + mesn + " DEL " + año);
+                    lbFechaNacimiento.setText(dia + " DE " + mesn + " DE " + año);
+                }
+
+                String fechaContr = u.getFechaContratacion();
+                if (fechaContr != null && fechaContr.length() >= 10) {
+                    String año = fechaContr.substring(0, 4);
+                    String dia = fechaContr.substring(8, 10);
+                    String mes = fechaContr.substring(5, 7);
+                    String mesn = "mes";
+                    switch (mes) {
+                        case "01": mesn = "ENERO"; break;
+                        case "02": mesn = "FEBRERO"; break;
+                        case "03": mesn = "MARZO"; break;
+                        case "04": mesn = "ABRIL"; break;
+                        case "05": mesn = "MAYO"; break;
+                        case "06": mesn = "JUNIO"; break;
+                        case "07": mesn = "JULIO"; break;
+                        case "08": mesn = "AGOSTO"; break;
+                        case "09": mesn = "SEPTIEMBRE"; break;
+                        case "10": mesn = "OCTUBRE"; break;
+                        case "11": mesn = "NOVIEMBRE"; break;
+                        case "12": mesn = "DICIEMBRE"; break;
+                    }
+                    lbFechaContratacio.setText(dia + " DE " + mesn + " DE " + año);
+                }
+
+                lbEmailEmpleado.setText(u.getEmail());
+                lbGenero.setText(u.getGenero());
+                lbTipoUsuario.setText(u.getTipoEmpleado());
+                lbSueldoEmpleado.setText(u.getSueldo());
+                lbMetodoPago.setText(u.getMetodoPago());
+                lbBanco.setText(u.getBanco());
+                lbNCuenta.setText(u.getNumeroCuenta());
+                lbPeriodoPago.setText(u.getPeriodoPago());
+                lbContrato.setText(u.getTipoContrato());
+
+                lbPais.setText(u.getPais());
+                lbEstado.setText(u.getEstado());
+                lbLocalidad.setText(u.getLocalidad());
+                lbColonia.setText(u.getColonia());
+                lbNExterior.setText(u.getNumeroExterior());
+
+                lbCiudad.setText(u.getCiudad());
+                lbCalle.setText(u.getCalle());
+                lbCodigoPostal.setText(u.getCodigoPostal());
+                lbNInterior.setText(u.getNumeroInterior());
+            } else {
+                LOGGER.log(Level.FINE, "No hay informacion de domicilio");
+            }
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error in Perfil", e);
+        }
     }
     
     public void CambiarContraseña(){
@@ -1003,7 +994,7 @@ public class DashboardController implements Initializable {
         ResultSet rs = null;
         PreparedStatement ps = null;
         String contraseña = tbContraseñaActual.getText();
-        System.out.println("ENTRE A CAMBIAR CONTRASEÑA");
+        LOGGER.log(Level.FINE, "ENTRE A CAMBIAR CONTRASEÑA");
         
         try{
             ps = con.prepareStatement("SELECT * FROM usuarios Where usuario_id = ? and password = ?");
@@ -1032,14 +1023,14 @@ public class DashboardController implements Initializable {
         ResultSet rs = null;
         PreparedStatement ps = null;
         String contraseñanueva = tbContraseñaNueva.getText();
-        System.out.println("CONTRASEÑA NUEVA "+contraseñanueva);
+        LOGGER.log(Level.FINE, "CONTRASEÑA NUEVA {0}", contraseñanueva);
         try{
-            System.out.println("CASI CAMBIO CONTRASEÑA");
+            LOGGER.log(Level.FINE, "CASI CAMBIO CONTRASEÑA");
             ps = con.prepareStatement("update usuarios set password='"+contraseñanueva+"', pimera_sesion='1' where usuario_id='"+usuario+"'");
             ps.execute();
             ps.close();
             
-            System.out.println("SE CAMBIO CONTRASEÑA");
+            LOGGER.log(Level.INFO, "SE CAMBIO CONTRASEÑA");
             Alert alert = new Alert(AlertType.INFORMATION);
             alert.setTitle("Operacion exitosa");
             alert.setHeaderText(null);
@@ -1071,9 +1062,9 @@ public class DashboardController implements Initializable {
                         
             if(rs.next()){
                 CambiarContraseñaPrimera();
-            System.out.println("USUARIO NO HA CAMBIO CONTRASEÑA");  
+                LOGGER.log(Level.FINE, "USUARIO NO HA CAMBIO CONTRASEÑA");  
             }else{
-            System.out.println("USUARIO YA CAMBIO CONTRASEÑA");
+            LOGGER.log(Level.FINE, "USUARIO YA CAMBIO CONTRASEÑA");
         }   
         }catch (Exception e){
             
@@ -1118,7 +1109,7 @@ public class DashboardController implements Initializable {
         empEdad.setCellValueFactory(new PropertyValueFactory<>("empEdad"));               
         empSueldo.setCellValueFactory(new PropertyValueFactory<>("empSueldo"));       
         
-        listM = ConnectionUtil.getDataUsers();
+        listM = UsuariosDao.getAll();
         tableviewEmpleados.setItems(listM);        
     }
     //ACTUALIZAR TABLA EMPLEADOS
@@ -1165,59 +1156,48 @@ public class DashboardController implements Initializable {
                 indexEmpleado = index.getEmpIdUsuario();     
                 String in = Integer.toString(indexEmpleado);
                 
-                BusquedaEmpleado busqueda = new BusquedaEmpleado() {};
-                ResultSet rs = null;
-                rs = busqueda.find(in);
-                System.out.println("Index seleccionado "+in);
-                
+                UsuarioDetalle u = UsuariosDao.findById(in);
+                LOGGER.log(Level.FINE, "Index seleccionado {0}", in);
                 try{
-                    if(rs.next()){
-                        lbHDomicilio.setText(rs.getString("tipo_empleado"));
-                        String timestamp = rs.getString("create_time");
-                        String año = timestamp.substring(0,4);
-                        String dia = timestamp.substring(8,10);
-                        String mes = timestamp.substring(5,7);
-                        String mesn = "mes";
-                        switch (mes){
-                            case "1": mesn = "ENERO"; break;
-                            case "2": mesn = "FEBRERO"; break;
-                            case "3": mesn = "MARZO"; break;
-                            case "4": mesn = "ABRIL"; break;
-                            case "5": mesn = "MAYO"; break;
-                            case "6": mesn = "JUNIO"; break;
-                            case "7": mesn = "JULIO"; break;
-                            case "8": mesn = "AGOSTO"; break;
-                            case "9": mesn = "SEPTIEMBRE"; break;
-                            case "10": mesn = "OCTUBRE"; break;
-                            case "11": mesn = "NOVIEMBRE"; break;
-                            case "12": mesn = "DICIEMBRE"; break;
+                    if(u != null){
+                        lbHDomicilio.setText(u.getTipoEmpleado());
+                        String timestamp = u.getCreateTime();
+                        if (timestamp != null && timestamp.length() >= 10) {
+                            String año = timestamp.substring(0,4);
+                            String dia = timestamp.substring(8,10);
+                            String mes = timestamp.substring(5,7);
+                            String mesn = "mes";
+                            switch (mes){
+                                case "01": mesn = "ENERO"; break;
+                                case "02": mesn = "FEBRERO"; break;
+                                case "03": mesn = "MARZO"; break;
+                                case "04": mesn = "ABRIL"; break;
+                                case "05": mesn = "MAYO"; break;
+                                case "06": mesn = "JUNIO"; break;
+                                case "07": mesn = "JULIO"; break;
+                                case "08": mesn = "AGOSTO"; break;
+                                case "09": mesn = "SEPTIEMBRE"; break;
+                                case "10": mesn = "OCTUBRE"; break;
+                                case "11": mesn = "NOVIEMBRE"; break;
+                                case "12": mesn = "DICIEMBRE"; break;
+                            }
+                            lbHFecha.setText( dia + " DE "+ mesn +" DEL "+ año);
                         }
-                        System.out.println("AÑO "+año);
-                        System.out.println("DIA "+dia);
-                        System.out.println("MES "+mes);
-                        lbHFecha.setText( dia + " DE "+ mesn +" DEL "+ año);
-                        
-                        InputStream is = rs.getBinaryStream("imagen");
-                        OutputStream os = new FileOutputStream( new File("photo.png"));
-                        byte[] content = new byte[1024];
-                        int size = 0;
-                        while((size = is.read(content)) != -1){
-                            os.write(content, 0, size);
+                        byte[] imgData = u.getImagen();
+                        if (imgData != null){
+                            Path tmp = Files.createTempFile("profile-", ".png");
+                            Files.write(tmp, imgData);
+                            image = new Image(tmp.toUri().toString());
+                            imgPerfil.setImage(image);
+                        } else {
+                            imgPerfil.setImage(backup);
                         }
-                        if(is!=null){
-                        image = new Image("file:photo.png");
-                        imgPerfil.setImage(image);
-                        }else{
-                        imgPerfil.setImage(backup);
-                        }
-                        os.close();
-                        is.close();
                     }else{
                      imgPerfil.setImage(sinperfil);
-                     System.out.println("No hay informacion de domicilio ");
+                     LOGGER.log(Level.FINE, "No hay informacion de domicilio");
                 }   
                 }catch (Exception e){
-
+                    LOGGER.log(Level.SEVERE, "Error in TableValueEmpleados handler", e);
                 }
                 
                 lbHCodigo.setText(String.valueOf(indexEmpleado));
@@ -1226,21 +1206,7 @@ public class DashboardController implements Initializable {
     });
     }
     
-    public class BusquedaEmpleado{
-        ResultSet rs = null;
-        PreparedStatement ps = null;
-        public ResultSet find (String s){
-            try{
-                ps = con.prepareStatement("select * from usuarios where usuario_id = ?");
-                ps.setString(1,s);
-                rs = ps.executeQuery();
-            } catch (Exception e){
-                
-            }
-            return rs;
-        }       
-        
-    }
+    // BusquedaEmpleado moved to dao.UsuariosDao (use UsuariosDao.findById)
     
     // COMBO BOX FILLS
     public void fillComboBoxGenero(){
@@ -1363,97 +1329,64 @@ public class DashboardController implements Initializable {
     }
     
     public void fillComboBoxEstados(){
-        
-        ResultSet rs = null;
-        PreparedStatement ps = null;
         String pais = cbPais.getValue();
         EstadoOpcion.clear();
-
-        BusquedaPais busqueda = new BusquedaPais() {};
-        rs = busqueda.find(pais);
-        try{
-            
-            if(rs.next()){
-                String pais_s = rs.getString("id");
-                System.out.println("Pais seleccionado "+pais_s);
-            ps = con.prepareStatement("select * from estados where country_id = ?");
-            ps.setString(1,pais_s);
-            rs = ps.executeQuery();
-            while(rs.next()){
-                EstadoOpcion.add(rs.getString("name"));
+        if (pais == null) return;
+        String sqlPais = "select id from paises where name = ?";
+        try (PreparedStatement ps = con.prepareStatement(sqlPais)) {
+            ps.setString(1, pais);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    String pais_s = rs.getString("id");
+                    LOGGER.log(Level.FINE, "Pais seleccionado {0}", pais_s);
+                    String sqlEstados = "select name from estados where country_id = ?";
+                    try (PreparedStatement ps2 = con.prepareStatement(sqlEstados)) {
+                        ps2.setString(1, pais_s);
+                        try (ResultSet rs2 = ps2.executeQuery()) {
+                            while (rs2.next()) {
+                                EstadoOpcion.add(rs2.getString("name"));
+                            }
+                        }
+                    }
+                    cbEstado.setValue(cbEstado.getValue());
+                }
             }
-            cbEstado.setValue(cbEstado.getValue());
-            pst.close();
-            rs.close();
-        }
-        }catch (SQLException ex){
+        } catch (SQLException ex) {
             Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
         }
-        
     }
     
-    public class BusquedaPais{
-        ResultSet rs = null;
-        PreparedStatement ps = null;
-
-        public ResultSet find (String s){
-            try{
-                ps = con.prepareStatement("select * from paises where name = ?");
-                ps.setString(1,s);
-                rs = ps.executeQuery();
-            } catch (Exception e){
-                
-            }
-            return rs;
-        }       
-    }
+    
     
         public void fillComboBoxCiudades(){
-        
-        ResultSet rs = null;
-        PreparedStatement ps = null;
-        String estado = cbEstado.getValue();
-        CiudadOpcion.clear();
-
-        BusquedaEstado busqueda = new BusquedaEstado() {};
-        rs = busqueda.find(estado);
-        try{
-            
-            if(rs.next()){
-                String estado_s = rs.getString("id");
-                System.out.println("Estado seleccionado "+estado_s);
-            ps = con.prepareStatement("select * from ciudades where state_id = ?");
-            ps.setString(1,estado_s);
-            rs = ps.executeQuery();
-            while(rs.next()){
-                CiudadOpcion.add(rs.getString("name"));
-
+            String estado = cbEstado.getValue();
+            CiudadOpcion.clear();
+            if (estado == null) return;
+            String sqlEstado = "select id from estados where name = ?";
+            try (PreparedStatement ps = con.prepareStatement(sqlEstado)) {
+                ps.setString(1, estado);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        String estado_s = rs.getString("id");
+                        LOGGER.log(Level.FINE, "Estado seleccionado {0}", estado_s);
+                        String sqlCiudades = "select name from ciudades where state_id = ?";
+                        try (PreparedStatement ps2 = con.prepareStatement(sqlCiudades)) {
+                            ps2.setString(1, estado_s);
+                            try (ResultSet rs2 = ps2.executeQuery()) {
+                                while (rs2.next()) {
+                                    CiudadOpcion.add(rs2.getString("name"));
+                                }
+                            }
+                        }
+                        cbEstado.setValue(cbEstado.getValue());
+                    }
+                }
+            } catch (SQLException ex) {
+                Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
             }
-            cbEstado.setValue(cbEstado.getValue());
-            pst.close();
-            rs.close();
         }
-        }catch (SQLException ex){
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        
-    }
     
-    public class BusquedaEstado{
-        ResultSet rs = null;
-        PreparedStatement ps = null;
-
-        public ResultSet find (String s){
-            try{
-                ps = con.prepareStatement("select * from estados where name = ?");
-                ps.setString(1,s);
-                rs = ps.executeQuery();
-            } catch (Exception e){
-                
-            }
-            return rs;
-        }       
-    }
+    
     // COMBO BOX FILLS
     
     // AGREGAR EMPLEADO
@@ -1503,14 +1436,14 @@ public class DashboardController implements Initializable {
         String edad_emp = String.valueOf(edad);
         String password = tbCodigoUsuarioAgregar.getText();
         
-        System.out.println("RECORD RUNNING!!!");
+        LOGGER.log(Level.FINE, "RECORD RUNNING!!!");
         try{
-        System.out.println("RECORD RUNNING INSIDE!!!");
+        LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
         pst = con.prepareStatement("insert into usuarios (nombre, apellido_paterno, apellido_materno, curp, rfc, nss, edad, fecha_nacimiento, fecha_contratacion, "
                 + "email, genero, password, sueldo, metodo_pago, banco, numero_cuenta, periodo_pago, tipo_contrato, pais, estado, localidad, colonia, numero_exterior, ciudad, "
                 + "calle, codigo_postal, numero_interior, tipo_empleado) "
                 + "values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
-        System.out.println("RECORD RUNNING AFTER");
+        LOGGER.log(Level.FINE, "RECORD RUNNING AFTER");
         
         pst.setString(1, nombre);
         pst.setString(2, apellido_p);
@@ -1542,15 +1475,15 @@ public class DashboardController implements Initializable {
         pst.setString(28, tipo_emp);
         
         int status = pst.executeUpdate();
-        System.out.println("RECORD RUNNING POST QUERY");
+        LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
         if (status==1){
-            System.out.println("RECORD ADDED!!!");
+            LOGGER.log(Level.INFO, "RECORD ADDED");
             LimpiarPerfil();
             UpdateTable();
             int id = Integer.parseInt(tbCodigoUsuarioAgregar.getText())+1;
             tbCodigoUsuarioAgregar.setText(String.valueOf(id));
         }else{
-            System.out.println("RECORD FAILED!!!");
+            LOGGER.log(Level.WARNING, "RECORD FAILED");
         }
             
         }catch (SQLException e){
@@ -1605,14 +1538,14 @@ public class DashboardController implements Initializable {
         String edad_emp = String.valueOf(edad);
         String password = tbCodigoUsuarioAgregar.getText();
         
-        System.out.println("RECORD RUNNING!!!");
+        LOGGER.log(Level.FINE, "RECORD RUNNING!!!");
         try{
-        System.out.println("RECORD RUNNING INSIDE!!!");
+        LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
         pst = con.prepareStatement("insert into usuarios (nombre, apellido_paterno, apellido_materno, curp, rfc, nss, edad, fecha_nacimiento, fecha_contratacion, "
                 + "email, genero, password, sueldo, metodo_pago, banco, numero_cuenta, periodo_pago, tipo_contrato, pais, estado, localidad, colonia, numero_exterior, ciudad, "
                 + "calle, codigo_postal, numero_interior, tipo_empleado, imagen) "
                 + "values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
-        System.out.println("RECORD RUNNING AFTER");
+        LOGGER.log(Level.FINE, "RECORD RUNNING AFTER");
         
         pst.setString(1, nombre);
         pst.setString(2, apellido_p);
@@ -1643,21 +1576,21 @@ public class DashboardController implements Initializable {
         pst.setString(27, numero_interior);
         pst.setString(28, tipo_emp);
      
-        System.out.println("UPLOADING IMAGEN "+file);
+        LOGGER.log(Level.FINE, "UPLOADING IMAGEN {0}", file);
         fis = new FileInputStream(file);
         pst.setBinaryStream(29, fis, file.length());
-        System.out.println("IMAGEN UPLOADED!!!!");
+        LOGGER.log(Level.FINE, "IMAGEN UPLOADED");
         
         int status = pst.executeUpdate();
-        System.out.println("RECORD RUNNING POST QUERY");
+        LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
         if (status==1){
-            System.out.println("RECORD ADDED!!!");
+            LOGGER.log(Level.INFO, "RECORD ADDED");
             LimpiarPerfil();
             UpdateTable();
             int id = Integer.parseInt(tbCodigoUsuarioAgregar.getText())+1;
             tbCodigoUsuarioAgregar.setText(String.valueOf(id));
         }else{
-            System.out.println("RECORD FAILED!!!");
+            LOGGER.log(Level.WARNING, "RECORD FAILED");
         }
             
         }catch (SQLException e){
@@ -1719,13 +1652,13 @@ public class DashboardController implements Initializable {
         String tipo_emp = cbTipoUsuario.getValue();         if (cbTipoUsuario.getValue().isEmpty()){tipo_emp = "NULL";}
         String edad_emp = String.valueOf(edad);
         
-        System.out.println("RECORD RUNNING!!!");
+        LOGGER.log(Level.FINE, "RECORD RUNNING!!!");
         try{
-        System.out.println("RECORD RUNNING INSIDE!!!");
+        LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
         pst = con.prepareStatement("update usuarios set nombre=?, apellido_paterno=?, apellido_materno=?, curp=?, rfc=?, nss=?, edad=?, fecha_nacimiento=?, "
                 + "fecha_contratacion=?, email=?, genero=?, sueldo=?, metodo_pago=?, banco=?, numero_cuenta=?, periodo_pago=?, tipo_contrato=?,"
                 + " pais=?, estado=?, localidad=?, colonia=?, numero_exterior=?, ciudad=?, calle=?, codigo_postal=?, numero_interior=?, tipo_empleado=? where usuario_id='"+in+"' ");
-        System.out.println("RECORD RUNNING AFTER");
+        LOGGER.log(Level.FINE, "RECORD RUNNING AFTER");
         
         pst.setString(1, nombre);
         pst.setString(2, apellido_p);
@@ -1755,15 +1688,15 @@ public class DashboardController implements Initializable {
         pst.setString(26, numero_interior);
         pst.setString(27, tipo_emp);
         int status = pst.executeUpdate();
-        System.out.println("RECORD RUNNING POST QUERY");
+        LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
         if (status==1){
-            System.out.println("RECORD ADDED!!!");
+            LOGGER.log(Level.INFO, "RECORD ADDED");
             LimpiarPerfil();
             UpdateTable();
             int id = Integer.parseInt(tbCodigoUsuarioAgregar.getText())+1;
             tbCodigoUsuarioAgregar.setText(String.valueOf(id));
         }else{
-            System.out.println("RECORD FAILED!!!");
+            LOGGER.log(Level.WARNING, "RECORD FAILED");
         }
             
         }catch (SQLException e){
@@ -1821,13 +1754,13 @@ public class DashboardController implements Initializable {
         String tipo_emp = cbTipoUsuario.getValue();         if (cbTipoUsuario.getValue().isEmpty()){tipo_emp = "NULL";}
         String edad_emp = String.valueOf(edad);
         
-        System.out.println("RECORD RUNNING!!!");
+        LOGGER.log(Level.FINE, "RECORD RUNNING!!!");
         try{
-        System.out.println("RECORD RUNNING INSIDE!!!");
+        LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
         pst = con.prepareStatement("update usuarios set nombre=?, apellido_paterno=?, apellido_materno=?, curp=?, rfc=?, nss=?, edad=?, fecha_nacimiento=?, "
                 + "fecha_contratacion=?, email=?, genero=?, sueldo=?, metodo_pago=?, banco=?, numero_cuenta=?, periodo_pago=?, tipo_contrato=?,"
                 + " pais=?, estado=?, localidad=?, colonia=?, numero_exterior=?, ciudad=?, calle=?, codigo_postal=?, numero_interior=?, tipo_empleado=?, imagen=? where usuario_id='"+in+"' ");
-        System.out.println("RECORD RUNNING AFTER");
+        LOGGER.log(Level.FINE, "RECORD RUNNING AFTER");
         
         pst.setString(1, nombre);
         pst.setString(2, apellido_p);
@@ -1857,21 +1790,21 @@ public class DashboardController implements Initializable {
         pst.setString(26, numero_interior);
         pst.setString(27, tipo_emp);
         
-        System.out.println("UPLOADING IMAGEN "+file);
+        LOGGER.log(Level.FINE, "UPLOADING IMAGEN {0}", file);
         fis = new FileInputStream(file);
         pst.setBinaryStream(28, fis, file.length());
-        System.out.println("IMAGEN UPLOADED!!!!");
+        LOGGER.log(Level.FINE, "IMAGEN UPLOADED");
         
         int status = pst.executeUpdate();
-        System.out.println("RECORD RUNNING POST QUERY");
+        LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
         if (status==1){
-            System.out.println("RECORD ADDED!!!");
+            LOGGER.log(Level.INFO, "RECORD ADDED");
             LimpiarPerfil();
             UpdateTable();
             int id = Integer.parseInt(tbCodigoUsuarioAgregar.getText())+1;
             tbCodigoUsuarioAgregar.setText(String.valueOf(id));
         }else{
-            System.out.println("RECORD FAILED!!!");
+            LOGGER.log(Level.WARNING, "RECORD FAILED");
         }
             
         }catch (SQLException e){
@@ -1890,61 +1823,62 @@ public class DashboardController implements Initializable {
         Empleados index = tableviewEmpleados.getItems().get(tableviewEmpleados.getSelectionModel().getSelectedIndex());
         indexEmpleado = index.getEmpIdUsuario();     
         String in = Integer.toString(indexEmpleado);
-        BusquedaEmpleado busqueda = new BusquedaEmpleado() {};
-        ResultSet rs = null;
-        rs = busqueda.find(in);
-        System.out.println("Index seleccionado "+in);
-        
+        UsuarioDetalle u = UsuariosDao.findById(in);
+        LOGGER.log(Level.FINE, "Index seleccionado {0}", in);
         try{
-            if(rs.next()){
-                tbCodigoUsuarioAgregar.setText(rs.getString("usuario_id"));
-                tbNombreEmpleado.setText(rs.getString("nombre"));
-                tbAPaternoEmpleado.setText(rs.getString("apellido_paterno"));
-                tbAMaternoEmpleado.setText(rs.getString("apellido_materno"));
-                tbCurp.setText(rs.getString("curp"));
-                tbRfc.setText(rs.getString("rfc"));
-                tbNss.setText(rs.getString("nss"));
-                
-                String fecha_nacimiento = rs.getString("fecha_nacimiento");  
-                LocalDate localDate = LocalDate.parse(fecha_nacimiento);
-                tbFechaNacimiento.setValue(localDate);
-                
-                String fecha_contratacion = rs.getString("fecha_contratacion");  
-                localDate = LocalDate.parse(fecha_contratacion);
-                tbFechaContratacion.setValue(localDate);
+            if(u != null){
+                tbCodigoUsuarioAgregar.setText(u.getUsuarioId());
+                tbNombreEmpleado.setText(u.getNombre());
+                tbAPaternoEmpleado.setText(u.getApellidoPaterno());
+                tbAMaternoEmpleado.setText(u.getApellidoMaterno());
+                tbCurp.setText(u.getCurp());
+                tbRfc.setText(u.getRfc());
+                tbNss.setText(u.getNss());
 
-                tbEmailEmpleado.setText(rs.getString("email"));
-                cbGenero.setValue(rs.getString("genero"));
-                cbTipoUsuario.setValue(rs.getString("tipo_empleado"));
-                tbSueldoEmpleado.setText(rs.getString("sueldo"));
-                cbMetodoPago.setValue(rs.getString("metodo_pago"));
-                cbBanco.setValue(rs.getString("banco"));
-                tbNCuenta.setText(rs.getString("numero_cuenta"));
-                cbPeriodoPago.setValue(rs.getString("periodo_pago"));
-                cbContrato.setValue(rs.getString("tipo_contrato"));
-                
-                cbPais.setValue(rs.getString("pais"));
-                cbEstado.setValue(rs.getString("estado"));
-                tbLocalidad.setText(rs.getString("localidad"));
-                tbColonia.setText(rs.getString("colonia"));
-                tbNExterior.setText(rs.getString("numero_exterior"));
-                
-                cbCiudad.setValue(rs.getString("ciudad"));
-                tbCalle.setText(rs.getString("calle"));
-                tbCodigoPostal.setText(rs.getString("codigo_postal"));
-                tbNInterior.setText(rs.getString("numero_interior"));
+                String fecha_nacimiento = u.getFechaNacimiento();
+                if (fecha_nacimiento != null && !fecha_nacimiento.isEmpty()){
+                    LocalDate localDate = LocalDate.parse(fecha_nacimiento);
+                    tbFechaNacimiento.setValue(localDate);
+                }
+
+                String fecha_contratacion = u.getFechaContratacion();
+                if (fecha_contratacion != null && !fecha_contratacion.isEmpty()){
+                    LocalDate localDate = LocalDate.parse(fecha_contratacion);
+                    tbFechaContratacion.setValue(localDate);
+                }
+
+                tbEmailEmpleado.setText(u.getEmail());
+                cbGenero.setValue(u.getGenero());
+                cbTipoUsuario.setValue(u.getTipoEmpleado());
+                tbSueldoEmpleado.setText(u.getSueldo());
+                cbMetodoPago.setValue(u.getMetodoPago());
+                cbBanco.setValue(u.getBanco());
+                tbNCuenta.setText(u.getNumeroCuenta());
+                cbPeriodoPago.setValue(u.getPeriodoPago());
+                cbContrato.setValue(u.getTipoContrato());
+
+                cbPais.setValue(u.getPais());
+                cbEstado.setValue(u.getEstado());
+                tbLocalidad.setText(u.getLocalidad());
+                tbColonia.setText(u.getColonia());
+                tbNExterior.setText(u.getNumeroExterior());
+
+                cbCiudad.setValue(u.getCiudad());
+                tbCalle.setText(u.getCalle());
+                tbCodigoPostal.setText(u.getCodigoPostal());
+                tbNInterior.setText(u.getNumeroInterior());
             }else{
-            System.out.println("No hay informacion de domicilio ");
+            LOGGER.log(Level.FINE, "No hay informacion de domicilio");
         }   
         }catch (Exception e){
-            
+            LOGGER.log(Level.SEVERE, "Error in PerfilEmpleado", e);
         }  
     }
     
     public void updateImagenPerfil(){
-        System.out.println("CONSEGUI FUERA"+image);
+        LOGGER.log(Level.FINE, "CONSEGUI FUERA {0}", image);
         btnImagenPerfil.setImage(image);
-        System.out.println("TERMINE FUERA"+btnImagenPerfil.getImage()); 
+        LOGGER.log(Level.FINE, "TERMINE FUERA {0}", btnImagenPerfil.getImage());
     }
     
     public void LimpiarPerfil(){
@@ -1966,8 +1900,8 @@ public class DashboardController implements Initializable {
         cbPais.setValue(cbPais.getValue());
         cbEstado.setValue(cbEstado.getValue());
         fillComboBoxEstados();
-        System.out.println("PAIS SELECCIONADO "+cbPais.getValue());
-        System.out.println("PAIS SELECCIONADO "+cbEstado.getValue());
+        LOGGER.log(Level.FINE, "PAIS SELECCIONADO {0}", cbPais.getValue());
+        LOGGER.log(Level.FINE, "PAIS SELECCIONADO {0}", cbEstado.getValue());
         
     }   
     @FXML
@@ -1975,8 +1909,8 @@ public class DashboardController implements Initializable {
         cbPais.setValue(cbPais.getValue());
         cbEstado.setValue(cbEstado.getValue());
         fillComboBoxCiudades();
-        System.out.println("PAIS SELECCIONADO "+cbPais.getValue());
-        System.out.println("PAIS SELECCIONADO "+cbEstado.getValue());
+        LOGGER.log(Level.FINE, "PAIS SELECCIONADO {0}", cbPais.getValue());
+        LOGGER.log(Level.FINE, "PAIS SELECCIONADO {0}", cbEstado.getValue());
         
     }
 
@@ -1986,35 +1920,21 @@ public class DashboardController implements Initializable {
         if (cbMetodoPago.getSelectionModel().isSelected(1)){  
             cbBanco.setDisable(false);
             tbNCuenta.setDisable(false);
-            System.out.println("FALSE!!! "+cbMetodoPago.getValue());
+            LOGGER.log(Level.FINE, "FALSE!!! {0}", cbMetodoPago.getValue());
         }else{
             cbBanco.setDisable(true);
             tbNCuenta.setDisable(true);
             cbBanco.setValue(null);
             tbNCuenta.clear();
-            System.out.println("TRUE!!! "+cbMetodoPago.getValue());
+            LOGGER.log(Level.FINE, "TRUE!!! {0}", cbMetodoPago.getValue());
         }
-        System.out.println("FUERAAA "+cbMetodoPago.getValue());
+        LOGGER.log(Level.FINE, "FUERAAA {0}", cbMetodoPago.getValue());
     }
     // FIN PANTALLA EMPLEADOS
     
     // PANTALLA PRODUCCION
     
-    public class BusquedaProduccion{
-        ResultSet rs = null;
-        PreparedStatement ps = null;
-        public ResultSet find (String s){
-            try{
-                ps = con.prepareStatement("select * from produccion where id = ?");
-                ps.setString(1,s);
-                rs = ps.executeQuery();
-            } catch (Exception e){
-                
-            }
-            return rs;
-        }       
-        
-    }
+    
     
     String indexProduccionS;
     public void TableProduccionS(){
@@ -2025,66 +1945,47 @@ public class DashboardController implements Initializable {
                 indexProduccionS = index.getTcCodigoHistorial();
                 String in = indexProduccionS;
                 
-                BusquedaProduccion busqueda = new BusquedaProduccion() {};
-                ResultSet rs = null;
-                rs = busqueda.find(in);
-                System.out.println("Index seleccionado "+in);
-                
-                String date; LocalDate LocalDate = null;
+                UsuarioDetalle u = UsuariosDao.findById(in);
+                LOGGER.log(Level.FINE, "Index seleccionado {0}", in);
                 try{
-                    if(rs.next()){
-                        cbMaterialEditar.setValue(rs.getString("material"));
-                        cbCalibreEditar.setValue(rs.getString("calibre"));
-                        cbAlturaEditar.setValue(rs.getString("altura"));
-                        cbRomboEditar.setValue(rs.getString("rombos"));
-                        tbMetrosEditar.setText(rs.getString("metros"));
-                        tbCantidadProduccionEditar.setText(rs.getString("cantidad"));
-                        date = rs.getString("fecha_registro");
-                        LocalDate = LocalDate.parse(date);    
-                        tbFechaRegistroEditar.setValue(LocalDate);
-                                            
-                        
+                    if(u != null){
+                        lbHDomicilio.setText(u.getTipoEmpleado());
+                        String timestamp = u.getCreateTime();
+                        if (timestamp != null && timestamp.length() >= 10) {
+                            String año = timestamp.substring(0,4);
+                            String dia = timestamp.substring(8,10);
+                            String mes = timestamp.substring(5,7);
+                            String mesn = "mes";
+                            switch (mes){
+                                case "01": mesn = "ENERO"; break;
+                                case "02": mesn = "FEBRERO"; break;
+                                case "03": mesn = "MARZO"; break;
+                                case "04": mesn = "ABRIL"; break;
+                                case "05": mesn = "MAYO"; break;
+                                case "06": mesn = "JUNIO"; break;
+                                case "07": mesn = "JULIO"; break;
+                                case "08": mesn = "AGOSTO"; break;
+                                case "09": mesn = "SEPTIEMBRE"; break;
+                                case "10": mesn = "OCTUBRE"; break;
+                                case "11": mesn = "NOVIEMBRE"; break;
+                                case "12": mesn = "DICIEMBRE"; break;
+                            }
+                            lbHFecha.setText( dia + " DE "+ mesn +" DEL "+ año);
+                        }
+                        byte[] imgData = u.getImagen();
+                        if (imgData != null){
+                            Path tmp = Files.createTempFile("profile-", ".png");
+                            Files.write(tmp, imgData);
+                            image = new Image(tmp.toUri().toString());
+                            imgPerfil.setImage(image);
+                        } else {
+                            imgPerfil.setImage(sinperfil);
+                        }
                     }else{
-                     System.out.println("No hay informacion de domicilio ");
-                }   
-                }catch (Exception e){
-
+                     LOGGER.log(Level.FINE, "No hay informacion de domicilio");
                 }
-                
-            }
-        }
-        );
-        
-        tvSemanal.setOnMouseClicked(new EventHandler<MouseEvent>(){
-            public void handle(MouseEvent event) {
-                ProduccionSemanal index = tvSemanal.getItems().get(tvSemanal.getSelectionModel().getSelectedIndex());
-                indexProduccionS = index.getTcCodigoS();
-                String in = indexProduccionS;
-                
-                BusquedaProduccion busqueda = new BusquedaProduccion() {};
-                ResultSet rs = null;
-                rs = busqueda.find(in);
-                System.out.println("Index seleccionado "+in);
-                
-                String date; LocalDate LocalDate = null;
-                try{
-                    if(rs.next()){
-                        cbMaterialEditar.setValue(rs.getString("material"));
-                        cbCalibreEditar.setValue(rs.getString("calibre"));
-                        cbAlturaEditar.setValue(rs.getString("altura"));
-                        cbRomboEditar.setValue(rs.getString("rombos"));
-                        tbMetrosEditar.setText(rs.getString("metros"));
-                        tbCantidadProduccionEditar.setText(rs.getString("cantidad"));
-                        date = rs.getString("fecha_registro");
-                        LocalDate = LocalDate.parse(date);    
-                        tbFechaRegistroEditar.setValue(LocalDate);
-                                            
-                        
-                    }else{
-                     System.out.println("No hay informacion de domicilio ");
-                }   
                 }catch (Exception e){
-
+                    LOGGER.log(Level.SEVERE, "Error in Empleados table click handler", e);
                 }
                 
             }
@@ -2117,7 +2018,7 @@ public class DashboardController implements Initializable {
         String cantidad = tbCantidadProduccionEditar.getText(); if (tbCantidadProduccionEditar.getText().isEmpty()){cantidad = "NULL";}
         
         try{
-        System.out.println("RECORD RUNNING INSIDE!!!");
+        LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
         pst = con.prepareStatement("update produccion set material= ?, calibre=?, altura=?, rombos=?, metros=?, cantidad=?,fecha_registro=?, dia=? where id='"+id+"'");
         pst.setString(1, material);
         pst.setString(2, calibre);
@@ -2128,15 +2029,15 @@ public class DashboardController implements Initializable {
         pst.setString(7, fecha_registro);
         pst.setString(8, DiatoUpperCase);
         pst.execute();
-        System.out.println("RECORD RUNNING AFTER"); 
+        LOGGER.log(Level.FINE, "RECORD RUNNING AFTER"); 
         int status = pst.executeUpdate();
-        System.out.println("RECORD RUNNING POST QUERY");
+        LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
         if (status==1){
-            System.out.println("RECORD ADDED!!!");
+            LOGGER.log(Level.INFO, "RECORD ADDED");
             UpdateProduccionSemanal();
             UpdateHistorial();
         }else{
-            System.out.println("RECORD FAILED!!!");
+            LOGGER.log(Level.WARNING, "RECORD FAILED");
         }
         pst.close();    
         }catch (SQLException e){
@@ -2252,10 +2153,10 @@ public class DashboardController implements Initializable {
         
         
         try{
-        System.out.println("RECORD RUNNING INSIDE!!!");
+        LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
         pst = con.prepareStatement("insert into produccion (material, calibre, altura, rombos, metros, cantidad, autor_id, autor, fecha_registro, dia) "
                 + "values(?,?,?,?,?,?,?,?,?,?)");
-        System.out.println("RECORD RUNNING AFTER");
+        LOGGER.log(Level.FINE, "RECORD RUNNING AFTER");
         
         pst.setString(1, material);
         pst.setString(2, calibre);
@@ -2268,12 +2169,12 @@ public class DashboardController implements Initializable {
         pst.setString(9, fecha_registro);
         pst.setString(10, DiatoUpperCase);
         int status = pst.executeUpdate();
-        System.out.println("RECORD RUNNING POST QUERY");
+        LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
         if (status==1){
-            System.out.println("RECORD ADDED!!!");
+            LOGGER.log(Level.INFO, "RECORD ADDED");
             cleanProduccion();
         }else{
-            System.out.println("RECORD FAILED!!!");
+            LOGGER.log(Level.WARNING, "RECORD FAILED");
         }
             
         }catch (SQLException e){
@@ -2296,56 +2197,45 @@ public class DashboardController implements Initializable {
                 
                 String in = tbCodigoProduccion.getText();
                 
-                BusquedaEmpleado busqueda = new BusquedaEmpleado() {};
-                ResultSet rs = null;
-                rs = busqueda.find(in);
-                System.out.println("Index seleccionado "+in);
-                
+                UsuarioDetalle u = UsuariosDao.findById(in);
+                LOGGER.log(Level.FINE, "Index seleccionado {0}", in);
                 try{
-                    if(rs.next()){
+                    if(u != null){
                         btnEditarEmpleado2.setDisable(false);
-                        lbHCodigo2.setText(rs.getString("usuario_id"));
-                        lbHNombre2.setText(rs.getString("nombre")+" "+rs.getString("apellido_paterno")+" "+rs.getString("apellido_materno"));
-                        lbHDomicilio2.setText(rs.getString("tipo_empleado"));
-                        String timestamp = rs.getString("create_time");
-                        String año = timestamp.substring(0,4);
-                        String dia = timestamp.substring(8,10);
-                        String mes = timestamp.substring(5,7);
-                        String mesn = "mes";
-                        switch (mes){
-                            case "1": mesn = "ENERO"; break;
-                            case "2": mesn = "FEBRERO"; break;
-                            case "3": mesn = "MARZO"; break;
-                            case "4": mesn = "ABRIL"; break;
-                            case "5": mesn = "MAYO"; break;
-                            case "6": mesn = "JUNIO"; break;
-                            case "7": mesn = "JULIO"; break;
-                            case "8": mesn = "AGOSTO"; break;
-                            case "9": mesn = "SEPTIEMBRE"; break;
-                            case "10": mesn = "OCTUBRE"; break;
-                            case "11": mesn = "NOVIEMBRE"; break;
-                            case "12": mesn = "DICIEMBRE"; break;
+                        lbHCodigo2.setText(u.getUsuarioId());
+                        lbHNombre2.setText(u.getNombre() + " " + u.getApellidoPaterno() + " " + u.getApellidoMaterno());
+                        lbHDomicilio2.setText(u.getTipoEmpleado());
+                        String timestamp = u.getCreateTime();
+                        if (timestamp != null && timestamp.length() >= 10) {
+                            String año = timestamp.substring(0,4);
+                            String dia = timestamp.substring(8,10);
+                            String mes = timestamp.substring(5,7);
+                            String mesn = "mes";
+                            switch (mes){
+                                case "01": mesn = "ENERO"; break;
+                                case "02": mesn = "FEBRERO"; break;
+                                case "03": mesn = "MARZO"; break;
+                                case "04": mesn = "ABRIL"; break;
+                                case "05": mesn = "MAYO"; break;
+                                case "06": mesn = "JUNIO"; break;
+                                case "07": mesn = "JULIO"; break;
+                                case "08": mesn = "AGOSTO"; break;
+                                case "09": mesn = "SEPTIEMBRE"; break;
+                                case "10": mesn = "OCTUBRE"; break;
+                                case "11": mesn = "NOVIEMBRE"; break;
+                                case "12": mesn = "DICIEMBRE"; break;
+                            }
+                            lbHFecha2.setText( dia + " DE "+ mesn +" DEL "+ año);
                         }
-                        System.out.println("AÑO "+año);
-                        System.out.println("DIA "+dia);
-                        System.out.println("MES "+mes);
-                        lbHFecha2.setText( dia + " DE "+ mesn +" DEL "+ año);
-                        
-                        InputStream is = rs.getBinaryStream("imagen");
-                        OutputStream os = new FileOutputStream( new File("photo.png"));
-                        byte[] content = new byte[1024];
-                        int size = 0;
-                        while((size = is.read(content)) != -1){
-                            os.write(content, 0, size);
+                        byte[] imgData = u.getImagen();
+                        if (imgData != null){
+                            Path tmp = Files.createTempFile("profile-", ".png");
+                            Files.write(tmp, imgData);
+                            image = new Image(tmp.toUri().toString());
+                            imgPerfilProduccion.setImage(image);
+                        } else {
+                            imgPerfilProduccion.setImage(backup);
                         }
-                        if(is!=null){
-                        image = new Image("file:photo.png");
-                        imgPerfilProduccion.setImage(image);
-                        }else{
-                        imgPerfilProduccion.setImage(backup);
-                        }
-                        os.close();
-                        is.close();
                     }else{
                      Alert alert = new Alert(AlertType.ERROR);
                      Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
@@ -2354,10 +2244,10 @@ public class DashboardController implements Initializable {
                      alert.setHeaderText("No se encontro empleado");
                      alert.showAndWait();
                      imgPerfil.setImage(sinperfil);
-                     System.out.println("No hay informacion de domicilio ");
+                     LOGGER.log(Level.FINE, "No hay informacion de domicilio");
                 }   
                 }catch (Exception e){
-
+                    LOGGER.log(Level.SEVERE, "Error in BuscarEmpleadoProduccion", e);
                 }
 
     }
@@ -2366,57 +2256,46 @@ public class DashboardController implements Initializable {
                 
                 String in = lbHCodigo.getText();
                 
-                BusquedaEmpleado busqueda = new BusquedaEmpleado() {};
-                ResultSet rs = null;
-                rs = busqueda.find(in);
-                System.out.println("Index seleccionado "+in);
-                
+                UsuarioDetalle u = UsuariosDao.findById(in);
+                LOGGER.log(Level.FINE, "Index seleccionado {0}", in);
                 try{
-                    if(rs.next()){
+                    if(u != null){
                         btnEditarEmpleado2.setDisable(false);
-                        tbCodigoProduccion.setText(rs.getString("usuario_id"));
-                        lbHCodigo2.setText(rs.getString("usuario_id"));
-                        lbHNombre2.setText(rs.getString("nombre")+" "+rs.getString("apellido_paterno")+" "+rs.getString("apellido_materno"));
-                        lbHDomicilio2.setText(rs.getString("tipo_empleado"));
-                        String timestamp = rs.getString("create_time");
-                        String año = timestamp.substring(0,4);
-                        String dia = timestamp.substring(8,10);
-                        String mes = timestamp.substring(5,7);
-                        String mesn = "mes";
-                        switch (mes){
-                            case "1": mesn = "ENERO"; break;
-                            case "2": mesn = "FEBRERO"; break;
-                            case "3": mesn = "MARZO"; break;
-                            case "4": mesn = "ABRIL"; break;
-                            case "5": mesn = "MAYO"; break;
-                            case "6": mesn = "JUNIO"; break;
-                            case "7": mesn = "JULIO"; break;
-                            case "8": mesn = "AGOSTO"; break;
-                            case "9": mesn = "SEPTIEMBRE"; break;
-                            case "10": mesn = "OCTUBRE"; break;
-                            case "11": mesn = "NOVIEMBRE"; break;
-                            case "12": mesn = "DICIEMBRE"; break;
+                        tbCodigoProduccion.setText(u.getUsuarioId());
+                        lbHCodigo2.setText(u.getUsuarioId());
+                        lbHNombre2.setText(u.getNombre()+" "+u.getApellidoPaterno()+" "+u.getApellidoMaterno());
+                        lbHDomicilio2.setText(u.getTipoEmpleado());
+                        String timestamp = u.getCreateTime();
+                        if (timestamp != null && timestamp.length() >= 10) {
+                            String año = timestamp.substring(0,4);
+                            String dia = timestamp.substring(8,10);
+                            String mes = timestamp.substring(5,7);
+                            String mesn = "mes";
+                            switch (mes){
+                                case "01": mesn = "ENERO"; break;
+                                case "02": mesn = "FEBRERO"; break;
+                                case "03": mesn = "MARZO"; break;
+                                case "04": mesn = "ABRIL"; break;
+                                case "05": mesn = "MAYO"; break;
+                                case "06": mesn = "JUNIO"; break;
+                                case "07": mesn = "JULIO"; break;
+                                case "08": mesn = "AGOSTO"; break;
+                                case "09": mesn = "SEPTIEMBRE"; break;
+                                case "10": mesn = "OCTUBRE"; break;
+                                case "11": mesn = "NOVIEMBRE"; break;
+                                case "12": mesn = "DICIEMBRE"; break;
+                            }
+                            lbHFecha2.setText( dia + " DE "+ mesn +" DEL "+ año);
                         }
-                        System.out.println("AÑO "+año);
-                        System.out.println("DIA "+dia);
-                        System.out.println("MES "+mes);
-                        lbHFecha2.setText( dia + " DE "+ mesn +" DEL "+ año);
-                        
-                        InputStream is = rs.getBinaryStream("imagen");
-                        OutputStream os = new FileOutputStream( new File("photo.png"));
-                        byte[] content = new byte[1024];
-                        int size = 0;
-                        while((size = is.read(content)) != -1){
-                            os.write(content, 0, size);
+                        byte[] imgData = u.getImagen();
+                        if (imgData != null){
+                            Path tmp = Files.createTempFile("profile-", ".png");
+                            Files.write(tmp, imgData);
+                            image = new Image(tmp.toUri().toString());
+                            imgPerfilProduccion.setImage(image);
+                        } else {
+                            imgPerfilProduccion.setImage(backup);
                         }
-                        if(is!=null){
-                        image = new Image("file:photo.png");
-                        imgPerfilProduccion.setImage(image);
-                        }else{
-                        imgPerfilProduccion.setImage(backup);
-                        }
-                        os.close();
-                        is.close();
                     }else{
                      Alert alert = new Alert(AlertType.ERROR);
                      Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
@@ -2425,10 +2304,10 @@ public class DashboardController implements Initializable {
                      alert.setHeaderText("No se encontro empleado");
                      alert.showAndWait();
                      imgPerfil.setImage(sinperfil);
-                     System.out.println("No hay informacion de domicilio ");
+                     LOGGER.log(Level.FINE, "No hay informacion de domicilio");
                 }   
                 }catch (Exception e){
-
+                    LOGGER.log(Level.SEVERE, "Error in BuscarEmpleadoConBotonProduccion", e);
                 }
 
     }
@@ -2438,54 +2317,55 @@ public class DashboardController implements Initializable {
         btnModificarEmpleado.toFront();
         btnVolverHistorial.toFront();
         String in = lbHCodigo2.getText();
-        BusquedaEmpleado busqueda = new BusquedaEmpleado() {};
-        ResultSet rs = null;
-        rs = busqueda.find(in);
-        System.out.println("Index seleccionado "+in);
-        
+        UsuarioDetalle u = UsuariosDao.findById(in);
+        LOGGER.log(Level.FINE, "Index seleccionado {0}", in);
         try{
-            if(rs.next()){
-                tbCodigoUsuarioAgregar.setText(rs.getString("usuario_id"));
-                tbNombreEmpleado.setText(rs.getString("nombre"));
-                tbAPaternoEmpleado.setText(rs.getString("apellido_paterno"));
-                tbAMaternoEmpleado.setText(rs.getString("apellido_materno"));
-                tbCurp.setText(rs.getString("curp"));
-                tbRfc.setText(rs.getString("rfc"));
-                tbNss.setText(rs.getString("nss"));
-                
-                String fecha_nacimiento = rs.getString("fecha_nacimiento");  
-                LocalDate localDate = LocalDate.parse(fecha_nacimiento);
-                tbFechaNacimiento.setValue(localDate);
-                
-                String fecha_contratacion = rs.getString("fecha_contratacion");  
-                localDate = LocalDate.parse(fecha_contratacion);
-                tbFechaContratacion.setValue(localDate);
+            if(u != null){
+                tbCodigoUsuarioAgregar.setText(u.getUsuarioId());
+                tbNombreEmpleado.setText(u.getNombre());
+                tbAPaternoEmpleado.setText(u.getApellidoPaterno());
+                tbAMaternoEmpleado.setText(u.getApellidoMaterno());
+                tbCurp.setText(u.getCurp());
+                tbRfc.setText(u.getRfc());
+                tbNss.setText(u.getNss());
 
-                tbEmailEmpleado.setText(rs.getString("email"));
-                cbGenero.setValue(rs.getString("genero"));
-                cbTipoUsuario.setValue(rs.getString("tipo_empleado"));
-                tbSueldoEmpleado.setText(rs.getString("sueldo"));
-                cbMetodoPago.setValue(rs.getString("metodo_pago"));
-                cbBanco.setValue(rs.getString("banco"));
-                tbNCuenta.setText(rs.getString("numero_cuenta"));
-                cbPeriodoPago.setValue(rs.getString("periodo_pago"));
-                cbContrato.setValue(rs.getString("tipo_contrato"));
-                
-                cbPais.setValue(rs.getString("pais"));
-                cbEstado.setValue(rs.getString("estado"));
-                tbLocalidad.setText(rs.getString("localidad"));
-                tbColonia.setText(rs.getString("colonia"));
-                tbNExterior.setText(rs.getString("numero_exterior"));
-                
-                cbCiudad.setValue(rs.getString("ciudad"));
-                tbCalle.setText(rs.getString("calle"));
-                tbCodigoPostal.setText(rs.getString("codigo_postal"));
-                tbNInterior.setText(rs.getString("numero_interior"));
+                String fecha_nacimiento = u.getFechaNacimiento();
+                if (fecha_nacimiento != null && !fecha_nacimiento.isEmpty()){
+                    LocalDate localDate = LocalDate.parse(fecha_nacimiento);
+                    tbFechaNacimiento.setValue(localDate);
+                }
+
+                String fecha_contratacion = u.getFechaContratacion();
+                if (fecha_contratacion != null && !fecha_contratacion.isEmpty()){
+                    LocalDate localDate = LocalDate.parse(fecha_contratacion);
+                    tbFechaContratacion.setValue(localDate);
+                }
+
+                tbEmailEmpleado.setText(u.getEmail());
+                cbGenero.setValue(u.getGenero());
+                cbTipoUsuario.setValue(u.getTipoEmpleado());
+                tbSueldoEmpleado.setText(u.getSueldo());
+                cbMetodoPago.setValue(u.getMetodoPago());
+                cbBanco.setValue(u.getBanco());
+                tbNCuenta.setText(u.getNumeroCuenta());
+                cbPeriodoPago.setValue(u.getPeriodoPago());
+                cbContrato.setValue(u.getTipoContrato());
+
+                cbPais.setValue(u.getPais());
+                cbEstado.setValue(u.getEstado());
+                tbLocalidad.setText(u.getLocalidad());
+                tbColonia.setText(u.getColonia());
+                tbNExterior.setText(u.getNumeroExterior());
+
+                cbCiudad.setValue(u.getCiudad());
+                tbCalle.setText(u.getCalle());
+                tbCodigoPostal.setText(u.getCodigoPostal());
+                tbNInterior.setText(u.getNumeroInterior());
             }else{
-            System.out.println("No hay informacion de domicilio ");
+            LOGGER.log(Level.FINE, "No hay informacion de domicilio");
         }   
         }catch (Exception e){
-            
+            LOGGER.log(Level.SEVERE, "Error in PerfilEmpleadoProduccion", e);
         }  
     }
     
@@ -2500,7 +2380,7 @@ public class DashboardController implements Initializable {
         tcMetrosS.setCellValueFactory(new PropertyValueFactory<>("tcMetrosS")); 
         tcCantidadS.setCellValueFactory(new PropertyValueFactory<>("tcCantidadS"));
         
-        listSemanal = ConnectionUtil.getProduccionSemana(autor);
+        listSemanal = ProduccionDao.getProduccionSemana(autor);
         tvSemanal.setItems(listSemanal);        
     }
     
@@ -2526,7 +2406,7 @@ public class DashboardController implements Initializable {
             
             Query = "select * from produccion where autor_id = '"+autor+"' and (fecha_registro BETWEEN '"+de+"' AND '"+a+"') order by fecha_registro";
             
-            System.out.println(Query);
+            LOGGER.log(Level.FINE, Query);
             
             JRDesignQuery updateQuery = new JRDesignQuery();
             
@@ -2716,7 +2596,7 @@ public class DashboardController implements Initializable {
         tcMetrosHistorial.setCellValueFactory(new PropertyValueFactory<>("tcMetrosHistorial")); 
         tcCantidadHistorial.setCellValueFactory(new PropertyValueFactory<>("tcCantidadHistorial"));
         
-        listHistorial = ConnectionUtil.getHistorial(autor, de, a);
+        listHistorial = HistorialDao.getHistorial(autor, de, a);
         tvHistorial.setItems(listHistorial);      
     }
     
@@ -2724,32 +2604,23 @@ public class DashboardController implements Initializable {
                 
                 String in = tbCodigoHistorial.getText();
                 
-                BusquedaEmpleado busqueda = new BusquedaEmpleado() {};
-                ResultSet rs = null;
-                rs = busqueda.find(in);
-                System.out.println("Index seleccionado "+in);
-                
+                UsuarioDetalle u = UsuariosDao.findById(in);
+                LOGGER.log(Level.FINE, "Index seleccionado {0}", in);
                 try{
-                    if(rs.next()){
-                        lbHCodigoHistorial.setText(rs.getString("usuario_id"));
-                        lbHNombreHistorial.setText(rs.getString("nombre"));
-                        lbHApellidoHistorial.setText(rs.getString("apellido_paterno")+" "+rs.getString("apellido_materno"));
-                        lbHDomicilioHistorial.setText(rs.getString("tipo_empleado"));                        
-                        InputStream is = rs.getBinaryStream("imagen");
-                        OutputStream os = new FileOutputStream( new File("photo.png"));
-                        byte[] content = new byte[1024];
-                        int size = 0;
-                        while((size = is.read(content)) != -1){
-                            os.write(content, 0, size);
+                    if(u != null){
+                        lbHCodigoHistorial.setText(u.getUsuarioId());
+                        lbHNombreHistorial.setText(u.getNombre());
+                        lbHApellidoHistorial.setText(u.getApellidoPaterno()+" "+u.getApellidoMaterno());
+                        lbHDomicilioHistorial.setText(u.getTipoEmpleado());
+                        byte[] imgData = u.getImagen();
+                        if (imgData != null){
+                            Path tmp = Files.createTempFile("profile-", ".png");
+                            Files.write(tmp, imgData);
+                            image = new Image(tmp.toUri().toString());
+                            imgPerfilHistorial.setImage(image);
+                        } else {
+                            imgPerfilHistorial.setImage(backup);
                         }
-                        if(is!=null){
-                        image = new Image("file:photo.png");
-                        imgPerfilHistorial.setImage(image);
-                        }else{
-                        imgPerfilHistorial.setImage(backup);
-                        }
-                        os.close();
-                        is.close();
                     }else{
                      Alert alert = new Alert(AlertType.ERROR);
                      Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
@@ -2758,10 +2629,10 @@ public class DashboardController implements Initializable {
                      alert.setHeaderText("No se encontro empleado");
                      alert.showAndWait();
                      imgPerfilHistorial.setImage(sinperfil);
-                     System.out.println("No hay informacion de domicilio ");
+                     LOGGER.log(Level.FINE, "No hay informacion de domicilio");
                 }   
                 }catch (Exception e){
-
+                    LOGGER.log(Level.SEVERE, "Error in BuscarEmpleadoHistorial", e);
                 }
 
     }
@@ -2769,21 +2640,7 @@ public class DashboardController implements Initializable {
     // FIN PANTALLA HISTORIAL
     // PANTALLA MATERIALES
        
-    public class BusquedaMaterial{
-        ResultSet rs = null;
-        PreparedStatement ps = null;
-        public ResultSet find (String s){
-            try{
-                ps = con.prepareStatement("select * from materiales where id = ?");
-                ps.setString(1,s);
-                rs = ps.executeQuery();
-            } catch (Exception e){
-                
-            }
-            return rs;
-        }       
-        
-    }
+    
     
     int indexMaterial;
     public void TableMateriales(){
@@ -2794,20 +2651,17 @@ public class DashboardController implements Initializable {
                 indexMaterial = index.getTcCodigoMaterial();
                 String in = Integer.toString(indexMaterial);
                 
-                BusquedaMaterial busqueda = new BusquedaMaterial() {};
-                ResultSet rs = null;
-                rs = busqueda.find(in);
-                System.out.println("Index seleccionado "+in);
-                
+                controllers.Materiales mat = MaterialesDao.findById(in);
+                LOGGER.log(Level.FINE, "Index seleccionado {0}", in);
                 try{
-                    if(rs.next()){
-                        tbCodigoMaterialEditar.setText(rs.getString("id"));
-                        tbNombreMaterialEditar.setText(rs.getString("nombre"));
+                    if(mat != null){
+                        tbCodigoMaterialEditar.setText(String.valueOf(mat.getTcCodigoMaterial()));
+                        tbNombreMaterialEditar.setText(mat.getTcNombreMaterial());
                     }else{
-                     System.out.println("No hay informacion de domicilio ");
-                }   
+                        LOGGER.log(Level.FINE, "No hay informacion de material");
+                    }
                 }catch (Exception e){
-
+                    LOGGER.log(Level.SEVERE, "Error in TableMateriales handler", e);
                 }
                 
             }
@@ -2860,7 +2714,7 @@ public class DashboardController implements Initializable {
         tcCodigoMaterial.setCellValueFactory(new PropertyValueFactory<>("tcCodigoMaterial"));       
         tcNombreMaterial.setCellValueFactory(new PropertyValueFactory<>("tcNombreMaterial"));       
         
-        listMaterial = ConnectionUtil.getMateriales();
+        listMaterial = MaterialesDao.getAll();
         tvMateriales.setItems(listMaterial);        
     }
     
@@ -2870,23 +2724,23 @@ public class DashboardController implements Initializable {
         String nombre = tbNombreMaterial.getText();     if (tbNombreMaterial.getText().isEmpty()){nombre = "NULL";}
         
         try{
-        System.out.println("RECORD RUNNING INSIDE!!!");
+        LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
         pst = con.prepareStatement("insert into materiales (nombre) "
-                + "values(?)");
-        System.out.println("RECORD RUNNING AFTER");
+            + "values(?)");
+        LOGGER.log(Level.FINE, "RECORD RUNNING AFTER");
         
         pst.setString(1, nombre);      
         int status = pst.executeUpdate();
-        System.out.println("RECORD RUNNING POST QUERY");
+        LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
         if (status==1){
-            System.out.println("RECORD ADDED!!!");
+            LOGGER.log(Level.INFO, "RECORD ADDED");
             tbNombreMaterial.clear();
             UpdateMateriales();
             CodigoMaterial();
             cbMaterial.getItems().clear();
             fillComboBoxMaterial();
         }else{
-            System.out.println("RECORD FAILED!!!");
+            LOGGER.log(Level.WARNING, "RECORD FAILED");
         }
             
         }catch (SQLException e){
@@ -2901,21 +2755,21 @@ public class DashboardController implements Initializable {
         String nombre = tbNombreMaterialEditar.getText(); if (tbNombreMaterialEditar.getText().isEmpty()){nombre = "NULL";}
         
         try{
-        System.out.println("RECORD RUNNING INSIDE!!!");
+        LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
         pst = con.prepareStatement("update materiales set nombre= ? where id='"+id+"'");
         pst.setString(1, nombre);  
         pst.execute();
-        System.out.println("RECORD RUNNING AFTER"); 
+        LOGGER.log(Level.FINE, "RECORD RUNNING AFTER"); 
         int status = pst.executeUpdate();
-        System.out.println("RECORD RUNNING POST QUERY");
+        LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
         if (status==1){
-            System.out.println("RECORD ADDED!!!");
+            LOGGER.log(Level.INFO, "RECORD ADDED");
             UpdateMateriales();
             CodigoMaterial();
             cbMaterial.getItems().clear();
             fillComboBoxMaterial();
         }else{
-            System.out.println("RECORD FAILED!!!");
+            LOGGER.log(Level.WARNING, "RECORD FAILED");
         }
         pst.close();    
         }catch (SQLException e){
@@ -2925,21 +2779,7 @@ public class DashboardController implements Initializable {
     }
     
     
-    public class BusquedaAltura{
-        ResultSet rs = null;
-        PreparedStatement ps = null;
-        public ResultSet find (String s){
-            try{
-                ps = con.prepareStatement("select * from alturas where id = ?");
-                ps.setString(1,s);
-                rs = ps.executeQuery();
-            } catch (Exception e){
-                
-            }
-            return rs;
-        }       
-        
-    }
+    
     
     int indexAltura;
     public void TableAltura(){
@@ -2950,21 +2790,18 @@ public class DashboardController implements Initializable {
                 indexAltura = index.getTcCodigoAltura();
                 String in = Integer.toString(indexAltura);
                 
-                BusquedaAltura busqueda = new BusquedaAltura() {};
-                ResultSet rs = null;
-                rs = busqueda.find(in);
-                System.out.println("Index seleccionado "+in);
-                
+                controllers.Alturas a = AlturasDao.findById(in);
+                LOGGER.log(Level.FINE, "Index seleccionado {0}", in);
                 try{
-                    if(rs.next()){
-                        tbCodigoMaterialEditar2.setText(rs.getString("id"));
-                        tbNombreMaterialEditar2.setText(rs.getString("nombre"));
-                        tbMedidaMaterialEditar.setText(rs.getString("altura"));
+                    if(a != null){
+                        tbCodigoMaterialEditar2.setText(String.valueOf(a.getTcCodigoAltura()));
+                        tbNombreMaterialEditar2.setText(a.getTcNombreAltura());
+                        tbMedidaMaterialEditar.setText(a.getTcAltura());
                     }else{
-                     System.out.println("No hay informacion de domicilio ");
-                }   
+                        LOGGER.log(Level.FINE, "No hay informacion de altura");
+                    }
                 }catch (Exception e){
-
+                    LOGGER.log(Level.SEVERE, "Error in TableAltura handler", e);
                 }
                 
             }
@@ -3017,7 +2854,7 @@ public class DashboardController implements Initializable {
         tcNombreAltura.setCellValueFactory(new PropertyValueFactory<>("tcNombreAltura"));
         tcAltura.setCellValueFactory(new PropertyValueFactory<>("tcAltura"));   
         
-        listAlturas = ConnectionUtil.getAlturas();
+        listAlturas = AlturasDao.getAll();
         tvAlturas.setItems(listAlturas);        
     }
     
@@ -3027,17 +2864,17 @@ public class DashboardController implements Initializable {
         String altura = tbAltura.getText();              if (tbAltura.getText().isEmpty()){altura = "NULL";}
         
         try{
-        System.out.println("RECORD RUNNING INSIDE!!!");
+        LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
         pst = con.prepareStatement("insert into alturas (nombre, altura) "
                 + "values(?,?)");
-        System.out.println("RECORD RUNNING AFTER");
+        LOGGER.log(Level.FINE, "RECORD RUNNING AFTER");
         
         pst.setString(1, nombre);
         pst.setString(2, altura);
         int status = pst.executeUpdate();
-        System.out.println("RECORD RUNNING POST QUERY");
+        LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
         if (status==1){
-            System.out.println("RECORD ADDED!!!");
+            LOGGER.log(Level.INFO, "RECORD ADDED");
             tbNombreAltura.clear();
             tbAltura.clear();
             UpdateAlturas();
@@ -3047,7 +2884,7 @@ public class DashboardController implements Initializable {
             int id = Integer.parseInt(tbCodigoAltura.getText())+1;
             tbCodigoAltura.setText(String.valueOf(id));
         }else{
-            System.out.println("RECORD FAILED!!!");
+            LOGGER.log(Level.WARNING, "RECORD FAILED");
         }
             
         }catch (SQLException e){
@@ -3063,22 +2900,22 @@ public class DashboardController implements Initializable {
         String medida = tbMedidaMaterialEditar.getText();  if (tbMedidaMaterialEditar.getText().isEmpty()){medida = "NULL";}
         
         try{
-        System.out.println("RECORD RUNNING INSIDE!!!");
+        LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
         pst = con.prepareStatement("update alturas set nombre= ?, altura=? where id='"+id+"'");
         pst.setString(1, nombre);  
         pst.setString(2, medida);
         pst.execute();
-        System.out.println("RECORD RUNNING AFTER"); 
+        LOGGER.log(Level.FINE, "RECORD RUNNING AFTER"); 
         int status = pst.executeUpdate();
-        System.out.println("RECORD RUNNING POST QUERY");
+        LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
         if (status==1){
-            System.out.println("RECORD ADDED!!!");
+            LOGGER.log(Level.INFO, "RECORD ADDED");
             UpdateAlturas();
             CodigoAltura();
             cbAltura.getItems().clear();
             fillComboBoxAltura();
         }else{
-            System.out.println("RECORD FAILED!!!");
+            LOGGER.log(Level.WARNING, "RECORD FAILED");
         }
         pst.close();    
         }catch (SQLException e){
@@ -3087,21 +2924,7 @@ public class DashboardController implements Initializable {
     
     }
     
-    public class BusquedaCalibre{
-        ResultSet rs = null;
-        PreparedStatement ps = null;
-        public ResultSet find (String s){
-            try{
-                ps = con.prepareStatement("select * from calibres where id = ?");
-                ps.setString(1,s);
-                rs = ps.executeQuery();
-            } catch (Exception e){
-                
-            }
-            return rs;
-        }       
-        
-    }
+    
     
     int indexCalibre;
     public void TableCalibre(){
@@ -3112,21 +2935,18 @@ public class DashboardController implements Initializable {
                 indexCalibre = index.getTcCodigoCalibre();
                 String in = Integer.toString(indexCalibre);
                 
-                BusquedaCalibre busqueda = new BusquedaCalibre() {};
-                ResultSet rs = null;
-                rs = busqueda.find(in);
-                System.out.println("Index seleccionado "+in);
-                
+                controllers.Calibres c = CalibresDao.findById(in);
+                LOGGER.log(Level.FINE, "Index seleccionado {0}", in);
                 try{
-                    if(rs.next()){
-                        tbCodigoMaterialEditar2.setText(rs.getString("id"));
-                        tbNombreMaterialEditar2.setText(rs.getString("nombre"));
-                        tbMedidaMaterialEditar.setText(rs.getString("calibre"));
+                    if(c != null){
+                        tbCodigoMaterialEditar2.setText(String.valueOf(c.getTcCodigoCalibre()));
+                        tbNombreMaterialEditar2.setText(c.getTcNombreCalibre());
+                        tbMedidaMaterialEditar.setText(c.getTcCalibre());
                     }else{
-                     System.out.println("No hay informacion de domicilio ");
-                }   
+                        LOGGER.log(Level.FINE, "No hay informacion de calibre");
+                    }
                 }catch (Exception e){
-
+                    LOGGER.log(Level.SEVERE, "Error in TableCalibre handler", e);
                 }
                 
             }
@@ -3179,7 +2999,7 @@ public class DashboardController implements Initializable {
         tcNombreCalibre.setCellValueFactory(new PropertyValueFactory<>("tcNombreCalibre"));
         tcCalibre.setCellValueFactory(new PropertyValueFactory<>("tcCalibre"));   
         
-        listCalibre = ConnectionUtil.getCalibres();
+        listCalibre = CalibresDao.getAll();
         tvCalibres.setItems(listCalibre);        
     }
     
@@ -3189,17 +3009,17 @@ public class DashboardController implements Initializable {
         String calibre = tbCalibre.getText();             if (tbCalibre.getText().isEmpty()){calibre = "NULL";}
         
         try{
-        System.out.println("RECORD RUNNING INSIDE!!!");
+        LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
         pst = con.prepareStatement("insert into calibres (nombre, calibre) "
                 + "values(?,?)");
-        System.out.println("RECORD RUNNING AFTER");
+        LOGGER.log(Level.FINE, "RECORD RUNNING AFTER");
         
         pst.setString(1, nombre);
         pst.setString(2, calibre);
         int status = pst.executeUpdate();
-        System.out.println("RECORD RUNNING POST QUERY");
+        LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
         if (status==1){
-            System.out.println("RECORD ADDED!!!");
+            LOGGER.log(Level.INFO, "RECORD ADDED");
             tbNombreCalibre.clear();
             tbCalibre.clear();
             UpdateCalibres();
@@ -3209,7 +3029,7 @@ public class DashboardController implements Initializable {
             int id = Integer.parseInt(tbCodigoCalibre.getText())+1;
             tbCodigoCalibre.setText(String.valueOf(id));
         }else{
-            System.out.println("RECORD FAILED!!!");
+            LOGGER.log(Level.WARNING, "RECORD FAILED");
         }
             
         }catch (SQLException e){
@@ -3225,22 +3045,22 @@ public class DashboardController implements Initializable {
         String medida = tbMedidaMaterialEditar.getText();  if (tbMedidaMaterialEditar.getText().isEmpty()){medida = "NULL";}
         
         try{
-        System.out.println("RECORD RUNNING INSIDE!!!");
+        LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
         pst = con.prepareStatement("update calibres set nombre= ?, calibre=? where id='"+id+"'");
         pst.setString(1, nombre);  
         pst.setString(2, medida);
         pst.execute();
-        System.out.println("RECORD RUNNING AFTER"); 
+        LOGGER.log(Level.FINE, "RECORD RUNNING AFTER"); 
         int status = pst.executeUpdate();
-        System.out.println("RECORD RUNNING POST QUERY");
+        LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
         if (status==1){
-            System.out.println("RECORD ADDED!!!");
+            LOGGER.log(Level.INFO, "RECORD ADDED");
             UpdateCalibres();
             CodigoCalibres();
             cbCalibre.getItems().clear();
             fillComboBoxCalibre();
         }else{
-            System.out.println("RECORD FAILED!!!");
+            LOGGER.log(Level.WARNING, "RECORD FAILED");
         }
         pst.close();    
         }catch (SQLException e){
@@ -3249,21 +3069,7 @@ public class DashboardController implements Initializable {
     
     }
     
-    public class BusquedaRombos{
-        ResultSet rs = null;
-        PreparedStatement ps = null;
-        public ResultSet find (String s){
-            try{
-                ps = con.prepareStatement("select * from rombos where id = ?");
-                ps.setString(1,s);
-                rs = ps.executeQuery();
-            } catch (Exception e){
-                
-            }
-            return rs;
-        }       
-        
-    }
+    
     
     int indexRombo;
     public void TableRombos(){
@@ -3274,21 +3080,18 @@ public class DashboardController implements Initializable {
                 indexRombo = index.getTcCodigoRombo();
                 String in = Integer.toString(indexRombo);
                 
-                BusquedaRombos busqueda = new BusquedaRombos() {};
-                ResultSet rs = null;
-                rs = busqueda.find(in);
-                System.out.println("Index seleccionado "+in);
-                
+                controllers.Rombos r = RombosDao.findById(in);
+                LOGGER.log(Level.FINE, "Index seleccionado {0}", in);
                 try{
-                    if(rs.next()){
-                        tbCodigoMaterialEditar2.setText(rs.getString("id"));
-                        tbNombreMaterialEditar2.setText(rs.getString("nombre"));
-                        tbMedidaMaterialEditar.setText(rs.getString("rombo"));
+                    if(r != null){
+                        tbCodigoMaterialEditar2.setText(String.valueOf(r.getTcCodigoRombo()));
+                        tbNombreMaterialEditar2.setText(r.getTcNombreRombo());
+                        tbMedidaMaterialEditar.setText(r.getTcRombo());
                     }else{
-                     System.out.println("No hay informacion de domicilio ");
-                }   
+                        LOGGER.log(Level.FINE, "No hay informacion de rombo");
+                    }
                 }catch (Exception e){
-
+                    LOGGER.log(Level.SEVERE, "Error in TableRombos handler", e);
                 }
                 
             }
@@ -3355,7 +3158,7 @@ public class DashboardController implements Initializable {
         tcNombreRombo.setCellValueFactory(new PropertyValueFactory<>("tcNombreRombo"));
         tcRombo.setCellValueFactory(new PropertyValueFactory<>("tcRombo"));   
         
-        listRombo = ConnectionUtil.getRombos();
+        listRombo = RombosDao.getAll();
         tvRombos.setItems(listRombo);        
     }
     
@@ -3365,17 +3168,17 @@ public class DashboardController implements Initializable {
         String rombo = tbRombo.getText();               if (tbRombo.getText().isEmpty()){rombo = "NULL";}
         
         try{
-        System.out.println("RECORD RUNNING INSIDE!!!");
+        LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
         pst = con.prepareStatement("insert into rombos (nombre, rombo) "
                 + "values(?,?)");
-        System.out.println("RECORD RUNNING AFTER");
+        LOGGER.log(Level.FINE, "RECORD RUNNING AFTER");
         
         pst.setString(1, nombre);
         pst.setString(2, rombo);
         int status = pst.executeUpdate();
-        System.out.println("RECORD RUNNING POST QUERY");
+        LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
         if (status==1){
-            System.out.println("RECORD ADDED!!!");
+            LOGGER.log(Level.INFO, "RECORD ADDED");
             tbNombreRombo.clear();
             tbRombo.clear();
             UpdateRombos();
@@ -3385,7 +3188,7 @@ public class DashboardController implements Initializable {
             int id = Integer.parseInt(tbCodigoRombo.getText())+1;
             tbCodigoRombo.setText(String.valueOf(id));
         }else{
-            System.out.println("RECORD FAILED!!!");
+            LOGGER.log(Level.WARNING, "RECORD FAILED");
         }
             
         }catch (SQLException e){
@@ -3401,22 +3204,22 @@ public class DashboardController implements Initializable {
         String medida = tbMedidaMaterialEditar.getText();  if (tbMedidaMaterialEditar.getText().isEmpty()){medida = "NULL";}
         
         try{
-        System.out.println("RECORD RUNNING INSIDE!!!");
+        LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
         pst = con.prepareStatement("update rombos set nombre= ?, rombo=? where id='"+id+"'");
         pst.setString(1, nombre);  
         pst.setString(2, medida);
         pst.execute();
-        System.out.println("RECORD RUNNING AFTER"); 
+        LOGGER.log(Level.FINE, "RECORD RUNNING AFTER"); 
         int status = pst.executeUpdate();
-        System.out.println("RECORD RUNNING POST QUERY");
+        LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
         if (status==1){
-            System.out.println("RECORD ADDED!!!");
+            LOGGER.log(Level.INFO, "RECORD ADDED");
             UpdateRombos();
             CodigoRombos();
             cbRombo.getItems().clear();
             fillComboBoxRombo();
         }else{
-            System.out.println("RECORD FAILED!!!");
+            LOGGER.log(Level.WARNING, "RECORD FAILED");
         }
         pst.close();    
         }catch (SQLException e){
@@ -3509,7 +3312,7 @@ public class DashboardController implements Initializable {
             
             if (alert.getResult() == ButtonType.YES) {
                 
-            System.out.println( "Cerro sesión" );
+            LOGGER.log(Level.INFO, "Cerro sesión");
             
             Parent root = FXMLLoader.load(getClass().getResource("/aceros/Login.fxml"));
         
@@ -3577,8 +3380,8 @@ public class DashboardController implements Initializable {
             String nueva,repetir;
             nueva = tbContraseñaNueva.getText();
             repetir = tbContraseñaRepetir.getText();
-            System.out.println("NUEVA "+nueva);
-            System.out.println("REPETIR "+repetir);
+            LOGGER.log(Level.FINE, "NUEVA {0}", nueva);
+            LOGGER.log(Level.FINE, "REPETIR {0}", repetir);
             
             if(tbContraseñaActual.getText().isEmpty()){
                 Alert alert = new Alert(AlertType.ERROR);
@@ -3674,13 +3477,13 @@ public class DashboardController implements Initializable {
             alert.showAndWait();
             
             if (alert.getResult() == ButtonType.YES) {
-                System.out.println("CON IMAGEN");
+                LOGGER.log(Level.FINE, "CON IMAGEN");
                 AgregarEmpleadoConImagen();
                 
                 /*if(file != null){
                     
                 }else{
-                    System.out.println("SIN IMAGEN");
+                    LOGGER.log(Level.FINE, "SIN IMAGEN");
                     AgregarEmpleado();
                 }
                 */
@@ -3771,12 +3574,12 @@ public class DashboardController implements Initializable {
             if(file !=null){
                 lbPath.setText(file.getAbsolutePath());
                 image = new Image(file.toURI().toString());
-                System.out.println("ESTE ES EL ARCHIVO "+file.getAbsolutePath());
-                System.out.println("ESTE ES EL ARCHIVO "+file.getPath());
-                System.out.println("CONSEGUI DENTRO"+image);
+                LOGGER.log(Level.FINE, "ESTE ES EL ARCHIVO {0}", file.getAbsolutePath());
+                LOGGER.log(Level.FINE, "ESTE ES EL ARCHIVO {0}", file.getPath());
+                LOGGER.log(Level.FINE, "CONSEGUI DENTRO {0}", image);
                 btnSubirImagen.setText(null);
                 btnImagenPerfil.setImage(image);
-                System.out.println("TERMINE DENTRO"+btnImagenPerfil.getImage()); 
+                LOGGER.log(Level.FINE, "TERMINE DENTRO {0}", btnImagenPerfil.getImage());
                 updateImagenPerfil();
             }else{
                 file = new File("sin_perfil.png");

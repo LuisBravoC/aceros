@@ -25,6 +25,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
 import javafx.scene.Parent;
@@ -61,11 +63,16 @@ public class LoginController implements Initializable {
     private static String sesion;
     
     private static Connection con;
-    PreparedStatement preparedStatement = null;
-    ResultSet resultSet = null;
-    
-    public LoginController() throws SQLException {
-        con = ConnectionUtil.getConnection();
+
+    private static final Logger LOGGER = Logger.getLogger(LoginController.class.getName());
+
+    public LoginController() {
+        try {
+            con = ConnectionUtil.getConnection();
+        } catch (SQLException ex) {
+            LOGGER.log(Level.WARNING, "Failed to get DB connection in constructor", ex);
+            con = null;
+        }
     }
     
     double x = 0, y = 0;
@@ -113,10 +120,10 @@ public class LoginController implements Initializable {
                     new animatefx.animation.ZoomIn(root).play();
                     stage.show();
                     
-                    System.out.println("Inicio sesión");
+                    LOGGER.log(Level.INFO, "Inicio sesión");
 
                 } catch (IOException ex) {
-                    System.err.println(ex.getMessage());
+                    LOGGER.log(Level.SEVERE, "Error loading dashboard.fxml", ex);
                 }
 
             }else {
@@ -134,11 +141,11 @@ public class LoginController implements Initializable {
         if (con == null) {
             lbConLogin.setTextFill(Color.TOMATO);
             lbConLogin.setText("ERROR DE CONEXIÓN");
-            System.out.println("Error de conexion ");
+            LOGGER.log(Level.WARNING, "Error de conexion - connection is null");
         } else {
             lbConLogin.setTextFill(Color.GREEN);
             lbConLogin.setText("HAY CONEXIÓN CON EL SERVICIO");
-            System.out.println("Conexion establecida");
+            LOGGER.log(Level.INFO, "Conexion establecida");
         }
         
         tf_password.setOnKeyPressed(event -> {
@@ -159,10 +166,10 @@ public class LoginController implements Initializable {
                     new animatefx.animation.ZoomIn(root).play();
                     stage.show();
                     
-                    System.out.println("Inicio sesión");
+                    LOGGER.log(Level.INFO, "Inicio sesión");
 
                 } catch (IOException ex) {
-                    System.err.println(ex.getMessage());
+                    LOGGER.log(Level.SEVERE, "Error loading dashboard.fxml", ex);
                 }
 
             }else {
@@ -180,51 +187,43 @@ public class LoginController implements Initializable {
         String status = "Success";
         String userid = tf_userid.getText();
         String password = tf_password.getText();
-        if(userid.isEmpty() || password.isEmpty()) {
-            
+        if (userid == null || userid.isEmpty() || password == null || password.isEmpty()) {
             Alert alert = new Alert(AlertType.ERROR);
-            //Image image = new Image("/icons/LogoSmall.png");
             alert.setTitle("Uno o mas campos vacios!");
             alert.setHeaderText("Usuario o contraseña estan vacios");
             alert.setContentText("Asegurese ingresar su usuario y contraseña");
             alert.showAndWait();
-            System.out.println("Usuario o contraseña estan vacios");
+            LOGGER.log(Level.INFO, "Usuario o contraseña estan vacios");
             status = "Error";
-            
-        } else {
-            //query
-            String sql = "SELECT * FROM usuarios Where usuario_id = ? and password = ?";
-            try {
-                preparedStatement = con.prepareStatement(sql);
-                preparedStatement.setString(1, userid);
-                preparedStatement.setString(2, password);
-                resultSet = preparedStatement.executeQuery();
-                sesion = userid;
+            return status;
+        }
+
+        String sql = "SELECT * FROM usuarios Where usuario_id = ? and password = ?";
+        try (Connection connection = ConnectionUtil.getConnection();
+             PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+            preparedStatement.setString(1, userid);
+            preparedStatement.setString(2, password);
+            try (ResultSet resultSet = preparedStatement.executeQuery()) {
                 if (!resultSet.next()) {
-                    //setLblError(Color.TOMATO, "Enter Correct Email/Password");
                     status = "Error";
-                    
                     Alert alert = new Alert(AlertType.ERROR);
-                    //Image image = new Image("/icons/LogoSmall.png");
                     alert.setTitle("Datos incorrectos!");
                     alert.setHeaderText("Uno o mas datos son incorrectos");
                     alert.setContentText("El usuario o la contraseña son incorrectos, vuelva a intentarlo de nuevo");
                     alert.showAndWait();
-                    System.out.println("Datos incorrectos");
-                    
-                    System.out.println(status);
+                    LOGGER.log(Level.INFO, "Datos incorrectos for user {0}", userid);
                 } else {
-                    //setLblError(Color.GREEN, "Login Successful..Redirecting..");
+                    sesion = userid;
                 }
-            } catch (SQLException ex) {
-                System.err.println(ex.getMessage());
-                tf_userid.clear();
-                tf_password.clear();
-                status = "Exception";
             }
+        } catch (SQLException ex) {
+            LOGGER.log(Level.SEVERE, "Error during login query", ex);
+            tf_userid.clear();
+            tf_password.clear();
+            status = "Exception";
         }
-        System.out.println("Usuario: "+userid);
-        System.out.println("Contraseña: "+password);
+
+        LOGGER.log(Level.FINE, "Usuario: {0}", userid);
         return status;
     }
         
