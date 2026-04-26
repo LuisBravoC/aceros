@@ -43,6 +43,8 @@ import java.util.ResourceBundle;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import util.ImageUtils;
+import util.DateUtils;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.collections.FXCollections;
@@ -916,49 +918,13 @@ public class DashboardController implements Initializable {
 
                 String timestamp = u.getFechaNacimiento();
                 if (timestamp != null && timestamp.length() >= 10) {
-                    String año = timestamp.substring(0, 4);
-                    String dia = timestamp.substring(8, 10);
-                    String mes = timestamp.substring(5, 7);
-                    String mesn = "mes";
-                    switch (mes) {
-                        case "01": mesn = "ENERO"; break;
-                        case "02": mesn = "FEBRERO"; break;
-                        case "03": mesn = "MARZO"; break;
-                        case "04": mesn = "ABRIL"; break;
-                        case "05": mesn = "MAYO"; break;
-                        case "06": mesn = "JUNIO"; break;
-                        case "07": mesn = "JULIO"; break;
-                        case "08": mesn = "AGOSTO"; break;
-                        case "09": mesn = "SEPTIEMBRE"; break;
-                        case "10": mesn = "OCTUBRE"; break;
-                        case "11": mesn = "NOVIEMBRE"; break;
-                        case "12": mesn = "DICIEMBRE"; break;
-                    }
-                    lbHFecha.setText(dia + " DE " + mesn + " DEL " + año);
-                    lbFechaNacimiento.setText(dia + " DE " + mesn + " DE " + año);
+                    lbHFecha.setText(DateUtils.formatLongDate(timestamp, true));
+                    lbFechaNacimiento.setText(DateUtils.formatLongDate(timestamp, false));
                 }
 
                 String fechaContr = u.getFechaContratacion();
                 if (fechaContr != null && fechaContr.length() >= 10) {
-                    String año = fechaContr.substring(0, 4);
-                    String dia = fechaContr.substring(8, 10);
-                    String mes = fechaContr.substring(5, 7);
-                    String mesn = "mes";
-                    switch (mes) {
-                        case "01": mesn = "ENERO"; break;
-                        case "02": mesn = "FEBRERO"; break;
-                        case "03": mesn = "MARZO"; break;
-                        case "04": mesn = "ABRIL"; break;
-                        case "05": mesn = "MAYO"; break;
-                        case "06": mesn = "JUNIO"; break;
-                        case "07": mesn = "JULIO"; break;
-                        case "08": mesn = "AGOSTO"; break;
-                        case "09": mesn = "SEPTIEMBRE"; break;
-                        case "10": mesn = "OCTUBRE"; break;
-                        case "11": mesn = "NOVIEMBRE"; break;
-                        case "12": mesn = "DICIEMBRE"; break;
-                    }
-                    lbFechaContratacio.setText(dia + " DE " + mesn + " DE " + año);
+                    lbFechaContratacio.setText(DateUtils.formatLongDate(fechaContr, false));
                 }
 
                 lbEmailEmpleado.setText(u.getEmail());
@@ -1163,35 +1129,9 @@ public class DashboardController implements Initializable {
                         lbHDomicilio.setText(u.getTipoEmpleado());
                         String timestamp = u.getCreateTime();
                         if (timestamp != null && timestamp.length() >= 10) {
-                            String año = timestamp.substring(0,4);
-                            String dia = timestamp.substring(8,10);
-                            String mes = timestamp.substring(5,7);
-                            String mesn = "mes";
-                            switch (mes){
-                                case "01": mesn = "ENERO"; break;
-                                case "02": mesn = "FEBRERO"; break;
-                                case "03": mesn = "MARZO"; break;
-                                case "04": mesn = "ABRIL"; break;
-                                case "05": mesn = "MAYO"; break;
-                                case "06": mesn = "JUNIO"; break;
-                                case "07": mesn = "JULIO"; break;
-                                case "08": mesn = "AGOSTO"; break;
-                                case "09": mesn = "SEPTIEMBRE"; break;
-                                case "10": mesn = "OCTUBRE"; break;
-                                case "11": mesn = "NOVIEMBRE"; break;
-                                case "12": mesn = "DICIEMBRE"; break;
-                            }
-                            lbHFecha.setText( dia + " DE "+ mesn +" DEL "+ año);
+                            lbHFecha.setText(DateUtils.formatLongDate(timestamp, true));
                         }
-                        byte[] imgData = u.getImagen();
-                        if (imgData != null){
-                            Path tmp = Files.createTempFile("profile-", ".png");
-                            Files.write(tmp, imgData);
-                            image = new Image(tmp.toUri().toString());
-                            imgPerfil.setImage(image);
-                        } else {
-                            imgPerfil.setImage(backup);
-                        }
+                        imgPerfil.setImage(ImageUtils.fromBytesOrDefault(u.getImagen(), backup));
                     }else{
                      imgPerfil.setImage(sinperfil);
                      LOGGER.log(Level.FINE, "No hay informacion de domicilio");
@@ -1952,35 +1892,9 @@ public class DashboardController implements Initializable {
                         lbHDomicilio.setText(u.getTipoEmpleado());
                         String timestamp = u.getCreateTime();
                         if (timestamp != null && timestamp.length() >= 10) {
-                            String año = timestamp.substring(0,4);
-                            String dia = timestamp.substring(8,10);
-                            String mes = timestamp.substring(5,7);
-                            String mesn = "mes";
-                            switch (mes){
-                                case "01": mesn = "ENERO"; break;
-                                case "02": mesn = "FEBRERO"; break;
-                                case "03": mesn = "MARZO"; break;
-                                case "04": mesn = "ABRIL"; break;
-                                case "05": mesn = "MAYO"; break;
-                                case "06": mesn = "JUNIO"; break;
-                                case "07": mesn = "JULIO"; break;
-                                case "08": mesn = "AGOSTO"; break;
-                                case "09": mesn = "SEPTIEMBRE"; break;
-                                case "10": mesn = "OCTUBRE"; break;
-                                case "11": mesn = "NOVIEMBRE"; break;
-                                case "12": mesn = "DICIEMBRE"; break;
-                            }
-                            lbHFecha.setText( dia + " DE "+ mesn +" DEL "+ año);
+                            lbHFecha.setText(DateUtils.formatLongDate(timestamp, true));
                         }
-                        byte[] imgData = u.getImagen();
-                        if (imgData != null){
-                            Path tmp = Files.createTempFile("profile-", ".png");
-                            Files.write(tmp, imgData);
-                            image = new Image(tmp.toUri().toString());
-                            imgPerfil.setImage(image);
-                        } else {
-                            imgPerfil.setImage(sinperfil);
-                        }
+                        imgPerfil.setImage(ImageUtils.fromBytesOrDefault(u.getImagen(), sinperfil));
                     }else{
                      LOGGER.log(Level.FINE, "No hay informacion de domicilio");
                 }
@@ -2207,35 +2121,9 @@ public class DashboardController implements Initializable {
                         lbHDomicilio2.setText(u.getTipoEmpleado());
                         String timestamp = u.getCreateTime();
                         if (timestamp != null && timestamp.length() >= 10) {
-                            String año = timestamp.substring(0,4);
-                            String dia = timestamp.substring(8,10);
-                            String mes = timestamp.substring(5,7);
-                            String mesn = "mes";
-                            switch (mes){
-                                case "01": mesn = "ENERO"; break;
-                                case "02": mesn = "FEBRERO"; break;
-                                case "03": mesn = "MARZO"; break;
-                                case "04": mesn = "ABRIL"; break;
-                                case "05": mesn = "MAYO"; break;
-                                case "06": mesn = "JUNIO"; break;
-                                case "07": mesn = "JULIO"; break;
-                                case "08": mesn = "AGOSTO"; break;
-                                case "09": mesn = "SEPTIEMBRE"; break;
-                                case "10": mesn = "OCTUBRE"; break;
-                                case "11": mesn = "NOVIEMBRE"; break;
-                                case "12": mesn = "DICIEMBRE"; break;
-                            }
-                            lbHFecha2.setText( dia + " DE "+ mesn +" DEL "+ año);
+                            lbHFecha2.setText(DateUtils.formatLongDate(timestamp, true));
                         }
-                        byte[] imgData = u.getImagen();
-                        if (imgData != null){
-                            Path tmp = Files.createTempFile("profile-", ".png");
-                            Files.write(tmp, imgData);
-                            image = new Image(tmp.toUri().toString());
-                            imgPerfilProduccion.setImage(image);
-                        } else {
-                            imgPerfilProduccion.setImage(backup);
-                        }
+                        imgPerfilProduccion.setImage(ImageUtils.fromBytesOrDefault(u.getImagen(), backup));
                     }else{
                      Alert alert = new Alert(AlertType.ERROR);
                      Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
@@ -2267,35 +2155,9 @@ public class DashboardController implements Initializable {
                         lbHDomicilio2.setText(u.getTipoEmpleado());
                         String timestamp = u.getCreateTime();
                         if (timestamp != null && timestamp.length() >= 10) {
-                            String año = timestamp.substring(0,4);
-                            String dia = timestamp.substring(8,10);
-                            String mes = timestamp.substring(5,7);
-                            String mesn = "mes";
-                            switch (mes){
-                                case "01": mesn = "ENERO"; break;
-                                case "02": mesn = "FEBRERO"; break;
-                                case "03": mesn = "MARZO"; break;
-                                case "04": mesn = "ABRIL"; break;
-                                case "05": mesn = "MAYO"; break;
-                                case "06": mesn = "JUNIO"; break;
-                                case "07": mesn = "JULIO"; break;
-                                case "08": mesn = "AGOSTO"; break;
-                                case "09": mesn = "SEPTIEMBRE"; break;
-                                case "10": mesn = "OCTUBRE"; break;
-                                case "11": mesn = "NOVIEMBRE"; break;
-                                case "12": mesn = "DICIEMBRE"; break;
-                            }
-                            lbHFecha2.setText( dia + " DE "+ mesn +" DEL "+ año);
+                            lbHFecha2.setText(DateUtils.formatLongDate(timestamp, true));
                         }
-                        byte[] imgData = u.getImagen();
-                        if (imgData != null){
-                            Path tmp = Files.createTempFile("profile-", ".png");
-                            Files.write(tmp, imgData);
-                            image = new Image(tmp.toUri().toString());
-                            imgPerfilProduccion.setImage(image);
-                        } else {
-                            imgPerfilProduccion.setImage(backup);
-                        }
+                        imgPerfilProduccion.setImage(ImageUtils.fromBytesOrDefault(u.getImagen(), backup));
                     }else{
                      Alert alert = new Alert(AlertType.ERROR);
                      Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
@@ -2612,15 +2474,7 @@ public class DashboardController implements Initializable {
                         lbHNombreHistorial.setText(u.getNombre());
                         lbHApellidoHistorial.setText(u.getApellidoPaterno()+" "+u.getApellidoMaterno());
                         lbHDomicilioHistorial.setText(u.getTipoEmpleado());
-                        byte[] imgData = u.getImagen();
-                        if (imgData != null){
-                            Path tmp = Files.createTempFile("profile-", ".png");
-                            Files.write(tmp, imgData);
-                            image = new Image(tmp.toUri().toString());
-                            imgPerfilHistorial.setImage(image);
-                        } else {
-                            imgPerfilHistorial.setImage(backup);
-                        }
+                        imgPerfilHistorial.setImage(ImageUtils.fromBytesOrDefault(u.getImagen(), backup));
                     }else{
                      Alert alert = new Alert(AlertType.ERROR);
                      Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
