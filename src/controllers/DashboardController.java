@@ -40,6 +40,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.Calendar;
 import java.util.Locale;
 import java.util.ResourceBundle;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -1816,7 +1818,7 @@ public class DashboardController implements Initializable {
     public void TableProduccionS(){
         tvHistorial.setOnMouseClicked(new EventHandler<MouseEvent>(){
             public void handle(MouseEvent event) {
-                Historial index = tvHistorial.getItems().get(tvHistorial.getSelectionModel().getSelectedIndex());
+                Historial index = tvHistorial.getSelectionModel().getSelectedItem();
                 if (index == null) return;
                 indexProduccionS = index.getTcCodigoHistorial();
                 String id = indexProduccionS;
@@ -2251,11 +2253,15 @@ public class DashboardController implements Initializable {
 
             JasperDesign jdesign = JRXmlLoader.load(reportStream);
 
-            String Query = "select * from produccion where autor_id = '" + autor + "'";
+            // Build query that includes an `autor` column expected by the JRXML
+                    String Query = "select p.id, p.fecha_registro, p.material, p.calibre, p.altura, p.rombos, p.metros, p.cantidad, p.dia, p.autor_id, "
+                        + "concat(u.nombre, ' ', u.apellido_paterno, ' ', u.apellido_materno) as autor "
+                    + "from produccion p left join usuarios u on p.autor_id = u.usuario_id "
+                    + "where p.autor_id = '" + autor + "'";
             if (!de.isEmpty() && !a.isEmpty()) {
-                Query += " and (fecha_registro BETWEEN '" + de + "' AND '" + a + "')";
+                Query += " and (p.fecha_registro BETWEEN '" + de + "' AND '" + a + "')";
             }
-            Query += " order by fecha_registro";
+            Query += " order by p.fecha_registro";
 
             LOGGER.log(Level.FINE, Query);
 
@@ -2264,8 +2270,16 @@ public class DashboardController implements Initializable {
             jdesign.setQuery(updateQuery);
 
             JasperReport jreport = JasperCompileManager.compileReport(jdesign);
-            JasperPrint jprint = JasperFillManager.fillReport(jreport, null, con);
-            JasperViewer.viewReport(jprint, false);
+            try (InputStream logoStream = DashboardController.class.getResourceAsStream("/icons/LogoInicio.png")) {
+                Map<String, Object> params = new HashMap<>();
+                if (logoStream != null) {
+                    params.put("LOGO", logoStream);
+                } else {
+                    LOGGER.log(Level.WARNING, "Logo resource '/icons/LogoInicio.png' not found on classpath");
+                }
+                JasperPrint jprint = JasperFillManager.fillReport(jreport, params, con);
+                JasperViewer.viewReport(jprint, false);
+            }
 
         } catch (JRException ex) {
             LOGGER.log(Level.SEVERE, "Error in ImprimirReporte", ex);

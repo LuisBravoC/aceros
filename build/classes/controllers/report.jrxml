@@ -4,6 +4,7 @@
 	<property name="ireport.x" value="0"/>
 	<property name="ireport.y" value="0"/>
 	<style name="Heading 1" fontSize="16" isBold="true"/>
+	<parameter name="LOGO" class="java.io.InputStream"/>
 	<queryString language="SQL">
 		<![CDATA[SELECT
 *
@@ -59,7 +60,7 @@ ORDER BY
 			</staticText>
 			<image>
 				<reportElement x="2" y="0" width="248" height="79" uuid="1e8a50f9-3073-4aa3-a89f-4a0a26d87895"/>
-				<imageExpression><![CDATA["D:\\Documentos\\Luis Bravo\\Semestre 3\\Tareas\\Ingenieria de Software\\ProyectoAcero\\Recursos\\LOGO.png"]]></imageExpression>
+				<imageExpression><![CDATA[$P{LOGO}]]></imageExpression>
 			</image>
 		</band>
 	</title>
