@@ -1814,34 +1814,62 @@ public class DashboardController implements Initializable {
     
     String indexProduccionS;
     public void TableProduccionS(){
-        
         tvHistorial.setOnMouseClicked(new EventHandler<MouseEvent>(){
             public void handle(MouseEvent event) {
                 Historial index = tvHistorial.getItems().get(tvHistorial.getSelectionModel().getSelectedIndex());
+                if (index == null) return;
                 indexProduccionS = index.getTcCodigoHistorial();
-                String in = indexProduccionS;
-                
-                UsuarioDetalle u = UsuariosDao.findById(in);
-                LOGGER.log(Level.FINE, "Index seleccionado {0}", in);
-                try{
-                    if(u != null){
-                        lbHDomicilio.setText(u.getTipoEmpleado());
-                        String timestamp = u.getCreateTime();
-                        if (timestamp != null && timestamp.length() >= 10) {
-                            lbHFecha.setText(DateUtils.formatLongDate(timestamp, true));
+                String id = indexProduccionS;
+                LOGGER.log(Level.FINE, "Historial fila seleccionada id={0}", id);
+                try {
+                    // Rellenar los campos de edición con los valores de la fila seleccionada
+                    cbMaterialEditar.setValue(index.getTcMaterialHistorial());
+                    cbCalibreEditar.setValue(index.getTcCalibreHistorial());
+                    cbAlturaEditar.setValue(index.getTcAlturaHistorial());
+                    cbRomboEditar.setValue(index.getTcRomboHistorial());
+                    tbMetrosEditar.setText(index.getTcMetrosHistorial());
+                    tbCantidadProduccionEditar.setText(index.getTcCantidadHistorial());
+
+                    // Intentar parsear la fecha (se espera ISO yyyy-MM-dd)
+                    String fechaStr = index.getTcDiaHistorial();
+                    if (fechaStr != null && !fechaStr.trim().isEmpty()) {
+                        try {
+                            LocalDate fecha = LocalDate.parse(fechaStr);
+                            tbFechaRegistroEditar.setValue(fecha);
+                        } catch (Exception pe) {
+                            LOGGER.log(Level.FINE, "No se pudo parsear fecha para edición: {0}", fechaStr);
+                            tbFechaRegistroEditar.setValue(null);
                         }
-                        imgPerfil.setImage(ImageUtils.fromBytesOrDefault(u.getImagen(), sinperfil));
-                    }else{
-                     LOGGER.log(Level.FINE, "No hay informacion de domicilio");
+                    } else {
+                        tbFechaRegistroEditar.setValue(null);
+                    }
+
+                    // Actualizar perfil mostrado en la sección Producción/Historial usando el id de empleado actual
+                    String usuarioId = tbCodigoHistorial.getText();
+                    if (usuarioId != null && !usuarioId.trim().isEmpty()) {
+                        try {
+                            UsuarioDetalle u = UsuariosDao.findById(usuarioId);
+                            if (u != null) {
+                                lbHDomicilio.setText(u.getTipoEmpleado());
+                                String timestamp = u.getCreateTime();
+                                if (timestamp != null && timestamp.length() >= 10) {
+                                    lbHFecha.setText(DateUtils.formatLongDate(timestamp, true));
+                                }
+                                imgPerfil.setImage(ImageUtils.fromBytesOrDefault(u.getImagen(), sinperfil));
+                            } else {
+                                imgPerfil.setImage(sinperfil);
+                            }
+                        } catch (Exception e) {
+                            LOGGER.log(Level.SEVERE, "Error al cargar perfil en selección de Historial", e);
+                        }
+                    }
+                } catch (Exception e) {
+                    LOGGER.log(Level.SEVERE, "Error in Historial table click handler", e);
                 }
-                }catch (Exception e){
-                    LOGGER.log(Level.SEVERE, "Error in Empleados table click handler", e);
-                }
-                
+
             }
-        }
-        );
-        
+        });
+
     }
     
     public void ModificarProduccion(){
@@ -1867,31 +1895,35 @@ public class DashboardController implements Initializable {
         String metros = tbMetrosEditar.getText();           if (tbMetrosEditar.getText().isEmpty()){metros = "NULL";}
         String cantidad = tbCantidadProduccionEditar.getText(); if (tbCantidadProduccionEditar.getText().isEmpty()){cantidad = "NULL";}
         
-        try{
-        LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
-        pst = con.prepareStatement("update produccion set material= ?, calibre=?, altura=?, rombos=?, metros=?, cantidad=?,fecha_registro=?, dia=? where id='"+id+"'");
-        pst.setString(1, material);
-        pst.setString(2, calibre);
-        pst.setString(3, altura);
-        pst.setString(4, rombo);
-        pst.setString(5, metros);
-        pst.setString(6, cantidad);
-        pst.setString(7, fecha_registro);
-        pst.setString(8, DiatoUpperCase);
-        pst.execute();
-        LOGGER.log(Level.FINE, "RECORD RUNNING AFTER"); 
-        int status = pst.executeUpdate();
-        LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
-        if (status==1){
-            LOGGER.log(Level.INFO, "RECORD ADDED");
-            UpdateProduccionSemanal();
-            UpdateHistorial();
-        }else{
-            LOGGER.log(Level.WARNING, "RECORD FAILED");
+        if (id == null || id.trim().isEmpty()) {
+            LOGGER.log(Level.WARNING, "No hay registro seleccionado para modificar produccion (id nulo)");
+            return;
         }
-        pst.close();    
-        }catch (SQLException e){
-            
+
+        String sql = "update produccion set material= ?, calibre=?, altura=?, rombos=?, metros=?, cantidad=?, fecha_registro=?, dia=? where id=?";
+        LOGGER.log(Level.FINE, "RECORD RUNNING: {0}", sql);
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, material);
+            ps.setString(2, calibre);
+            ps.setString(3, altura);
+            ps.setString(4, rombo);
+            ps.setString(5, metros);
+            ps.setString(6, cantidad);
+            ps.setString(7, fecha_registro);
+            ps.setString(8, DiatoUpperCase);
+            ps.setString(9, id);
+
+            int status = ps.executeUpdate();
+            LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY, updated={0}", status);
+            if (status == 1) {
+                LOGGER.log(Level.INFO, "RECORD UPDATED (produccion id={0})", id);
+                UpdateProduccionSemanal();
+                UpdateHistorial();
+            } else {
+                LOGGER.log(Level.WARNING, "RECORD FAILED to update produccion id={0} (updated={1})", new Object[]{id, status});
+            }
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "SQL error in ModificarProduccion for id=" + id, e);
         }
     
     }
@@ -1977,7 +2009,7 @@ public class DashboardController implements Initializable {
         
     }
     public void AgregarProduccion(){
-        
+        System.out.println("AGREGAR PRODUCCION BOTON PRESSED");
         LocalDate fecha, day;
         if(tbFechaRegistro.getValue() == null){
             fecha = LocalDate.now();
@@ -1990,45 +2022,55 @@ public class DashboardController implements Initializable {
         DateTimeFormatter format = DateTimeFormatter.ofPattern("EEEE", Locale.getDefault());
         String dia = day.format(format);
         String DiatoUpperCase = dia.toUpperCase();
+        String material = cbMaterial.getValue();
+        if (material == null || material.isEmpty()) material = "NULL";
+        String calibre = cbCalibre.getValue();
+        if (calibre == null || calibre.isEmpty()) calibre = "NULL";
+        String altura = cbAltura.getValue();
+        if (altura == null || altura.isEmpty()) altura = "NULL";
+        String rombos = cbRombo.getValue();
+        if (rombos == null || rombos.isEmpty()) rombos = "NULL";
+        String metros = tbMetros.getText();
+        if (metros == null || metros.isEmpty()) metros = "NULL";
+        String cantidad = tbCantidadProduccion.getText();
+        if (cantidad == null || cantidad.isEmpty()) cantidad = "NULL";
+        String autorid = lbHCodigo2.getText();
+        if (autorid == null || autorid.isEmpty()) autorid = "NULL";
+        String autor = lbHNombre2.getText();
+        if (autor == null || autor.isEmpty()) autor = "NULL";
         
-        String material = cbMaterial.getValue();         if (cbMaterial.getValue().isEmpty()){material = "NULL";}
-        String calibre = cbCalibre.getValue();           if (cbCalibre.getValue().isEmpty()){calibre = "NULL";}
-        String altura = cbAltura.getValue();             if (cbAltura.getValue().isEmpty()){altura = "NULL";}
-        String rombos = cbRombo.getValue();              if (cbRombo.getValue().isEmpty()){rombos = "NULL";}
-        String metros = tbMetros.getText();              if (tbMetros.getText().isEmpty()){metros = "NULL";}
-        String cantidad = tbCantidadProduccion.getText();if (tbCantidadProduccion.getText().isEmpty()){cantidad = "NULL";}
-        String autorid = lbHCodigo2.getText();           if (lbHCodigo2.getText().isEmpty()){autorid = "NULL";}
-        String autor = lbHNombre2.getText();             if (lbHNombre2.getText().isEmpty()){autor = "NULL";}
         
         
-        
-        try{
-        LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
-        pst = con.prepareStatement("insert into produccion (material, calibre, altura, rombos, metros, cantidad, autor_id, autor, fecha_registro, dia) "
-                + "values(?,?,?,?,?,?,?,?,?,?)");
-        LOGGER.log(Level.FINE, "RECORD RUNNING AFTER");
-        
-        pst.setString(1, material);
-        pst.setString(2, calibre);
-        pst.setString(3, altura);
-        pst.setString(4, rombos);
-        pst.setString(5, metros);
-        pst.setString(6, cantidad);
-        pst.setString(7, autorid);
-        pst.setString(8, autor);
-        pst.setString(9, fecha_registro);
-        pst.setString(10, DiatoUpperCase);
-        int status = pst.executeUpdate();
-        LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
-        if (status==1){
-            LOGGER.log(Level.INFO, "RECORD ADDED");
-            cleanProduccion();
-        }else{
-            LOGGER.log(Level.WARNING, "RECORD FAILED");
-        }
-            
-        }catch (SQLException e){
-            
+        String sql = "insert into produccion (material, calibre, altura, rombos, metros, cantidad, autor_id, fecha_registro, dia) values(?,?,?,?,?,?,?,?,?)";
+        LOGGER.log(Level.FINE, "Preparing insert: {0}", sql);
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, material);
+            ps.setString(2, calibre);
+            ps.setString(3, altura);
+            ps.setString(4, rombos);
+            ps.setString(5, metros);
+            ps.setString(6, cantidad);
+            ps.setString(7, autorid);
+            ps.setString(8, fecha_registro);
+            ps.setString(9, DiatoUpperCase);
+
+            int status = ps.executeUpdate();
+            LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY, updated={0}", status);
+            if (status == 1) {
+                LOGGER.log(Level.INFO, "RECORD ADDED");
+                cleanProduccion();
+            } else {
+                LOGGER.log(Level.WARNING, "RECORD FAILED to insert, updated={0}", status);
+            }
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "SQL error inserting produccion", e);
+            Alert alert = new Alert(AlertType.ERROR);
+            alert.setTitle("Error al guardar");
+            alert.setHeaderText("No se pudo guardar la producción");
+            alert.setContentText(e.getMessage());
+            Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
+            stage.getIcons().add(new Image("icons/IconBlanco.png"));
+            alert.showAndWait();
         }
     
     }
@@ -2186,40 +2228,56 @@ public class DashboardController implements Initializable {
     // PANTALLA HISTORIAL
     
     public void ImprimirReporte(){        
-        
-        PreparedStatement ps = null;
-        
-        LocalDate fechaDe, fechaA;
-        fechaDe = tbFechaDe.getValue();        
-        fechaA = tbFechaA.getValue();
+        LocalDate fechaDe = tbFechaDe.getValue();
+        LocalDate fechaA = tbFechaA.getValue();
 
         String autor = tbCodigoHistorial.getText();
-        String de = fechaDe.toString();
-        String a = fechaA.toString();
-        
-        try {
-            JasperDesign jdesign = JRXmlLoader.load("D:\\Documentos\\Luis Bravo\\Semestre 4\\Ingenieria de Software II\\App\\aceros-y-trefilados\\src\\controllers\\report.jrxml");
-           
-            String Query;
-            
-            Query = "select * from produccion where autor_id = '"+autor+"' and (fecha_registro BETWEEN '"+de+"' AND '"+a+"') order by fecha_registro";
-            
+        String de = fechaDe != null ? fechaDe.toString() : "";
+        String a = fechaA != null ? fechaA.toString() : "";
+
+        // Load report template from classpath resources (safer than absolute paths)
+        try (InputStream reportStream = DashboardController.class.getResourceAsStream("/controllers/report.jrxml")) {
+            if (reportStream == null) {
+                LOGGER.log(Level.SEVERE, "report.jrxml not found on classpath /controllers/report.jrxml");
+                Alert alert = new Alert(AlertType.ERROR);
+                alert.setTitle("Plantilla de reporte no encontrada");
+                alert.setHeaderText("Falta archivo report.jrxml");
+                alert.setContentText("No se pudo localizar la plantilla de reporte. Asegúrese de que 'report.jrxml' esté en 'src/controllers' y que se incluya en el classpath.");
+                Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
+                stage.getIcons().add(new Image("icons/IconBlanco.png"));
+                alert.showAndWait();
+                return;
+            }
+
+            JasperDesign jdesign = JRXmlLoader.load(reportStream);
+
+            String Query = "select * from produccion where autor_id = '" + autor + "'";
+            if (!de.isEmpty() && !a.isEmpty()) {
+                Query += " and (fecha_registro BETWEEN '" + de + "' AND '" + a + "')";
+            }
+            Query += " order by fecha_registro";
+
             LOGGER.log(Level.FINE, Query);
-            
+
             JRDesignQuery updateQuery = new JRDesignQuery();
-            
             updateQuery.setText(Query);
-            
             jdesign.setQuery(updateQuery);
-            
+
             JasperReport jreport = JasperCompileManager.compileReport(jdesign);
-            
             JasperPrint jprint = JasperFillManager.fillReport(jreport, null, con);
-            
             JasperViewer.viewReport(jprint, false);
-            
+
         } catch (JRException ex) {
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
+            LOGGER.log(Level.SEVERE, "Error in ImprimirReporte", ex);
+            Alert alert = new Alert(AlertType.ERROR);
+            alert.setTitle("Error al generar reporte");
+            alert.setHeaderText("Error al compilar/llenar el reporte");
+            alert.setContentText(ex.getMessage());
+            Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
+            stage.getIcons().add(new Image("icons/IconBlanco.png"));
+            alert.showAndWait();
+        } catch (Exception ex) {
+            LOGGER.log(Level.SEVERE, "Unexpected error in ImprimirReporte", ex);
         }
         
     }
