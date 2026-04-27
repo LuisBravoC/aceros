@@ -1164,127 +1164,31 @@ public class DashboardController implements Initializable {
     
     // AGREGAR EMPLEADO
     public void AgregarEmpleado(){
-        
-        int edad; LocalDate fecha, fecha_con;
-        if(tbFechaNacimiento.getValue() == null){
-            edad = 0; fecha = LocalDate.now();
-        }else { 
-        fecha = tbFechaNacimiento.getValue();
-        LocalDate date = LocalDate.now();
-        edad = Period.between(tbFechaNacimiento.getValue(), date).getYears();   
-        }
-        
-        if(tbFechaContratacion.getValue() == null){
-            fecha_con = LocalDate.now();
-        }else { 
-        fecha_con = tbFechaContratacion.getValue();
-        }
-        String fecha_nacimiento = fecha.toString();
-        String fecha_contratacion = fecha_con.toString();
-        
-        String nombre = tbNombreEmpleado.getText();         if (tbNombreEmpleado.getText().isEmpty()){nombre = "NULL";}
-        String apellido_p = tbAPaternoEmpleado.getText();   if (tbAPaternoEmpleado.getText().isEmpty()){apellido_p = "NULL";}
-        String apellido_m = tbAMaternoEmpleado.getText();   if (tbAMaternoEmpleado.getText().isEmpty()){apellido_m = "NULL";}
-        String curp = tbCurp.getText();                     if (tbCurp.getText().isEmpty()){curp = "NULL";}
-        String rfc = tbRfc.getText();                       if (tbRfc.getText().isEmpty()){rfc = "NULL";}
-        String nss = tbNss.getText();                       if (tbNss.getText().isEmpty()){nss = "NULL";}
-        String email = tbEmailEmpleado.getText();           if (tbEmailEmpleado.getText().isEmpty()){email = "NULL";}
-        String genero = cbGenero.getValue();                if (cbGenero.getValue() == null){genero = "NULL";}
-        String sueldo = tbSueldoEmpleado.getText();         if (tbSueldoEmpleado.getText().isEmpty()){sueldo = "0";}
-        String metodo_pago = cbMetodoPago.getValue();       if (cbMetodoPago.getValue() == null){metodo_pago = "NULL";}
-        String banco = cbBanco.getValue();                  if (cbBanco.getValue() == null){banco = "NULL";}
-        String numero_cuenta = tbNCuenta.getText();         if (tbNCuenta.getText().isEmpty()){numero_cuenta = "NULL";}
-        String periodo_pago = cbPeriodoPago.getValue();     if (cbPeriodoPago.getValue() == null){periodo_pago = "NULL";}
-        String tipo_contrato = cbContrato.getValue();       if (cbContrato.getValue() == null){tipo_contrato = "NULL";}
-        String pais = cbPais.getValue();                    if (cbPais.getValue() == null){pais = "NULL";}
-        String estado = cbEstado.getValue();                if (cbEstado.getValue() == null){estado = "NULL";}
-        String localidad = tbLocalidad.getText();           if (tbLocalidad.getText().isEmpty()){localidad = "NULL";}
-        String colonia = tbColonia.getText();               if (tbColonia.getText().isEmpty()){colonia = "NULL";}
-        String numero_exterior = tbNExterior.getText();     if (tbNExterior.getText().isEmpty()){numero_exterior = "NULL";}
-        String ciudad = cbCiudad.getValue();                if (cbCiudad.getValue() == null){ciudad = "NULL";}
-        String calle = tbCalle.getText();                   if (tbCalle.getText().isEmpty()){calle = "NULL";}
-        String codigo_postal = tbCodigoPostal.getText();    if (tbCodigoPostal.getText().isEmpty()){codigo_postal = "NULL";}
-        String numero_interior = tbNInterior.getText();     if (tbNInterior.getText().isEmpty()){numero_interior = "NULL";}
-        String tipo_emp = cbTipoUsuario.getValue();
-        if (tipo_emp == null || tipo_emp.isEmpty()) { tipo_emp = "NULL"; }
-        String edad_emp = String.valueOf(edad);
-        String password = tbCodigoUsuarioAgregar.getText();
-        
-        LOGGER.log(Level.FINE, "RECORD RUNNING!!!");
-        try{
-        LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
-        pst = con.prepareStatement("insert into usuarios (nombre, apellido_paterno, apellido_materno, curp, rfc, nss, edad, fecha_nacimiento, fecha_contratacion, "
-                + "email, genero, password, sueldo, metodo_pago, banco, numero_cuenta, periodo_pago, tipo_contrato, pais, estado, localidad, colonia, numero_exterior, ciudad, "
-                + "calle, codigo_postal, numero_interior, tipo_empleado) "
-                + "values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
-        LOGGER.log(Level.FINE, "RECORD RUNNING AFTER");
-        
-        pst.setString(1, nombre);
-        pst.setString(2, apellido_p);
-        pst.setString(3, apellido_m);
-        pst.setString(4, curp);
-        pst.setString(5, rfc);
-        pst.setString(6, nss);
-        pst.setString(7, edad_emp);
-        pst.setString(8, fecha_nacimiento);
-        pst.setString(9, fecha_contratacion);
-        pst.setString(10, email);
-        pst.setString(11, genero);
-        pst.setString(12, password);
-        pst.setString(13, sueldo);
-        pst.setString(14, metodo_pago);
-        pst.setString(15, banco);
-        pst.setString(16, numero_cuenta);
-        pst.setString(17, periodo_pago);
-        pst.setString(18, tipo_contrato);
-        pst.setString(19, pais);
-        pst.setString(20, estado);
-        pst.setString(21, localidad);
-        pst.setString(22, colonia);
-        pst.setString(23, numero_exterior);
-        pst.setString(24, ciudad);
-        pst.setString(25, calle);
-        pst.setString(26, codigo_postal);
-        pst.setString(27, numero_interior);
-        pst.setString(28, tipo_emp);
-        
-        int status = pst.executeUpdate();
-        LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
-        if (status==1){
-            LOGGER.log(Level.INFO, "RECORD ADDED");
-            LimpiarPerfil();
-            UpdateTable();
-            int id = Integer.parseInt(tbCodigoUsuarioAgregar.getText())+1;
-            tbCodigoUsuarioAgregar.setText(String.valueOf(id));
-        }else{
-            LOGGER.log(Level.WARNING, "RECORD FAILED");
-        }
-            
-        }catch (SQLException e){
-            
-        }
-        
+        addEmpleadoInternal(false);
     }
-    
+
     public void AgregarEmpleadoConImagen(){
-        
+        addEmpleadoInternal(true);
+    }
+
+    private void addEmpleadoInternal(boolean withImage){
         int edad; LocalDate fecha, fecha_con;
         if(tbFechaNacimiento.getValue() == null){
             edad = 0; fecha = LocalDate.now();
-        }else { 
-        fecha = tbFechaNacimiento.getValue();
-        LocalDate date = LocalDate.now();
-        edad = Period.between(tbFechaNacimiento.getValue(), date).getYears();   
+        }else {
+            fecha = tbFechaNacimiento.getValue();
+            LocalDate date = LocalDate.now();
+            edad = Period.between(tbFechaNacimiento.getValue(), date).getYears();   
         }
-        
+
         if(tbFechaContratacion.getValue() == null){
             fecha_con = LocalDate.now();
         }else { 
-        fecha_con = tbFechaContratacion.getValue();
+            fecha_con = tbFechaContratacion.getValue();
         }
         String fecha_nacimiento = fecha.toString();
         String fecha_contratacion = fecha_con.toString();
-        
+
         String nombre = tbNombreEmpleado.getText();         if (tbNombreEmpleado.getText().isEmpty()){nombre = "NULL";}
         String apellido_p = tbAPaternoEmpleado.getText();   if (tbAPaternoEmpleado.getText().isEmpty()){apellido_p = "NULL";}
         String apellido_m = tbAMaternoEmpleado.getText();   if (tbAMaternoEmpleado.getText().isEmpty()){apellido_m = "NULL";}
@@ -1312,68 +1216,138 @@ public class DashboardController implements Initializable {
         if (tipo_emp == null || tipo_emp.isEmpty()) { tipo_emp = "NULL"; }
         String edad_emp = String.valueOf(edad);
         String password = tbCodigoUsuarioAgregar.getText();
-        
+
         LOGGER.log(Level.FINE, "RECORD RUNNING!!!");
         try{
-        LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
-        pst = con.prepareStatement("insert into usuarios (nombre, apellido_paterno, apellido_materno, curp, rfc, nss, edad, fecha_nacimiento, fecha_contratacion, "
-                + "email, genero, password, sueldo, metodo_pago, banco, numero_cuenta, periodo_pago, tipo_contrato, pais, estado, localidad, colonia, numero_exterior, ciudad, "
-                + "calle, codigo_postal, numero_interior, tipo_empleado, imagen) "
-                + "values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
-        LOGGER.log(Level.FINE, "RECORD RUNNING AFTER");
-        
-        pst.setString(1, nombre);
-        pst.setString(2, apellido_p);
-        pst.setString(3, apellido_m);
-        pst.setString(4, curp);
-        pst.setString(5, rfc);
-        pst.setString(6, nss);
-        pst.setString(7, edad_emp);
-        pst.setString(8, fecha_nacimiento);
-        pst.setString(9, fecha_contratacion);
-        pst.setString(10, email);
-        pst.setString(11, genero);
-        pst.setString(12, password);
-        pst.setString(13, sueldo);
-        pst.setString(14, metodo_pago);
-        pst.setString(15, banco);
-        pst.setString(16, numero_cuenta);
-        pst.setString(17, periodo_pago);
-        pst.setString(18, tipo_contrato);
-        pst.setString(19, pais);
-        pst.setString(20, estado);
-        pst.setString(21, localidad);
-        pst.setString(22, colonia);
-        pst.setString(23, numero_exterior);
-        pst.setString(24, ciudad);
-        pst.setString(25, calle);
-        pst.setString(26, codigo_postal);
-        pst.setString(27, numero_interior);
-        pst.setString(28, tipo_emp);
-     
-        LOGGER.log(Level.FINE, "UPLOADING IMAGEN {0}", file);
-        fis = new FileInputStream(file);
-        pst.setBinaryStream(29, fis, file.length());
-        LOGGER.log(Level.FINE, "IMAGEN UPLOADED");
-        
-        int status = pst.executeUpdate();
-        LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
-        if (status==1){
-            LOGGER.log(Level.INFO, "RECORD ADDED");
-            LimpiarPerfil();
-            UpdateTable();
-            int id = Integer.parseInt(tbCodigoUsuarioAgregar.getText())+1;
-            tbCodigoUsuarioAgregar.setText(String.valueOf(id));
-        }else{
-            LOGGER.log(Level.WARNING, "RECORD FAILED");
+            LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
+            String sql;
+            if (withImage) {
+                sql = "insert into usuarios (nombre, apellido_paterno, apellido_materno, curp, rfc, nss, edad, fecha_nacimiento, fecha_contratacion, "
+                        + "email, genero, password, sueldo, metodo_pago, banco, numero_cuenta, periodo_pago, tipo_contrato, pais, estado, localidad, colonia, numero_exterior, ciudad, "
+                        + "calle, codigo_postal, numero_interior, tipo_empleado, imagen) "
+                        + "values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+            } else {
+                sql = "insert into usuarios (nombre, apellido_paterno, apellido_materno, curp, rfc, nss, edad, fecha_nacimiento, fecha_contratacion, "
+                        + "email, genero, password, sueldo, metodo_pago, banco, numero_cuenta, periodo_pago, tipo_contrato, pais, estado, localidad, colonia, numero_exterior, ciudad, "
+                        + "calle, codigo_postal, numero_interior, tipo_empleado) "
+                        + "values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+            }
+
+            pst = con.prepareStatement(sql);
+            pst.setString(1, nombre);
+            pst.setString(2, apellido_p);
+            pst.setString(3, apellido_m);
+            pst.setString(4, curp);
+            pst.setString(5, rfc);
+            pst.setString(6, nss);
+            pst.setString(7, edad_emp);
+            pst.setString(8, fecha_nacimiento);
+            pst.setString(9, fecha_contratacion);
+            pst.setString(10, email);
+            pst.setString(11, genero);
+            pst.setString(12, password);
+            pst.setString(13, sueldo);
+            pst.setString(14, metodo_pago);
+            pst.setString(15, banco);
+            pst.setString(16, numero_cuenta);
+            pst.setString(17, periodo_pago);
+            pst.setString(18, tipo_contrato);
+            pst.setString(19, pais);
+            pst.setString(20, estado);
+            pst.setString(21, localidad);
+            pst.setString(22, colonia);
+            pst.setString(23, numero_exterior);
+            pst.setString(24, ciudad);
+            pst.setString(25, calle);
+            pst.setString(26, codigo_postal);
+            pst.setString(27, numero_interior);
+            pst.setString(28, tipo_emp);
+
+            if (withImage) {
+                LOGGER.log(Level.FINE, "UPLOADING IMAGEN {0}", file);
+                if (file != null && file.exists() && file.isFile()) {
+                    try (FileInputStream fisLocal = new FileInputStream(file)){
+                        pst.setBinaryStream(29, fisLocal, (int) file.length());
+                        int status = pst.executeUpdate();
+                        LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
+                        if (status==1){
+                            LOGGER.log(Level.INFO, "RECORD ADDED");
+                            LimpiarPerfil();
+                            UpdateTable();
+                            int id = Integer.parseInt(tbCodigoUsuarioAgregar.getText())+1;
+                            tbCodigoUsuarioAgregar.setText(String.valueOf(id));
+                        }else{
+                            LOGGER.log(Level.WARNING, "RECORD FAILED");
+                        }
+                    } catch (FileNotFoundException ex) {
+                        LOGGER.log(Level.SEVERE, null, ex);
+                    } catch (IOException ex) {
+                        LOGGER.log(Level.SEVERE, "I/O error handling image file", ex);
+                    }
+                } else {
+                    InputStream ris = null;
+                    try {
+                        ris = getClass().getResourceAsStream("/icons/sin_perfil.png");
+                        if (ris != null) {
+                            java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+                            byte[] buffer = new byte[8192];
+                            int read;
+                            while ((read = ris.read(buffer)) != -1) {
+                                baos.write(buffer, 0, read);
+                            }
+                            byte[] bytes = baos.toByteArray();
+                            pst.setBytes(29, bytes);
+                            int status = pst.executeUpdate();
+                            LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
+                            if (status==1){
+                                LOGGER.log(Level.INFO, "RECORD ADDED");
+                                LimpiarPerfil();
+                                UpdateTable();
+                                int id = Integer.parseInt(tbCodigoUsuarioAgregar.getText())+1;
+                                tbCodigoUsuarioAgregar.setText(String.valueOf(id));
+                            }else{
+                                LOGGER.log(Level.WARNING, "RECORD FAILED");
+                            }
+                        } else {
+                            LOGGER.log(Level.SEVERE, "Default profile resource not found, skipping image");
+                            pst.setNull(29, java.sql.Types.BLOB);
+                            int status = pst.executeUpdate();
+                            LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
+                            if (status==1){
+                                LOGGER.log(Level.INFO, "RECORD ADDED");
+                                LimpiarPerfil();
+                                UpdateTable();
+                                int id = Integer.parseInt(tbCodigoUsuarioAgregar.getText())+1;
+                                tbCodigoUsuarioAgregar.setText(String.valueOf(id));
+                            }else{
+                                LOGGER.log(Level.WARNING, "RECORD FAILED");
+                            }
+                        }
+                    } catch (IOException ex) {
+                        LOGGER.log(Level.SEVERE, "I/O error loading default profile image", ex);
+                    } finally {
+                        if (ris != null) {
+                            try { ris.close(); } catch (IOException ignored) {}
+                        }
+                    }
+                }
+            } else {
+                int status = pst.executeUpdate();
+                LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
+                if (status==1){
+                    LOGGER.log(Level.INFO, "RECORD ADDED");
+                    LimpiarPerfil();
+                    UpdateTable();
+                    int id = Integer.parseInt(tbCodigoUsuarioAgregar.getText())+1;
+                    tbCodigoUsuarioAgregar.setText(String.valueOf(id));
+                }else{
+                    LOGGER.log(Level.WARNING, "RECORD FAILED");
+                }
+            }
+
+        } catch (SQLException e){
+            LOGGER.log(Level.SEVERE, "Error in addEmpleadoInternal", e);
         }
-            
-        }catch (SQLException e){
-            
-        } catch (FileNotFoundException ex) {
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        
     }
     // AGREGAR EMPLEADO
     
