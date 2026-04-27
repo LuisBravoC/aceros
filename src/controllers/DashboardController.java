@@ -1218,134 +1218,46 @@ public class DashboardController implements Initializable {
         String password = tbCodigoUsuarioAgregar.getText();
 
         LOGGER.log(Level.FINE, "RECORD RUNNING!!!");
-        try{
-            LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
-            String sql;
-            if (withImage) {
-                sql = "insert into usuarios (nombre, apellido_paterno, apellido_materno, curp, rfc, nss, edad, fecha_nacimiento, fecha_contratacion, "
-                        + "email, genero, password, sueldo, metodo_pago, banco, numero_cuenta, periodo_pago, tipo_contrato, pais, estado, localidad, colonia, numero_exterior, ciudad, "
-                        + "calle, codigo_postal, numero_interior, tipo_empleado, imagen) "
-                        + "values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+        try {
+            UsuarioDetalle u = new UsuarioDetalle();
+            u.setNombre(nombre);
+            u.setApellidoPaterno(apellido_p);
+            u.setApellidoMaterno(apellido_m);
+            u.setCurp(curp);
+            u.setRfc(rfc);
+            u.setNss(nss);
+            u.setFechaNacimiento(fecha_nacimiento);
+            u.setFechaContratacion(fecha_contratacion);
+            u.setEmail(email);
+            u.setGenero(genero);
+            u.setSueldo(sueldo);
+            u.setMetodoPago(metodo_pago);
+            u.setBanco(banco);
+            u.setNumeroCuenta(numero_cuenta);
+            u.setPeriodoPago(periodo_pago);
+            u.setTipoContrato(tipo_contrato);
+            u.setPais(pais);
+            u.setEstado(estado);
+            u.setLocalidad(localidad);
+            u.setColonia(colonia);
+            u.setNumeroExterior(numero_exterior);
+            u.setCiudad(ciudad);
+            u.setCalle(calle);
+            u.setCodigoPostal(codigo_postal);
+            u.setNumeroInterior(numero_interior);
+            u.setTipoEmpleado(tipo_emp);
+
+            boolean ok = UsuariosService.saveUsuario(u, password, withImage, file);
+            if (ok) {
+                LOGGER.log(Level.INFO, "RECORD ADDED");
+                LimpiarPerfil();
+                UpdateTable();
+                int id = Integer.parseInt(tbCodigoUsuarioAgregar.getText())+1;
+                tbCodigoUsuarioAgregar.setText(String.valueOf(id));
             } else {
-                sql = "insert into usuarios (nombre, apellido_paterno, apellido_materno, curp, rfc, nss, edad, fecha_nacimiento, fecha_contratacion, "
-                        + "email, genero, password, sueldo, metodo_pago, banco, numero_cuenta, periodo_pago, tipo_contrato, pais, estado, localidad, colonia, numero_exterior, ciudad, "
-                        + "calle, codigo_postal, numero_interior, tipo_empleado) "
-                        + "values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+                LOGGER.log(Level.WARNING, "RECORD FAILED");
             }
-
-            pst = con.prepareStatement(sql);
-            pst.setString(1, nombre);
-            pst.setString(2, apellido_p);
-            pst.setString(3, apellido_m);
-            pst.setString(4, curp);
-            pst.setString(5, rfc);
-            pst.setString(6, nss);
-            pst.setString(7, edad_emp);
-            pst.setString(8, fecha_nacimiento);
-            pst.setString(9, fecha_contratacion);
-            pst.setString(10, email);
-            pst.setString(11, genero);
-            pst.setString(12, password);
-            pst.setString(13, sueldo);
-            pst.setString(14, metodo_pago);
-            pst.setString(15, banco);
-            pst.setString(16, numero_cuenta);
-            pst.setString(17, periodo_pago);
-            pst.setString(18, tipo_contrato);
-            pst.setString(19, pais);
-            pst.setString(20, estado);
-            pst.setString(21, localidad);
-            pst.setString(22, colonia);
-            pst.setString(23, numero_exterior);
-            pst.setString(24, ciudad);
-            pst.setString(25, calle);
-            pst.setString(26, codigo_postal);
-            pst.setString(27, numero_interior);
-            pst.setString(28, tipo_emp);
-
-            if (withImage) {
-                LOGGER.log(Level.FINE, "UPLOADING IMAGEN {0}", file);
-                if (file != null && file.exists() && file.isFile()) {
-                    try (FileInputStream fisLocal = new FileInputStream(file)){
-                        pst.setBinaryStream(29, fisLocal, (int) file.length());
-                        int status = pst.executeUpdate();
-                        LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
-                        if (status==1){
-                            LOGGER.log(Level.INFO, "RECORD ADDED");
-                            LimpiarPerfil();
-                            UpdateTable();
-                            int id = Integer.parseInt(tbCodigoUsuarioAgregar.getText())+1;
-                            tbCodigoUsuarioAgregar.setText(String.valueOf(id));
-                        }else{
-                            LOGGER.log(Level.WARNING, "RECORD FAILED");
-                        }
-                    } catch (FileNotFoundException ex) {
-                        LOGGER.log(Level.SEVERE, null, ex);
-                    } catch (IOException ex) {
-                        LOGGER.log(Level.SEVERE, "I/O error handling image file", ex);
-                    }
-                } else {
-                    InputStream ris = null;
-                    try {
-                        ris = getClass().getResourceAsStream("/icons/sin_perfil.png");
-                        if (ris != null) {
-                            java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
-                            byte[] buffer = new byte[8192];
-                            int read;
-                            while ((read = ris.read(buffer)) != -1) {
-                                baos.write(buffer, 0, read);
-                            }
-                            byte[] bytes = baos.toByteArray();
-                            pst.setBytes(29, bytes);
-                            int status = pst.executeUpdate();
-                            LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
-                            if (status==1){
-                                LOGGER.log(Level.INFO, "RECORD ADDED");
-                                LimpiarPerfil();
-                                UpdateTable();
-                                int id = Integer.parseInt(tbCodigoUsuarioAgregar.getText())+1;
-                                tbCodigoUsuarioAgregar.setText(String.valueOf(id));
-                            }else{
-                                LOGGER.log(Level.WARNING, "RECORD FAILED");
-                            }
-                        } else {
-                            LOGGER.log(Level.SEVERE, "Default profile resource not found, skipping image");
-                            pst.setNull(29, java.sql.Types.BLOB);
-                            int status = pst.executeUpdate();
-                            LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
-                            if (status==1){
-                                LOGGER.log(Level.INFO, "RECORD ADDED");
-                                LimpiarPerfil();
-                                UpdateTable();
-                                int id = Integer.parseInt(tbCodigoUsuarioAgregar.getText())+1;
-                                tbCodigoUsuarioAgregar.setText(String.valueOf(id));
-                            }else{
-                                LOGGER.log(Level.WARNING, "RECORD FAILED");
-                            }
-                        }
-                    } catch (IOException ex) {
-                        LOGGER.log(Level.SEVERE, "I/O error loading default profile image", ex);
-                    } finally {
-                        if (ris != null) {
-                            try { ris.close(); } catch (IOException ignored) {}
-                        }
-                    }
-                }
-            } else {
-                int status = pst.executeUpdate();
-                LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
-                if (status==1){
-                    LOGGER.log(Level.INFO, "RECORD ADDED");
-                    LimpiarPerfil();
-                    UpdateTable();
-                    int id = Integer.parseInt(tbCodigoUsuarioAgregar.getText())+1;
-                    tbCodigoUsuarioAgregar.setText(String.valueOf(id));
-                }else{
-                    LOGGER.log(Level.WARNING, "RECORD FAILED");
-                }
-            }
-
-        } catch (SQLException e){
+        } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Error in addEmpleadoInternal", e);
         }
     }
@@ -1410,131 +1322,47 @@ public class DashboardController implements Initializable {
         String edad_emp = String.valueOf(edad);
 
         LOGGER.log(Level.FINE, "RECORD RUNNING (modify)!!!");
-        try{
-            String sql;
-            if (withImage) {
-                sql = "update usuarios set nombre=?, apellido_paterno=?, apellido_materno=?, curp=?, rfc=?, nss=?, edad=?, fecha_nacimiento=?, "
-                        + "fecha_contratacion=?, email=?, genero=?, sueldo=?, metodo_pago=?, banco=?, numero_cuenta=?, periodo_pago=?, tipo_contrato=?,"
-                        + " pais=?, estado=?, localidad=?, colonia=?, numero_exterior=?, ciudad=?, calle=?, codigo_postal=?, numero_interior=?, tipo_empleado=?, imagen=? where usuario_id='"+in+"' ";
+        try {
+            UsuarioDetalle u = new UsuarioDetalle();
+            u.setUsuarioId(in);
+            u.setNombre(nombre);
+            u.setApellidoPaterno(apellido_p);
+            u.setApellidoMaterno(apellido_m);
+            u.setCurp(curp);
+            u.setRfc(rfc);
+            u.setNss(nss);
+            u.setFechaNacimiento(fecha_nacimiento);
+            u.setFechaContratacion(fecha_contratacion);
+            u.setEmail(email);
+            u.setGenero(genero);
+            u.setSueldo(sueldo);
+            u.setMetodoPago(metodo_pago);
+            u.setBanco(banco);
+            u.setNumeroCuenta(numero_cuenta);
+            u.setPeriodoPago(periodo_pago);
+            u.setTipoContrato(tipo_contrato);
+            u.setPais(pais);
+            u.setEstado(estado);
+            u.setLocalidad(localidad);
+            u.setColonia(colonia);
+            u.setNumeroExterior(numero_exterior);
+            u.setCiudad(ciudad);
+            u.setCalle(calle);
+            u.setCodigoPostal(codigo_postal);
+            u.setNumeroInterior(numero_interior);
+            u.setTipoEmpleado(tipo_emp);
+
+            boolean ok = UsuariosService.saveUsuario(u, null, withImage, file);
+            if (ok) {
+                LOGGER.log(Level.INFO, "RECORD UPDATED");
+                LimpiarPerfil();
+                UpdateTable();
+                int id = Integer.parseInt(tbCodigoUsuarioAgregar.getText())+1;
+                tbCodigoUsuarioAgregar.setText(String.valueOf(id));
             } else {
-                sql = "update usuarios set nombre=?, apellido_paterno=?, apellido_materno=?, curp=?, rfc=?, nss=?, edad=?, fecha_nacimiento=?, "
-                        + "fecha_contratacion=?, email=?, genero=?, sueldo=?, metodo_pago=?, banco=?, numero_cuenta=?, periodo_pago=?, tipo_contrato=?,"
-                        + " pais=?, estado=?, localidad=?, colonia=?, numero_exterior=?, ciudad=?, calle=?, codigo_postal=?, numero_interior=?, tipo_empleado=? where usuario_id='"+in+"' ";
+                LOGGER.log(Level.WARNING, "RECORD FAILED");
             }
-
-            pst = con.prepareStatement(sql);
-            int i = 1;
-            pst.setString(i++, nombre);
-            pst.setString(i++, apellido_p);
-            pst.setString(i++, apellido_m);
-            pst.setString(i++, curp);
-            pst.setString(i++, rfc);
-            pst.setString(i++, nss);
-            pst.setString(i++, edad_emp);
-            pst.setString(i++, fecha_nacimiento);
-            pst.setString(i++, fecha_contratacion);
-            pst.setString(i++, email);
-            pst.setString(i++, genero);
-            pst.setString(i++, sueldo);
-            pst.setString(i++, metodo_pago);
-            pst.setString(i++, banco);
-            pst.setString(i++, numero_cuenta);
-            pst.setString(i++, periodo_pago);
-            pst.setString(i++, tipo_contrato);
-            pst.setString(i++, pais);
-            pst.setString(i++, estado);
-            pst.setString(i++, localidad);
-            pst.setString(i++, colonia);
-            pst.setString(i++, numero_exterior);
-            pst.setString(i++, ciudad);
-            pst.setString(i++, calle);
-            pst.setString(i++, codigo_postal);
-            pst.setString(i++, numero_interior);
-            pst.setString(i++, tipo_emp);
-
-            if (withImage) {
-                LOGGER.log(Level.FINE, "UPLOADING IMAGEN {0}", file);
-                if (file != null && file.exists() && file.isFile()) {
-                    try (FileInputStream fisLocal = new FileInputStream(file)){
-                        pst.setBinaryStream(i++, fisLocal, (int) file.length());
-                        int status = pst.executeUpdate();
-                        LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
-                        if (status==1){
-                            LOGGER.log(Level.INFO, "RECORD UPDATED");
-                            LimpiarPerfil();
-                            UpdateTable();
-                            int id = Integer.parseInt(tbCodigoUsuarioAgregar.getText())+1;
-                            tbCodigoUsuarioAgregar.setText(String.valueOf(id));
-                        } else {
-                            LOGGER.log(Level.WARNING, "RECORD FAILED");
-                        }
-                    } catch (FileNotFoundException ex) {
-                        LOGGER.log(Level.SEVERE, "Image file not found", ex);
-                    } catch (IOException ex) {
-                        LOGGER.log(Level.SEVERE, "I/O error handling image file", ex);
-                    }
-                } else {
-                    InputStream ris = null;
-                    try {
-                        ris = getClass().getResourceAsStream("/icons/sin_perfil.png");
-                        if (ris != null) {
-                            java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
-                            byte[] buffer = new byte[8192];
-                            int read;
-                            while ((read = ris.read(buffer)) != -1) {
-                                baos.write(buffer, 0, read);
-                            }
-                            byte[] bytes = baos.toByteArray();
-                            pst.setBytes(i++, bytes);
-                            int status = pst.executeUpdate();
-                            LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
-                            if (status==1){
-                                LOGGER.log(Level.INFO, "RECORD UPDATED");
-                                LimpiarPerfil();
-                                UpdateTable();
-                                int id = Integer.parseInt(tbCodigoUsuarioAgregar.getText())+1;
-                                tbCodigoUsuarioAgregar.setText(String.valueOf(id));
-                            } else {
-                                LOGGER.log(Level.WARNING, "RECORD FAILED");
-                            }
-                        } else {
-                            LOGGER.log(Level.SEVERE, "Default profile resource not found, skipping image");
-                            pst.setNull(i++, java.sql.Types.BLOB);
-                            int status = pst.executeUpdate();
-                            LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
-                            if (status==1){
-                                LOGGER.log(Level.INFO, "RECORD UPDATED");
-                                LimpiarPerfil();
-                                UpdateTable();
-                                int id = Integer.parseInt(tbCodigoUsuarioAgregar.getText())+1;
-                                tbCodigoUsuarioAgregar.setText(String.valueOf(id));
-                            } else {
-                                LOGGER.log(Level.WARNING, "RECORD FAILED");
-                            }
-                        }
-                    } catch (IOException ex) {
-                        LOGGER.log(Level.SEVERE, "I/O error loading default profile image", ex);
-                    } finally {
-                        if (ris != null) {
-                            try { ris.close(); } catch (IOException ignored) {}
-                        }
-                    }
-                }
-            } else {
-                int status = pst.executeUpdate();
-                LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
-                if (status==1){
-                    LOGGER.log(Level.INFO, "RECORD UPDATED");
-                    LimpiarPerfil();
-                    UpdateTable();
-                    int id = Integer.parseInt(tbCodigoUsuarioAgregar.getText())+1;
-                    tbCodigoUsuarioAgregar.setText(String.valueOf(id));
-                } else {
-                    LOGGER.log(Level.WARNING, "RECORD FAILED");
-                }
-            }
-
-        } catch (SQLException e){
+        } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Error in modifyEmpleadoInternal", e);
         }
     }
