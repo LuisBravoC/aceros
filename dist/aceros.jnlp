@@ -9,7 +9,7 @@
   </information>
   <resources>
     <j2se version="1.6+" href="http://java.sun.com/products/autodl/j2se"/>
-    <jar href="aceros.jar" size="36541201" download="eager" />
+    <jar href="aceros.jar" size="36541325" download="eager" />
     <jar href="lib\AnimateFX-1.2.1.jar" size="94267" download="eager" />
     <jar href="lib\aopalliance-1.0.jar" size="4467" download="eager" />
     <jar href="lib\bcmail-jdk14-1.38.jar" size="192035" download="eager" />
