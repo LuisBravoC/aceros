@@ -11,6 +11,8 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.Arrays;
+import java.util.List;
 
 public class CalibresDao {
 
@@ -49,10 +51,13 @@ public class CalibresDao {
 
     public static boolean insert(String nombre, String calibre) {
         String sql = "insert into calibres (nombre, calibre) values(?,?)";
+        List<String> params = Arrays.asList(nombre, calibre);
         try (Connection con = ConnectionUtil.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setString(1, nombre);
-            ps.setString(2, calibre);
+            int i = 1;
+            for (String p : params) {
+                ps.setString(i++, p != null ? p : "");
+            }
             int status = ps.executeUpdate();
             return status == 1;
         } catch (SQLException ex) {
@@ -63,11 +68,14 @@ public class CalibresDao {
 
     public static boolean update(String id, String nombre, String calibre) {
         String sql = "update calibres set nombre = ?, calibre = ? where id = ?";
+        List<String> params = Arrays.asList(nombre, calibre);
         try (Connection con = ConnectionUtil.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setString(1, nombre);
-            ps.setString(2, calibre);
-            ps.setString(3, id);
+            int i = 1;
+            for (String p : params) {
+                ps.setString(i++, p != null ? p : "");
+            }
+            ps.setString(i++, id);
             int status = ps.executeUpdate();
             return status == 1;
         } catch (SQLException ex) {

@@ -11,6 +11,8 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.Arrays;
+import java.util.List;
 
 public class MaterialesDao {
 
@@ -49,9 +51,13 @@ public class MaterialesDao {
 
     public static boolean insert(String nombre) {
         String sql = "insert into materiales (nombre) values(?)";
+        List<String> params = Arrays.asList(nombre);
         try (Connection con = ConnectionUtil.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setString(1, nombre);
+            int i = 1;
+            for (String p : params) {
+                ps.setString(i++, p != null ? p : "");
+            }
             int status = ps.executeUpdate();
             return status == 1;
         } catch (SQLException ex) {
@@ -62,10 +68,14 @@ public class MaterialesDao {
 
     public static boolean update(String id, String nombre) {
         String sql = "update materiales set nombre = ? where id = ?";
+        List<String> params = Arrays.asList(nombre);
         try (Connection con = ConnectionUtil.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setString(1, nombre);
-            ps.setString(2, id);
+            int i = 1;
+            for (String p : params) {
+                ps.setString(i++, p != null ? p : "");
+            }
+            ps.setString(i++, id);
             int status = ps.executeUpdate();
             return status == 1;
         } catch (SQLException ex) {

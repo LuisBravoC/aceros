@@ -10,6 +10,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.Arrays;
+import java.util.List;
 
 public class ProduccionDao {
 
@@ -34,17 +36,13 @@ public class ProduccionDao {
 
     public static boolean insert(String material, String calibre, String altura, String rombos, String metros, String cantidad, String autorId, String fechaRegistro, String dia) {
         String sql = "insert into produccion (material, calibre, altura, rombos, metros, cantidad, autor_id, fecha_registro, dia) values(?,?,?,?,?,?,?,?,?)";
+        List<String> params = Arrays.asList(material, calibre, altura, rombos, metros, cantidad, autorId, fechaRegistro, dia);
         try (Connection con = ConnectionUtil.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setString(1, material);
-            ps.setString(2, calibre);
-            ps.setString(3, altura);
-            ps.setString(4, rombos);
-            ps.setString(5, metros);
-            ps.setString(6, cantidad);
-            ps.setString(7, autorId);
-            ps.setString(8, fechaRegistro);
-            ps.setString(9, dia);
+            int i = 1;
+            for (String p : params) {
+                ps.setString(i++, p != null ? p : "");
+            }
             int status = ps.executeUpdate();
             return status == 1;
         } catch (SQLException ex) {
@@ -55,17 +53,14 @@ public class ProduccionDao {
 
     public static boolean update(String id, String material, String calibre, String altura, String rombos, String metros, String cantidad, String fechaRegistro, String dia) {
         String sql = "update produccion set material=?, calibre=?, altura=?, rombos=?, metros=?, cantidad=?, fecha_registro=?, dia=? where id=?";
+        List<String> params = Arrays.asList(material, calibre, altura, rombos, metros, cantidad, fechaRegistro, dia);
         try (Connection con = ConnectionUtil.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setString(1, material);
-            ps.setString(2, calibre);
-            ps.setString(3, altura);
-            ps.setString(4, rombos);
-            ps.setString(5, metros);
-            ps.setString(6, cantidad);
-            ps.setString(7, fechaRegistro);
-            ps.setString(8, dia);
-            ps.setString(9, id);
+            int i = 1;
+            for (String p : params) {
+                ps.setString(i++, p != null ? p : "");
+            }
+            ps.setString(i++, id);
             int status = ps.executeUpdate();
             return status == 1;
         } catch (SQLException ex) {

@@ -11,12 +11,18 @@ import models.UsuarioDetalle;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import dao.MaterialesDao;
+import services.MaterialesService;
 import dao.AlturasDao;
+import services.AlturasService;
 import dao.CalibresDao;
+import services.CalibresService;
 import dao.RombosDao;
+import services.RombosService;
 import dao.ProduccionDao;
 import dao.HistorialDao;
+import services.HistorialService;
 import dao.LookupDao;
+import services.LookupService;
 import java.awt.Desktop;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -1036,7 +1042,7 @@ public class DashboardController implements Initializable {
                 tbCodigoUsuarioAgregar.setText(l_id);
             }
             
-        } catch (SQLException ex) {
+        } catch (Exception ex) {
             Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
@@ -1101,43 +1107,43 @@ public class DashboardController implements Initializable {
     // COMBO BOX FILLS
     public void fillComboBoxGenero(){
         GeneroOpcion.clear();
-        GeneroOpcion.addAll(LookupDao.getGeneros());
+        GeneroOpcion.addAll(LookupService.getGeneros());
         cbGenero.setValue(cbGenero.getValue());
     }
     
     public void fillComboBoxTipoUsuario(){
         TipoUsuarioOpcion.clear();
-        TipoUsuarioOpcion.addAll(LookupDao.getTipoUsuario());
+        TipoUsuarioOpcion.addAll(LookupService.getTipoUsuario());
         cbTipoUsuario.setValue(cbTipoUsuario.getValue());
     }
     
     public void fillComboBoxPago(){
         PagoOpcion.clear();
-        PagoOpcion.addAll(LookupDao.getMetodosPago());
+        PagoOpcion.addAll(LookupService.getMetodosPago());
         cbMetodoPago.setValue(cbMetodoPago.getValue());
     }
     
     public void fillComboBoxBanco(){
         BancoOpcion.clear();
-        BancoOpcion.addAll(LookupDao.getBancos());
+        BancoOpcion.addAll(LookupService.getBancos());
         cbBanco.setValue(cbBanco.getValue());
     }
     
     public void fillComboBoxPeriodoPago(){
         PeriodoPagoOpcion.clear();
-        PeriodoPagoOpcion.addAll(LookupDao.getPeriodosPago());
+        PeriodoPagoOpcion.addAll(LookupService.getPeriodosPago());
         cbPeriodoPago.setValue(cbPeriodoPago.getValue());
     }
     
     public void fillComboBoxContrato(){
         ContratoOpcion.clear();
-        ContratoOpcion.addAll(LookupDao.getContratos());
+        ContratoOpcion.addAll(LookupService.getContratos());
         cbContrato.setValue(cbContrato.getValue());
     }
     
     public void fillComboBoxPais(){
         PaisOpcion.clear();
-        PaisOpcion.addAll(LookupDao.getPaises());
+        PaisOpcion.addAll(LookupService.getPaises());
         cbPais.setValue(cbPais.getValue());
     }
     
@@ -1145,7 +1151,7 @@ public class DashboardController implements Initializable {
         String pais = cbPais.getValue();
         EstadoOpcion.clear();
         if (pais == null) return;
-        EstadoOpcion.addAll(LookupDao.getEstadosByCountryName(pais));
+        EstadoOpcion.addAll(LookupService.getEstadosByCountryName(pais));
         cbEstado.setValue(cbEstado.getValue());
     }
     
@@ -1155,7 +1161,7 @@ public class DashboardController implements Initializable {
             String estado = cbEstado.getValue();
             CiudadOpcion.clear();
             if (estado == null) return;
-            CiudadOpcion.addAll(LookupDao.getCiudadesByStateName(estado));
+            CiudadOpcion.addAll(LookupService.getCiudadesByStateName(estado));
             cbCiudad.setValue(cbCiudad.getValue());
         }
     
@@ -1612,7 +1618,7 @@ public class DashboardController implements Initializable {
             } else {
                 LOGGER.log(Level.WARNING, "RECORD FAILED to update produccion id={0} (updated={1})", new Object[]{id, status});
             }
-        } catch (SQLException e) {
+        } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "SQL error in ModificarProduccion for id=" + id, e);
         }
     
@@ -1624,7 +1630,7 @@ public class DashboardController implements Initializable {
     }
     
     public void fillComboBoxMaterial(){
-        ObservableList<String> list = LookupDao.getMateriales();
+        ObservableList<String> list = LookupService.getMateriales();
         MaterialOpcion.clear();
         EditarMaterialOpcion.clear();
         MaterialOpcion.addAll(list);
@@ -1634,7 +1640,7 @@ public class DashboardController implements Initializable {
     }
     
     public void fillComboBoxAltura(){
-        ObservableList<String> list = LookupDao.getAlturas();
+        ObservableList<String> list = LookupService.getAlturas();
         AlturaOpcion.clear();
         EditarAlturaOpcion.clear();
         AlturaOpcion.addAll(list);
@@ -1644,7 +1650,7 @@ public class DashboardController implements Initializable {
     }
     
     public void fillComboBoxCalibre(){
-        ObservableList<String> list = LookupDao.getCalibres();
+        ObservableList<String> list = LookupService.getCalibres();
         CalibreOpcion.clear();
         EditarCalibreOpcion.clear();
         CalibreOpcion.addAll(list);
@@ -1654,7 +1660,7 @@ public class DashboardController implements Initializable {
     }
     
     public void fillComboBoxRombo(){
-        ObservableList<String> list = LookupDao.getRombos();
+        ObservableList<String> list = LookupService.getRombos();
         RomboOpcion.clear();
         EditarRomboOpcion.clear();
         RomboOpcion.addAll(list);
@@ -1716,7 +1722,7 @@ public class DashboardController implements Initializable {
             } else {
                 LOGGER.log(Level.WARNING, "RECORD FAILED to insert, updated={0}", status);
             }
-        } catch (SQLException e) {
+        } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "SQL error inserting produccion", e);
             Alert alert = new Alert(AlertType.ERROR);
             alert.setTitle("Error al guardar");
@@ -1874,7 +1880,7 @@ public class DashboardController implements Initializable {
         tcMetrosS.setCellValueFactory(new PropertyValueFactory<>("tcMetrosS")); 
         tcCantidadS.setCellValueFactory(new PropertyValueFactory<>("tcCantidadS"));
         
-        listSemanal = ProduccionDao.getProduccionSemana(autor);
+        listSemanal = ProduccionController.getProduccionSemana(autor);
         tvSemanal.setItems(listSemanal);        
     }
     
@@ -2118,7 +2124,7 @@ public class DashboardController implements Initializable {
         tcMetrosHistorial.setCellValueFactory(new PropertyValueFactory<>("tcMetrosHistorial")); 
         tcCantidadHistorial.setCellValueFactory(new PropertyValueFactory<>("tcCantidadHistorial"));
         
-        listHistorial = HistorialDao.getHistorial(autor, de, a);
+        listHistorial = HistorialService.getHistorial(autor, de, a);
         tvHistorial.setItems(listHistorial);      
     }
     
@@ -2165,7 +2171,7 @@ public class DashboardController implements Initializable {
                 indexMaterial = index.getTcCodigoMaterial();
                 String in = Integer.toString(indexMaterial);
                 
-                controllers.Materiales mat = MaterialesDao.findById(in);
+                controllers.Materiales mat = MaterialesService.findById(in);
                 LOGGER.log(Level.FINE, "Index seleccionado {0}", in);
                 try{
                     if(mat != null){
@@ -2219,7 +2225,7 @@ public class DashboardController implements Initializable {
             }
             
             
-        } catch (SQLException ex) {
+        } catch (Exception ex) {
             Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
@@ -2228,7 +2234,7 @@ public class DashboardController implements Initializable {
         tcCodigoMaterial.setCellValueFactory(new PropertyValueFactory<>("tcCodigoMaterial"));       
         tcNombreMaterial.setCellValueFactory(new PropertyValueFactory<>("tcNombreMaterial"));       
         
-        listMaterial = MaterialesDao.getAll();
+        listMaterial = MaterialesService.getAll();
         tvMateriales.setItems(listMaterial);        
     }
     
@@ -2238,27 +2244,21 @@ public class DashboardController implements Initializable {
         String nombre = tbNombreMaterial.getText();     if (tbNombreMaterial.getText().isEmpty()){nombre = "NULL";}
         
         try{
-        LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
-        pst = con.prepareStatement("insert into materiales (nombre) "
-            + "values(?)");
-        LOGGER.log(Level.FINE, "RECORD RUNNING AFTER");
-        
-        pst.setString(1, nombre);      
-        int status = pst.executeUpdate();
-        LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
-        if (status==1){
-            LOGGER.log(Level.INFO, "RECORD ADDED");
-            tbNombreMaterial.clear();
-            UpdateMateriales();
-            CodigoMaterial();
-            cbMaterial.getItems().clear();
-            fillComboBoxMaterial();
-        }else{
-            LOGGER.log(Level.WARNING, "RECORD FAILED");
-        }
-            
-        }catch (SQLException e){
-            
+            LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
+            boolean ok = MaterialesService.insert(nombre);
+            LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
+            if (ok){
+                LOGGER.log(Level.INFO, "RECORD ADDED");
+                tbNombreMaterial.clear();
+                UpdateMateriales();
+                CodigoMaterial();
+                cbMaterial.getItems().clear();
+                fillComboBoxMaterial();
+            }else{
+                LOGGER.log(Level.WARNING, "RECORD FAILED");
+            }
+        }catch (Exception e){
+            LOGGER.log(Level.SEVERE, "Error adding material", e);
         }
     
     }
@@ -2269,25 +2269,20 @@ public class DashboardController implements Initializable {
         String nombre = tbNombreMaterialEditar.getText(); if (tbNombreMaterialEditar.getText().isEmpty()){nombre = "NULL";}
         
         try{
-        LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
-        pst = con.prepareStatement("update materiales set nombre= ? where id='"+id+"'");
-        pst.setString(1, nombre);  
-        pst.execute();
-        LOGGER.log(Level.FINE, "RECORD RUNNING AFTER"); 
-        int status = pst.executeUpdate();
-        LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
-        if (status==1){
-            LOGGER.log(Level.INFO, "RECORD ADDED");
-            UpdateMateriales();
-            CodigoMaterial();
-            cbMaterial.getItems().clear();
-            fillComboBoxMaterial();
-        }else{
-            LOGGER.log(Level.WARNING, "RECORD FAILED");
-        }
-        pst.close();    
-        }catch (SQLException e){
-            
+            LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
+            boolean ok = MaterialesService.update(id, nombre);
+            LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
+            if (ok){
+                LOGGER.log(Level.INFO, "RECORD UPDATED");
+                UpdateMateriales();
+                CodigoMaterial();
+                cbMaterial.getItems().clear();
+                fillComboBoxMaterial();
+            }else{
+                LOGGER.log(Level.WARNING, "RECORD FAILED");
+            }
+        }catch (Exception e){
+            LOGGER.log(Level.SEVERE, "Error updating material", e);
         }
     
     }
@@ -2304,7 +2299,7 @@ public class DashboardController implements Initializable {
                 indexAltura = index.getTcCodigoAltura();
                 String in = Integer.toString(indexAltura);
                 
-                controllers.Alturas a = AlturasDao.findById(in);
+                controllers.Alturas a = AlturasService.findById(in);
                 LOGGER.log(Level.FINE, "Index seleccionado {0}", in);
                 try{
                     if(a != null){
@@ -2325,18 +2320,19 @@ public class DashboardController implements Initializable {
     }
     
     public void EliminarAltura(){
-        String sql = "delete from alturas where id = ?";
         String in = Integer.toString(indexAltura);
         try{
-            pst = con.prepareStatement(sql);
-            pst.setString(1, in);
-            pst.execute();
-            UpdateAlturas();
-            CodigoAltura();
-            cbAltura.getItems().clear();
-            fillComboBoxAltura();
+            boolean ok = AlturasService.delete(in);
+            if (ok) {
+                UpdateAlturas();
+                CodigoAltura();
+                cbAltura.getItems().clear();
+                fillComboBoxAltura();
+            } else {
+                LOGGER.log(Level.WARNING, "DELETE FAILED for altura id={0}", in);
+            }
         } catch (Exception e){
-            
+            LOGGER.log(Level.SEVERE, "Error deleting altura", e);
         }
         
     }
@@ -2368,7 +2364,7 @@ public class DashboardController implements Initializable {
         tcNombreAltura.setCellValueFactory(new PropertyValueFactory<>("tcNombreAltura"));
         tcAltura.setCellValueFactory(new PropertyValueFactory<>("tcAltura"));   
         
-        listAlturas = AlturasDao.getAll();
+        listAlturas = AlturasService.getAll();
         tvAlturas.setItems(listAlturas);        
     }
     
@@ -2378,16 +2374,10 @@ public class DashboardController implements Initializable {
         String altura = tbAltura.getText();              if (tbAltura.getText().isEmpty()){altura = "NULL";}
         
         try{
-        LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
-        pst = con.prepareStatement("insert into alturas (nombre, altura) "
-                + "values(?,?)");
-        LOGGER.log(Level.FINE, "RECORD RUNNING AFTER");
-        
-        pst.setString(1, nombre);
-        pst.setString(2, altura);
-        int status = pst.executeUpdate();
-        LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
-        if (status==1){
+            LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
+            boolean ok = AlturasService.insert(nombre, altura);
+            LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
+            if (ok){
             LOGGER.log(Level.INFO, "RECORD ADDED");
             tbNombreAltura.clear();
             tbAltura.clear();
@@ -2401,8 +2391,8 @@ public class DashboardController implements Initializable {
             LOGGER.log(Level.WARNING, "RECORD FAILED");
         }
             
-        }catch (SQLException e){
-            
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error adding altura", e);
         }
     
     }
@@ -2414,26 +2404,20 @@ public class DashboardController implements Initializable {
         String medida = tbMedidaMaterialEditar.getText();  if (tbMedidaMaterialEditar.getText().isEmpty()){medida = "NULL";}
         
         try{
-        LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
-        pst = con.prepareStatement("update alturas set nombre= ?, altura=? where id='"+id+"'");
-        pst.setString(1, nombre);  
-        pst.setString(2, medida);
-        pst.execute();
-        LOGGER.log(Level.FINE, "RECORD RUNNING AFTER"); 
-        int status = pst.executeUpdate();
-        LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
-        if (status==1){
-            LOGGER.log(Level.INFO, "RECORD ADDED");
-            UpdateAlturas();
-            CodigoAltura();
-            cbAltura.getItems().clear();
-            fillComboBoxAltura();
-        }else{
-            LOGGER.log(Level.WARNING, "RECORD FAILED");
-        }
-        pst.close();    
-        }catch (SQLException e){
-            
+            LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
+            boolean ok = AlturasService.update(id, nombre, medida);
+            LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
+            if (ok){
+                LOGGER.log(Level.INFO, "RECORD UPDATED");
+                UpdateAlturas();
+                CodigoAltura();
+                cbAltura.getItems().clear();
+                fillComboBoxAltura();
+            }else{
+                LOGGER.log(Level.WARNING, "RECORD FAILED");
+            }
+        }catch (Exception e){
+            LOGGER.log(Level.SEVERE, "Error updating altura", e);
         }
     
     }
@@ -2449,7 +2433,7 @@ public class DashboardController implements Initializable {
                 indexCalibre = index.getTcCodigoCalibre();
                 String in = Integer.toString(indexCalibre);
                 
-                controllers.Calibres c = CalibresDao.findById(in);
+                controllers.Calibres c = CalibresService.findById(in);
                 LOGGER.log(Level.FINE, "Index seleccionado {0}", in);
                 try{
                     if(c != null){
@@ -2503,7 +2487,7 @@ public class DashboardController implements Initializable {
                 tbCodigoCalibre.setText("1");
             }
             
-        } catch (SQLException ex) {
+        } catch (Exception ex) {
             Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
@@ -2513,7 +2497,7 @@ public class DashboardController implements Initializable {
         tcNombreCalibre.setCellValueFactory(new PropertyValueFactory<>("tcNombreCalibre"));
         tcCalibre.setCellValueFactory(new PropertyValueFactory<>("tcCalibre"));   
         
-        listCalibre = CalibresDao.getAll();
+        listCalibre = CalibresService.getAll();
         tvCalibres.setItems(listCalibre);        
     }
     
@@ -2523,31 +2507,24 @@ public class DashboardController implements Initializable {
         String calibre = tbCalibre.getText();             if (tbCalibre.getText().isEmpty()){calibre = "NULL";}
         
         try{
-        LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
-        pst = con.prepareStatement("insert into calibres (nombre, calibre) "
-                + "values(?,?)");
-        LOGGER.log(Level.FINE, "RECORD RUNNING AFTER");
-        
-        pst.setString(1, nombre);
-        pst.setString(2, calibre);
-        int status = pst.executeUpdate();
-        LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
-        if (status==1){
-            LOGGER.log(Level.INFO, "RECORD ADDED");
-            tbNombreCalibre.clear();
-            tbCalibre.clear();
-            UpdateCalibres();
-            CodigoCalibres();
-            cbCalibre.getItems().clear();
-            fillComboBoxCalibre();
-            int id = Integer.parseInt(tbCodigoCalibre.getText())+1;
-            tbCodigoCalibre.setText(String.valueOf(id));
-        }else{
-            LOGGER.log(Level.WARNING, "RECORD FAILED");
-        }
-            
-        }catch (SQLException e){
-            
+            LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
+            boolean ok = CalibresService.insert(nombre, calibre);
+            LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
+            if (ok){
+                LOGGER.log(Level.INFO, "RECORD ADDED");
+                tbNombreCalibre.clear();
+                tbCalibre.clear();
+                UpdateCalibres();
+                CodigoCalibres();
+                cbCalibre.getItems().clear();
+                fillComboBoxCalibre();
+                int id = Integer.parseInt(tbCodigoCalibre.getText())+1;
+                tbCodigoCalibre.setText(String.valueOf(id));
+            }else{
+                LOGGER.log(Level.WARNING, "RECORD FAILED");
+            }
+        }catch (Exception e){
+            LOGGER.log(Level.SEVERE, "Error adding calibre", e);
         }
     
     }
@@ -2559,26 +2536,20 @@ public class DashboardController implements Initializable {
         String medida = tbMedidaMaterialEditar.getText();  if (tbMedidaMaterialEditar.getText().isEmpty()){medida = "NULL";}
         
         try{
-        LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
-        pst = con.prepareStatement("update calibres set nombre= ?, calibre=? where id='"+id+"'");
-        pst.setString(1, nombre);  
-        pst.setString(2, medida);
-        pst.execute();
-        LOGGER.log(Level.FINE, "RECORD RUNNING AFTER"); 
-        int status = pst.executeUpdate();
-        LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
-        if (status==1){
-            LOGGER.log(Level.INFO, "RECORD ADDED");
-            UpdateCalibres();
-            CodigoCalibres();
-            cbCalibre.getItems().clear();
-            fillComboBoxCalibre();
-        }else{
-            LOGGER.log(Level.WARNING, "RECORD FAILED");
-        }
-        pst.close();    
-        }catch (SQLException e){
-            
+            LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
+            boolean ok = CalibresService.update(id, nombre, medida);
+            LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
+            if (ok){
+                LOGGER.log(Level.INFO, "RECORD UPDATED");
+                UpdateCalibres();
+                CodigoCalibres();
+                cbCalibre.getItems().clear();
+                fillComboBoxCalibre();
+            }else{
+                LOGGER.log(Level.WARNING, "RECORD FAILED");
+            }
+        }catch (Exception e){
+            LOGGER.log(Level.SEVERE, "Error updating calibre", e);
         }
     
     }
@@ -2628,19 +2599,20 @@ public class DashboardController implements Initializable {
     }
     
     public void EliminarRombo(){
-        String sql = "delete from rombos where id = ?";
         String in = Integer.toString(indexRombo);
         try{
-            pst = con.prepareStatement(sql);
-            pst.setString(1, in);
-            pst.execute();
-            UpdateRombos();
-            CodigoRombos();
-            cbRombo.getItems().clear();
-            fillComboBoxRombo();
-            cbRombo.setItems(RomboOpcion);
+            boolean ok = RombosService.delete(in);
+            if (ok) {
+                UpdateRombos();
+                CodigoRombos();
+                cbRombo.getItems().clear();
+                fillComboBoxRombo();
+                cbRombo.setItems(RomboOpcion);
+            } else {
+                LOGGER.log(Level.WARNING, "DELETE FAILED for rombo id={0}", in);
+            }
         } catch (Exception e){
-            
+            LOGGER.log(Level.SEVERE, "Error deleting rombo", e);
         }
         
     }
@@ -2662,7 +2634,7 @@ public class DashboardController implements Initializable {
                 tbCodigoRombo.setText("1");
             }
             
-        } catch (SQLException ex) {
+        } catch (Exception ex) {
             Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
         }
     }   
@@ -2672,7 +2644,7 @@ public class DashboardController implements Initializable {
         tcNombreRombo.setCellValueFactory(new PropertyValueFactory<>("tcNombreRombo"));
         tcRombo.setCellValueFactory(new PropertyValueFactory<>("tcRombo"));   
         
-        listRombo = RombosDao.getAll();
+        listRombo = RombosService.getAll();
         tvRombos.setItems(listRombo);        
     }
     
@@ -2682,31 +2654,24 @@ public class DashboardController implements Initializable {
         String rombo = tbRombo.getText();               if (tbRombo.getText().isEmpty()){rombo = "NULL";}
         
         try{
-        LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
-        pst = con.prepareStatement("insert into rombos (nombre, rombo) "
-                + "values(?,?)");
-        LOGGER.log(Level.FINE, "RECORD RUNNING AFTER");
-        
-        pst.setString(1, nombre);
-        pst.setString(2, rombo);
-        int status = pst.executeUpdate();
-        LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
-        if (status==1){
-            LOGGER.log(Level.INFO, "RECORD ADDED");
-            tbNombreRombo.clear();
-            tbRombo.clear();
-            UpdateRombos();
-            CodigoRombos();
-            cbRombo.getItems().clear();
-            fillComboBoxRombo();
-            int id = Integer.parseInt(tbCodigoRombo.getText())+1;
-            tbCodigoRombo.setText(String.valueOf(id));
-        }else{
-            LOGGER.log(Level.WARNING, "RECORD FAILED");
-        }
-            
-        }catch (SQLException e){
-            
+            LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
+            boolean ok = RombosService.insert(nombre, rombo);
+            LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
+            if (ok){
+                LOGGER.log(Level.INFO, "RECORD ADDED");
+                tbNombreRombo.clear();
+                tbRombo.clear();
+                UpdateRombos();
+                CodigoRombos();
+                cbRombo.getItems().clear();
+                fillComboBoxRombo();
+                int id = Integer.parseInt(tbCodigoRombo.getText())+1;
+                tbCodigoRombo.setText(String.valueOf(id));
+            }else{
+                LOGGER.log(Level.WARNING, "RECORD FAILED");
+            }
+        }catch (Exception e){
+            LOGGER.log(Level.SEVERE, "Error adding rombo", e);
         }
     
     }
@@ -2718,26 +2683,20 @@ public class DashboardController implements Initializable {
         String medida = tbMedidaMaterialEditar.getText();  if (tbMedidaMaterialEditar.getText().isEmpty()){medida = "NULL";}
         
         try{
-        LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
-        pst = con.prepareStatement("update rombos set nombre= ?, rombo=? where id='"+id+"'");
-        pst.setString(1, nombre);  
-        pst.setString(2, medida);
-        pst.execute();
-        LOGGER.log(Level.FINE, "RECORD RUNNING AFTER"); 
-        int status = pst.executeUpdate();
-        LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
-        if (status==1){
-            LOGGER.log(Level.INFO, "RECORD ADDED");
-            UpdateRombos();
-            CodigoRombos();
-            cbRombo.getItems().clear();
-            fillComboBoxRombo();
-        }else{
-            LOGGER.log(Level.WARNING, "RECORD FAILED");
-        }
-        pst.close();    
-        }catch (SQLException e){
-            
+            LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
+            boolean ok = RombosService.update(id, nombre, medida);
+            LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
+            if (ok){
+                LOGGER.log(Level.INFO, "RECORD UPDATED");
+                UpdateRombos();
+                CodigoRombos();
+                cbRombo.getItems().clear();
+                fillComboBoxRombo();
+            }else{
+                LOGGER.log(Level.WARNING, "RECORD FAILED");
+            }
+        }catch (Exception e){
+            LOGGER.log(Level.SEVERE, "Error updating rombo", e);
         }
     
     }
