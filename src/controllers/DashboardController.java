@@ -246,7 +246,7 @@ public class DashboardController implements Initializable {
     private Image image;
     private ImageView imageView;
     private FileChooser fileChosser;
-    private File file = new File("D:/sin_perfil.png");
+    private File file = null;
     private FileInputStream fis;
     private final Desktop desktop = Desktop.getDesktop();
     
@@ -672,8 +672,12 @@ public class DashboardController implements Initializable {
         cbContrato.setValue("INDEFINIDO");
         cbContrato.setItems(ContratoOpcion);
         
-        LOGGER.log(Level.FINE, "ESTE ES EL ARCHIVO {0}", file.getAbsolutePath());
-        LOGGER.log(Level.FINE, "ESTE ES EL ARCHIVO {0}", file.getPath());
+        if (file != null) {
+            LOGGER.log(Level.FINE, "ESTE ES EL ARCHIVO {0}", file.getAbsolutePath());
+            LOGGER.log(Level.FINE, "ESTE ES EL ARCHIVO {0}", file.getPath());
+        } else {
+            LOGGER.log(Level.FINE, "No profile file set (file==null)");
+        }
         
         cbHistorialMes.setItems(HistorialOpcion);
         
@@ -1045,19 +1049,26 @@ public class DashboardController implements Initializable {
             @Override
             public void handle(MouseEvent event) {
                 Empleados index = tableviewEmpleados.getItems().get(tableviewEmpleados.getSelectionModel().getSelectedIndex());
-                
-                if(tableviewEmpleados.isFocused()){
-                    if(tipo_empleado.contains("GERENTE")){
-                    btnEliminarEmpleado.setVisible(true);
+
+                int selIdx = tableviewEmpleados.getSelectionModel().getSelectedIndex();
+                if (selIdx >= 0) {
+                    // Enable PERFIL button whenever a row is selected (viewing profile)
                     btnEditarEmpleado.setDisable(false);
-                }else if(tipo_empleado.contains("SUPERVISOR")){
-                    btnEditarEmpleado.setDisable(false);
-                }
-                }else{
+
+                    // Only show/enable delete for users with GERENTE role
+                    if (tipo_empleado != null && tipo_empleado.contains("GERENTE")) {
+                        btnEliminarEmpleado.setVisible(true);
+                        btnEliminarEmpleado.setDisable(false);
+                    } else {
+                        btnEliminarEmpleado.setVisible(false);
+                        btnEliminarEmpleado.setDisable(true);
+                    }
+                } else {
                     btnEliminarEmpleado.setVisible(false);
+                    btnEliminarEmpleado.setDisable(true);
                     btnEditarEmpleado.setDisable(true);
                 }
-                
+
                 indexEmpleado = index.getEmpIdUsuario();     
                 String in = Integer.toString(indexEmpleado);
                 
@@ -1145,7 +1156,7 @@ public class DashboardController implements Initializable {
             CiudadOpcion.clear();
             if (estado == null) return;
             CiudadOpcion.addAll(LookupDao.getCiudadesByStateName(estado));
-            cbEstado.setValue(cbEstado.getValue());
+            cbCiudad.setValue(cbCiudad.getValue());
         }
     
     
@@ -1194,7 +1205,8 @@ public class DashboardController implements Initializable {
         String calle = tbCalle.getText();                   if (tbCalle.getText().isEmpty()){calle = "NULL";}
         String codigo_postal = tbCodigoPostal.getText();    if (tbCodigoPostal.getText().isEmpty()){codigo_postal = "NULL";}
         String numero_interior = tbNInterior.getText();     if (tbNInterior.getText().isEmpty()){numero_interior = "NULL";}
-        String tipo_emp = cbTipoUsuario.getValue();         if (cbTipoUsuario.getValue().isEmpty()){tipo_emp = "NULL";}
+        String tipo_emp = cbTipoUsuario.getValue();
+        if (tipo_emp == null || tipo_emp.isEmpty()) { tipo_emp = "NULL"; }
         String edad_emp = String.valueOf(edad);
         String password = tbCodigoUsuarioAgregar.getText();
         
@@ -1296,7 +1308,8 @@ public class DashboardController implements Initializable {
         String calle = tbCalle.getText();                   if (tbCalle.getText().isEmpty()){calle = "NULL";}
         String codigo_postal = tbCodigoPostal.getText();    if (tbCodigoPostal.getText().isEmpty()){codigo_postal = "NULL";}
         String numero_interior = tbNInterior.getText();     if (tbNInterior.getText().isEmpty()){numero_interior = "NULL";}
-        String tipo_emp = cbTipoUsuario.getValue();         if (cbTipoUsuario.getValue().isEmpty()){tipo_emp = "NULL";}
+        String tipo_emp = cbTipoUsuario.getValue();
+        if (tipo_emp == null || tipo_emp.isEmpty()) { tipo_emp = "NULL"; }
         String edad_emp = String.valueOf(edad);
         String password = tbCodigoUsuarioAgregar.getText();
         
@@ -1364,217 +1377,206 @@ public class DashboardController implements Initializable {
     }
     // AGREGAR EMPLEADO
     
-    // MODIFICAR EMPLEADO
+    // MODIFICAR EMPLEADO (wrappers)
     public void ModificarEmpleado(){
-        
-        Empleados index = tableviewEmpleados.getItems().get(tableviewEmpleados.getSelectionModel().getSelectedIndex());
-        indexEmpleado = index.getEmpIdUsuario();     
-        String in = Integer.toString(indexEmpleado);
-        
-        int edad; LocalDate fecha, fecha_con;
-        if(tbFechaNacimiento.getValue() == null){
-            edad = 0; fecha = LocalDate.now();
-        }else { 
-        fecha = tbFechaNacimiento.getValue();
-        LocalDate date = LocalDate.now();
-        edad = Period.between(tbFechaNacimiento.getValue(), date).getYears();   
-        }
-        
-        if(tbFechaContratacion.getValue() == null){
-            fecha_con = LocalDate.now();
-        }else { 
-        fecha_con = tbFechaContratacion.getValue();
-        }
-        String fecha_nacimiento = fecha.toString();
-        String fecha_contratacion = fecha_con.toString();
-        
-        String nombre = tbNombreEmpleado.getText();         if (tbNombreEmpleado.getText().isEmpty()){nombre = "NULL";}
-        String apellido_p = tbAPaternoEmpleado.getText();   if (tbAPaternoEmpleado.getText().isEmpty()){apellido_p = "NULL";}
-        String apellido_m = tbAMaternoEmpleado.getText();   if (tbAMaternoEmpleado.getText().isEmpty()){apellido_m = "NULL";}
-        String curp = tbCurp.getText();                     if (tbCurp.getText().isEmpty()){curp = "NULL";}
-        String rfc = tbRfc.getText();                       if (tbRfc.getText().isEmpty()){rfc = "NULL";}
-        String nss = tbNss.getText();                       if (tbNss.getText().isEmpty()){nss = "NULL";}
-        String email = tbEmailEmpleado.getText();           if (tbEmailEmpleado.getText().isEmpty()){email = "NULL";}
-        String genero = cbGenero.getValue();                if (cbGenero.getValue() == null){genero = "NULL";}
-        String sueldo = tbSueldoEmpleado.getText();         if (tbSueldoEmpleado.getText().isEmpty()){sueldo = "0";}
-        String metodo_pago = cbMetodoPago.getValue();       if (cbMetodoPago.getValue() == null){metodo_pago = "NULL";}
-        String banco = cbBanco.getValue();                  if (cbBanco.getValue() == null){banco = "NULL";}
-        String numero_cuenta = tbNCuenta.getText();         if (tbNCuenta.getText().isEmpty()){numero_cuenta = "NULL";}
-        String periodo_pago = cbPeriodoPago.getValue();     if (cbPeriodoPago.getValue() == null){periodo_pago = "NULL";}
-        String tipo_contrato = cbContrato.getValue();       if (cbContrato.getValue() == null){tipo_contrato = "NULL";}
-        String pais = cbPais.getValue();                    if (cbPais.getValue() == null){pais = "NULL";}
-        String estado = cbEstado.getValue();                if (cbEstado.getValue() == null){estado = "NULL";}
-        String localidad = tbLocalidad.getText();           if (tbLocalidad.getText().isEmpty()){localidad = "NULL";}
-        String colonia = tbColonia.getText();               if (tbColonia.getText().isEmpty()){colonia = "NULL";}
-        String numero_exterior = tbNExterior.getText();     if (tbNExterior.getText().isEmpty()){numero_exterior = "NULL";}
-        String ciudad = cbCiudad.getValue();                if (cbCiudad.getValue() == null){ciudad = "NULL";}
-        String calle = tbCalle.getText();                   if (tbCalle.getText().isEmpty()){calle = "NULL";}
-        String codigo_postal = tbCodigoPostal.getText();    if (tbCodigoPostal.getText().isEmpty()){codigo_postal = "NULL";}
-        String numero_interior = tbNInterior.getText();     if (tbNInterior.getText().isEmpty()){numero_interior = "NULL";}
-        String tipo_emp = cbTipoUsuario.getValue();         if (cbTipoUsuario.getValue().isEmpty()){tipo_emp = "NULL";}
-        String edad_emp = String.valueOf(edad);
-        
-        LOGGER.log(Level.FINE, "RECORD RUNNING!!!");
-        try{
-        LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
-        pst = con.prepareStatement("update usuarios set nombre=?, apellido_paterno=?, apellido_materno=?, curp=?, rfc=?, nss=?, edad=?, fecha_nacimiento=?, "
-                + "fecha_contratacion=?, email=?, genero=?, sueldo=?, metodo_pago=?, banco=?, numero_cuenta=?, periodo_pago=?, tipo_contrato=?,"
-                + " pais=?, estado=?, localidad=?, colonia=?, numero_exterior=?, ciudad=?, calle=?, codigo_postal=?, numero_interior=?, tipo_empleado=? where usuario_id='"+in+"' ");
-        LOGGER.log(Level.FINE, "RECORD RUNNING AFTER");
-        
-        pst.setString(1, nombre);
-        pst.setString(2, apellido_p);
-        pst.setString(3, apellido_m);
-        pst.setString(4, curp);
-        pst.setString(5, rfc);
-        pst.setString(6, nss);
-        pst.setString(7, edad_emp);
-        pst.setString(8, fecha_nacimiento);
-        pst.setString(9, fecha_contratacion);
-        pst.setString(10, email);
-        pst.setString(11, genero);
-        pst.setString(12, sueldo);
-        pst.setString(13, metodo_pago);
-        pst.setString(14, banco);
-        pst.setString(15, numero_cuenta);
-        pst.setString(16, periodo_pago);
-        pst.setString(17, tipo_contrato);
-        pst.setString(18, pais);
-        pst.setString(19, estado);
-        pst.setString(20, localidad);
-        pst.setString(21, colonia);
-        pst.setString(22, numero_exterior);
-        pst.setString(23, ciudad);
-        pst.setString(24, calle);
-        pst.setString(25, codigo_postal);
-        pst.setString(26, numero_interior);
-        pst.setString(27, tipo_emp);
-        int status = pst.executeUpdate();
-        LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
-        if (status==1){
-            LOGGER.log(Level.INFO, "RECORD ADDED");
-            LimpiarPerfil();
-            UpdateTable();
-            int id = Integer.parseInt(tbCodigoUsuarioAgregar.getText())+1;
-            tbCodigoUsuarioAgregar.setText(String.valueOf(id));
-        }else{
-            LOGGER.log(Level.WARNING, "RECORD FAILED");
-        }
-            
-        }catch (SQLException e){
-            
-        }
-        
+        modifyEmpleadoInternal(false);
     }
-    
+
     public void ModificarEmpleadoConImagen(){
-        
-        Empleados index = tableviewEmpleados.getItems().get(tableviewEmpleados.getSelectionModel().getSelectedIndex());
-        indexEmpleado = index.getEmpIdUsuario();     
+        modifyEmpleadoInternal(true);
+    }
+
+    private void modifyEmpleadoInternal(boolean withImage){
+        Empleados index = null;
+        try{
+            index = tableviewEmpleados.getItems().get(tableviewEmpleados.getSelectionModel().getSelectedIndex());
+        } catch (Exception e){
+            LOGGER.log(Level.WARNING, "No hay fila seleccionada para modificar", e);
+            return;
+        }
+        if (index == null) return;
+        indexEmpleado = index.getEmpIdUsuario();
         String in = Integer.toString(indexEmpleado);
-        
-        int edad; LocalDate fecha, fecha_con;
-        if(tbFechaNacimiento.getValue() == null){
-            edad = 0; fecha = LocalDate.now();
-        }else { 
-        fecha = tbFechaNacimiento.getValue();
-        LocalDate date = LocalDate.now();
-        edad = Period.between(tbFechaNacimiento.getValue(), date).getYears();   
+
+        LocalDate fecha = (tbFechaNacimiento != null) ? tbFechaNacimiento.getValue() : null;
+        LocalDate fecha_con = (tbFechaContratacion != null) ? tbFechaContratacion.getValue() : null;
+        int edad = 0;
+        if (fecha != null) {
+            try { edad = Period.between(fecha, LocalDate.now()).getYears(); } catch (Exception ex) { edad = 0; }
         }
-        
-        if(tbFechaContratacion.getValue() == null){
-            fecha_con = LocalDate.now();
-        }else { 
-        fecha_con = tbFechaContratacion.getValue();
-        }
+        if (fecha == null) fecha = LocalDate.now();
+        if (fecha_con == null) fecha_con = LocalDate.now();
         String fecha_nacimiento = fecha.toString();
         String fecha_contratacion = fecha_con.toString();
-        
-        String nombre = tbNombreEmpleado.getText();         if (tbNombreEmpleado.getText().isEmpty()){nombre = "NULL";}
-        String apellido_p = tbAPaternoEmpleado.getText();   if (tbAPaternoEmpleado.getText().isEmpty()){apellido_p = "NULL";}
-        String apellido_m = tbAMaternoEmpleado.getText();   if (tbAMaternoEmpleado.getText().isEmpty()){apellido_m = "NULL";}
-        String curp = tbCurp.getText();                     if (tbCurp.getText().isEmpty()){curp = "NULL";}
-        String rfc = tbRfc.getText();                       if (tbRfc.getText().isEmpty()){rfc = "NULL";}
-        String nss = tbNss.getText();                       if (tbNss.getText().isEmpty()){nss = "NULL";}
-        String email = tbEmailEmpleado.getText();           if (tbEmailEmpleado.getText().isEmpty()){email = "NULL";}
-        String genero = cbGenero.getValue();                if (cbGenero.getValue() == null){genero = "NULL";}
-        String sueldo = tbSueldoEmpleado.getText();         if (tbSueldoEmpleado.getText().isEmpty()){sueldo = "0";}
-        String metodo_pago = cbMetodoPago.getValue();       if (cbMetodoPago.getValue() == null){metodo_pago = "NULL";}
-        String banco = cbBanco.getValue();                  if (cbBanco.getValue() == null){banco = "NULL";}
-        String numero_cuenta = tbNCuenta.getText();         if (tbNCuenta.getText().isEmpty()){numero_cuenta = "NULL";}
-        String periodo_pago = cbPeriodoPago.getValue();     if (cbPeriodoPago.getValue() == null){periodo_pago = "NULL";}
-        String tipo_contrato = cbContrato.getValue();       if (cbContrato.getValue() == null){tipo_contrato = "NULL";}
-        String pais = cbPais.getValue();                    if (cbPais.getValue() == null){pais = "NULL";}
-        String estado = cbEstado.getValue();                if (cbEstado.getValue() == null){estado = "NULL";}
-        String localidad = tbLocalidad.getText();           if (tbLocalidad.getText().isEmpty()){localidad = "NULL";}
-        String colonia = tbColonia.getText();               if (tbColonia.getText().isEmpty()){colonia = "NULL";}
-        String numero_exterior = tbNExterior.getText();     if (tbNExterior.getText().isEmpty()){numero_exterior = "NULL";}
-        String ciudad = cbCiudad.getValue();                if (cbCiudad.getValue() == null){ciudad = "NULL";}
-        String calle = tbCalle.getText();                   if (tbCalle.getText().isEmpty()){calle = "NULL";}
-        String codigo_postal = tbCodigoPostal.getText();    if (tbCodigoPostal.getText().isEmpty()){codigo_postal = "NULL";}
-        String numero_interior = tbNInterior.getText();     if (tbNInterior.getText().isEmpty()){numero_interior = "NULL";}
-        String tipo_emp = cbTipoUsuario.getValue();         if (cbTipoUsuario.getValue().isEmpty()){tipo_emp = "NULL";}
+
+        String nombre = safeText(tbNombreEmpleado, "NULL");
+        String apellido_p = safeText(tbAPaternoEmpleado, "NULL");
+        String apellido_m = safeText(tbAMaternoEmpleado, "NULL");
+        String curp = safeText(tbCurp, "NULL");
+        String rfc = safeText(tbRfc, "NULL");
+        String nss = safeText(tbNss, "NULL");
+        String email = safeText(tbEmailEmpleado, "NULL");
+        String genero = safeCombo(cbGenero, "NULL");
+        String sueldo = safeText(tbSueldoEmpleado, "0");
+        String metodo_pago = safeCombo(cbMetodoPago, "NULL");
+        String banco = safeCombo(cbBanco, "NULL");
+        String numero_cuenta = safeText(tbNCuenta, "NULL");
+        String periodo_pago = safeCombo(cbPeriodoPago, "NULL");
+        String tipo_contrato = safeCombo(cbContrato, "NULL");
+        String pais = safeCombo(cbPais, "NULL");
+        String estado = safeCombo(cbEstado, "NULL");
+        String localidad = safeText(tbLocalidad, "NULL");
+        String colonia = safeText(tbColonia, "NULL");
+        String numero_exterior = safeText(tbNExterior, "NULL");
+        String ciudad = safeCombo(cbCiudad, "NULL");
+        String calle = safeText(tbCalle, "NULL");
+        String codigo_postal = safeText(tbCodigoPostal, "NULL");
+        String numero_interior = safeText(tbNInterior, "NULL");
+        String tipo_emp = safeCombo(cbTipoUsuario, "NULL");
         String edad_emp = String.valueOf(edad);
-        
-        LOGGER.log(Level.FINE, "RECORD RUNNING!!!");
+
+        LOGGER.log(Level.FINE, "RECORD RUNNING (modify)!!!");
         try{
-        LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
-        pst = con.prepareStatement("update usuarios set nombre=?, apellido_paterno=?, apellido_materno=?, curp=?, rfc=?, nss=?, edad=?, fecha_nacimiento=?, "
-                + "fecha_contratacion=?, email=?, genero=?, sueldo=?, metodo_pago=?, banco=?, numero_cuenta=?, periodo_pago=?, tipo_contrato=?,"
-                + " pais=?, estado=?, localidad=?, colonia=?, numero_exterior=?, ciudad=?, calle=?, codigo_postal=?, numero_interior=?, tipo_empleado=?, imagen=? where usuario_id='"+in+"' ");
-        LOGGER.log(Level.FINE, "RECORD RUNNING AFTER");
-        
-        pst.setString(1, nombre);
-        pst.setString(2, apellido_p);
-        pst.setString(3, apellido_m);
-        pst.setString(4, curp);
-        pst.setString(5, rfc);
-        pst.setString(6, nss);
-        pst.setString(7, edad_emp);
-        pst.setString(8, fecha_nacimiento);
-        pst.setString(9, fecha_contratacion);
-        pst.setString(10, email);
-        pst.setString(11, genero);
-        pst.setString(12, sueldo);
-        pst.setString(13, metodo_pago);
-        pst.setString(14, banco);
-        pst.setString(15, numero_cuenta);
-        pst.setString(16, periodo_pago);
-        pst.setString(17, tipo_contrato);
-        pst.setString(18, pais);
-        pst.setString(19, estado);
-        pst.setString(20, localidad);
-        pst.setString(21, colonia);
-        pst.setString(22, numero_exterior);
-        pst.setString(23, ciudad);
-        pst.setString(24, calle);
-        pst.setString(25, codigo_postal);
-        pst.setString(26, numero_interior);
-        pst.setString(27, tipo_emp);
-        
-        LOGGER.log(Level.FINE, "UPLOADING IMAGEN {0}", file);
-        fis = new FileInputStream(file);
-        pst.setBinaryStream(28, fis, file.length());
-        LOGGER.log(Level.FINE, "IMAGEN UPLOADED");
-        
-        int status = pst.executeUpdate();
-        LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
-        if (status==1){
-            LOGGER.log(Level.INFO, "RECORD ADDED");
-            LimpiarPerfil();
-            UpdateTable();
-            int id = Integer.parseInt(tbCodigoUsuarioAgregar.getText())+1;
-            tbCodigoUsuarioAgregar.setText(String.valueOf(id));
-        }else{
-            LOGGER.log(Level.WARNING, "RECORD FAILED");
+            String sql;
+            if (withImage) {
+                sql = "update usuarios set nombre=?, apellido_paterno=?, apellido_materno=?, curp=?, rfc=?, nss=?, edad=?, fecha_nacimiento=?, "
+                        + "fecha_contratacion=?, email=?, genero=?, sueldo=?, metodo_pago=?, banco=?, numero_cuenta=?, periodo_pago=?, tipo_contrato=?,"
+                        + " pais=?, estado=?, localidad=?, colonia=?, numero_exterior=?, ciudad=?, calle=?, codigo_postal=?, numero_interior=?, tipo_empleado=?, imagen=? where usuario_id='"+in+"' ";
+            } else {
+                sql = "update usuarios set nombre=?, apellido_paterno=?, apellido_materno=?, curp=?, rfc=?, nss=?, edad=?, fecha_nacimiento=?, "
+                        + "fecha_contratacion=?, email=?, genero=?, sueldo=?, metodo_pago=?, banco=?, numero_cuenta=?, periodo_pago=?, tipo_contrato=?,"
+                        + " pais=?, estado=?, localidad=?, colonia=?, numero_exterior=?, ciudad=?, calle=?, codigo_postal=?, numero_interior=?, tipo_empleado=? where usuario_id='"+in+"' ";
+            }
+
+            pst = con.prepareStatement(sql);
+            int i = 1;
+            pst.setString(i++, nombre);
+            pst.setString(i++, apellido_p);
+            pst.setString(i++, apellido_m);
+            pst.setString(i++, curp);
+            pst.setString(i++, rfc);
+            pst.setString(i++, nss);
+            pst.setString(i++, edad_emp);
+            pst.setString(i++, fecha_nacimiento);
+            pst.setString(i++, fecha_contratacion);
+            pst.setString(i++, email);
+            pst.setString(i++, genero);
+            pst.setString(i++, sueldo);
+            pst.setString(i++, metodo_pago);
+            pst.setString(i++, banco);
+            pst.setString(i++, numero_cuenta);
+            pst.setString(i++, periodo_pago);
+            pst.setString(i++, tipo_contrato);
+            pst.setString(i++, pais);
+            pst.setString(i++, estado);
+            pst.setString(i++, localidad);
+            pst.setString(i++, colonia);
+            pst.setString(i++, numero_exterior);
+            pst.setString(i++, ciudad);
+            pst.setString(i++, calle);
+            pst.setString(i++, codigo_postal);
+            pst.setString(i++, numero_interior);
+            pst.setString(i++, tipo_emp);
+
+            if (withImage) {
+                LOGGER.log(Level.FINE, "UPLOADING IMAGEN {0}", file);
+                if (file != null && file.exists() && file.isFile()) {
+                    try (FileInputStream fisLocal = new FileInputStream(file)){
+                        pst.setBinaryStream(i++, fisLocal, (int) file.length());
+                        int status = pst.executeUpdate();
+                        LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
+                        if (status==1){
+                            LOGGER.log(Level.INFO, "RECORD UPDATED");
+                            LimpiarPerfil();
+                            UpdateTable();
+                            int id = Integer.parseInt(tbCodigoUsuarioAgregar.getText())+1;
+                            tbCodigoUsuarioAgregar.setText(String.valueOf(id));
+                        } else {
+                            LOGGER.log(Level.WARNING, "RECORD FAILED");
+                        }
+                    } catch (FileNotFoundException ex) {
+                        LOGGER.log(Level.SEVERE, "Image file not found", ex);
+                    } catch (IOException ex) {
+                        LOGGER.log(Level.SEVERE, "I/O error handling image file", ex);
+                    }
+                } else {
+                    InputStream ris = null;
+                    try {
+                        ris = getClass().getResourceAsStream("/icons/sin_perfil.png");
+                        if (ris != null) {
+                            java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+                            byte[] buffer = new byte[8192];
+                            int read;
+                            while ((read = ris.read(buffer)) != -1) {
+                                baos.write(buffer, 0, read);
+                            }
+                            byte[] bytes = baos.toByteArray();
+                            pst.setBytes(i++, bytes);
+                            int status = pst.executeUpdate();
+                            LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
+                            if (status==1){
+                                LOGGER.log(Level.INFO, "RECORD UPDATED");
+                                LimpiarPerfil();
+                                UpdateTable();
+                                int id = Integer.parseInt(tbCodigoUsuarioAgregar.getText())+1;
+                                tbCodigoUsuarioAgregar.setText(String.valueOf(id));
+                            } else {
+                                LOGGER.log(Level.WARNING, "RECORD FAILED");
+                            }
+                        } else {
+                            LOGGER.log(Level.SEVERE, "Default profile resource not found, skipping image");
+                            pst.setNull(i++, java.sql.Types.BLOB);
+                            int status = pst.executeUpdate();
+                            LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
+                            if (status==1){
+                                LOGGER.log(Level.INFO, "RECORD UPDATED");
+                                LimpiarPerfil();
+                                UpdateTable();
+                                int id = Integer.parseInt(tbCodigoUsuarioAgregar.getText())+1;
+                                tbCodigoUsuarioAgregar.setText(String.valueOf(id));
+                            } else {
+                                LOGGER.log(Level.WARNING, "RECORD FAILED");
+                            }
+                        }
+                    } catch (IOException ex) {
+                        LOGGER.log(Level.SEVERE, "I/O error loading default profile image", ex);
+                    } finally {
+                        if (ris != null) {
+                            try { ris.close(); } catch (IOException ignored) {}
+                        }
+                    }
+                }
+            } else {
+                int status = pst.executeUpdate();
+                LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
+                if (status==1){
+                    LOGGER.log(Level.INFO, "RECORD UPDATED");
+                    LimpiarPerfil();
+                    UpdateTable();
+                    int id = Integer.parseInt(tbCodigoUsuarioAgregar.getText())+1;
+                    tbCodigoUsuarioAgregar.setText(String.valueOf(id));
+                } else {
+                    LOGGER.log(Level.WARNING, "RECORD FAILED");
+                }
+            }
+
+        } catch (SQLException e){
+            LOGGER.log(Level.SEVERE, "Error in modifyEmpleadoInternal", e);
         }
-            
-        }catch (SQLException e){
-            
-        } catch (FileNotFoundException ex) {
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        
+    }
+
+    private String safeText(TextField tf, String defaultVal) {
+        if (tf == null) return defaultVal;
+        String t = tf.getText();
+        if (t == null || t.isEmpty()) return defaultVal;
+        return t;
+    }
+
+    private String safeCombo(ComboBox<String> cb, String defaultVal) {
+        if (cb == null) return defaultVal;
+        String v = cb.getValue();
+        if (v == null || v.isEmpty()) return defaultVal;
+        return v;
     }
     // MODIFICAR EMPLEADO
     
@@ -1649,7 +1651,7 @@ public class DashboardController implements Initializable {
         cbMetodoPago.setValue("EFECTIVO"); cbBanco.setValue(null); tbNCuenta.clear(); cbPeriodoPago.setValue("QUINCENAL"); cbContrato.setValue("INDEFINIDO"); 
         cbPais.setValue("Mexico"); cbEstado.setValue("Sinaloa"); tbLocalidad.clear(); tbColonia.clear(); tbNExterior.clear(); cbCiudad.setValue("Culiacan"); 
         tbCalle.clear(); tbCodigoPostal.clear(); tbNInterior.clear(); btnImagenPerfil.setImage(backup); btnSubirImagen.setText("SUBIR IMAGEN"); 
-        lbPath.setText(null); file=null; tbCodigoPostal.clear(); tbNInterior.clear(); file = new File("D:/sin_perfil.png");
+        lbPath.setText(null); file=null; tbCodigoPostal.clear(); tbNInterior.clear();
     }
     
     @FXML
@@ -3128,15 +3130,19 @@ public class DashboardController implements Initializable {
             alert.showAndWait();
             
             if (alert.getResult() == ButtonType.YES) {
-            
-            btnGuardarEmpleado.toFront();
-            
-            new animatefx.animation.BounceIn(lbTitulo).play();
-            
-            lbTitulo.setText("Agregar nuevo empleado");
-            
-            pnBlanco.toFront();
-            pnAgregarEmpleados.toFront();
+                // Limpiar formulario y preparar valores por defecto
+                LimpiarPerfil();
+                CodigoUsuario();
+                if (tableviewEmpleados != null) tableviewEmpleados.getSelectionModel().clearSelection();
+
+                btnGuardarEmpleado.toFront();
+
+                new animatefx.animation.BounceIn(lbTitulo).play();
+
+                lbTitulo.setText("Agregar nuevo empleado");
+
+                pnBlanco.toFront();
+                pnAgregarEmpleados.toFront();
                 
             }
             
@@ -3292,7 +3298,7 @@ public class DashboardController implements Initializable {
                 LOGGER.log(Level.FINE, "TERMINE DENTRO {0}", btnImagenPerfil.getImage());
                 updateImagenPerfil();
             }else{
-                file = new File("sin_perfil.png");
+                file = null;
             }
             
         }
