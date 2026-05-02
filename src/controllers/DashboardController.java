@@ -5,7 +5,7 @@
  */
 package controllers;
 
-import database.ConnectionUtil;
+import config.ConnectionUtil;
 import dao.UsuariosDao;
 import models.UsuarioDetalle;
 import java.nio.file.Files;
@@ -20,6 +20,7 @@ import dao.RombosDao;
 import services.RombosService;
 import dao.ProduccionDao;
 import dao.HistorialDao;
+import services.ProduccionService;
 import services.HistorialService;
 import dao.LookupDao;
 import services.LookupService;
@@ -1440,7 +1441,7 @@ public class DashboardController implements Initializable {
             return;
         }
 
-        boolean ok = ProduccionController.updateProduccion(id, material, calibre, altura, rombo, metros, cantidad, fecha);
+        boolean ok = ProduccionService.updateProduccion(id, material, calibre, altura, rombo, metros, cantidad, fecha);
         if (ok) {
             LOGGER.log(Level.INFO, "Produccion modificada correctamente id={0}", id);
             UpdateProduccionSemanal();
@@ -1498,7 +1499,7 @@ public class DashboardController implements Initializable {
         String cantidad = (tbCantidadProduccion.getText() == null || tbCantidadProduccion.getText().isEmpty()) ? "NULL" : tbCantidadProduccion.getText();
         String autorid = lbHCodigo2.getText();
 
-        boolean ok = ProduccionController.insertProduccion(material, calibre, altura, rombos, metros, cantidad, autorid, fecha);
+        boolean ok = ProduccionService.insertProduccion(material, calibre, altura, rombos, metros, cantidad, autorid, fecha);
         if (ok) {
             LOGGER.log(Level.INFO, "Produccion agregada correctamente");
             cleanProduccion();
@@ -1580,7 +1581,7 @@ public class DashboardController implements Initializable {
         tcMetrosS.setCellValueFactory(new PropertyValueFactory<>("tcMetrosS")); 
         tcCantidadS.setCellValueFactory(new PropertyValueFactory<>("tcCantidadS"));
         
-        listSemanal = ProduccionController.getProduccionSemana(autor);
+        listSemanal = ProduccionService.getProduccionSemana(autor);
         tvSemanal.setItems(listSemanal);        
     }
     

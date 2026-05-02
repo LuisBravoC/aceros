@@ -1,4 +1,4 @@
-package controllers;
+package services;
 
 import dao.ProduccionDao;
 import models.ProduccionSemanal;
@@ -11,11 +11,13 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Helper controller/service for production-related operations.
- * Keeps DB logic out of the large DashboardController.
+ * Service for production-related operations.
+ * Delegates persistence to {@link ProduccionDao}.
  */
-public class ProduccionController {
-    private static final Logger LOGGER = Logger.getLogger(ProduccionController.class.getName());
+public class ProduccionService {
+    private static final Logger LOGGER = Logger.getLogger(ProduccionService.class.getName());
+
+    private ProduccionService() { /* utility class */ }
 
     public static boolean insertProduccion(String material, String calibre, String altura, String rombos,
                                            String metros, String cantidad, String autorId, LocalDate fecha) {

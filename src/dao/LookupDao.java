@@ -1,6 +1,6 @@
 package dao;
 
-import database.ConnectionUtil;
+import config.ConnectionUtil;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import java.sql.Connection;

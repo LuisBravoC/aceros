@@ -1,6 +1,6 @@
 package controllers.helpers;
 
-import database.ConnectionUtil;
+import config.ConnectionUtil;
 import javafx.scene.control.TextField;
 import java.sql.Connection;
 import java.sql.PreparedStatement;

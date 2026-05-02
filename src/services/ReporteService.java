@@ -1,6 +1,6 @@
 package services;
 
-import database.ConnectionUtil;
+import config.ConnectionUtil;
 import java.io.InputStream;
 import java.sql.Connection;
 import java.sql.PreparedStatement;

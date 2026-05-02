@@ -25,7 +25,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
-import database.ConnectionUtil;
+import config.ConnectionUtil;
 import services.AuthService;
 import services.AuthService.LoginResult;
 import services.SessionManager;

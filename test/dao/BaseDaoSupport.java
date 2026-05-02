@@ -1,6 +1,6 @@
 package dao;
 
-import database.ConnectionUtil;
+import config.ConnectionUtil;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
