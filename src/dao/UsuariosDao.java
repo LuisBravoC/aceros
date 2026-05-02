@@ -169,7 +169,7 @@ public class UsuariosDao {
             try (Connection con = ConnectionUtil.getConnection();
                  PreparedStatement ps = con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
                 int i = bindUsuario(ps, u, password, image, generoId, tipoPagoId, bancoId,
-                        periodoPagoId, tipoContratoId, paisId, estadoId, ciudadId, tipoUsuarioId, 1);
+                        periodoPagoId, tipoContratoId, paisId, estadoId, ciudadId, tipoUsuarioId, 1, true);
                 int status = ps.executeUpdate();
                 try (ResultSet keys = ps.getGeneratedKeys()) {
                     if (keys != null && keys.next()) u.setUsuarioId(String.valueOf(keys.getInt(1)));
@@ -177,8 +177,8 @@ public class UsuariosDao {
                 return status;
             }
         } else {
-            // On UPDATE: only include imagen column when new bytes are provided.
-            // If image==null the existing image in the DB is preserved.
+            // En UPDATE: solo incluir la columna imagen cuando se proporcionan nuevos bytes.
+            // Si image==null la imagen existente en la BD se conserva.
             String sql = image != null
                 ? "UPDATE usuarios SET nombre=?, apellido_paterno=?, apellido_materno=?, curp=?, rfc=?, nss=?, " +
                   "fecha_nacimiento=?, fecha_contratacion=?, email=?, genero_id=?, sueldo=?, tipo_pago_id=?, banco_id=?, " +
@@ -192,8 +192,9 @@ public class UsuariosDao {
                   "WHERE usuario_id=?";
             try (Connection con = ConnectionUtil.getConnection();
                  PreparedStatement ps = con.prepareStatement(sql)) {
+                // bindImagen=true solo cuando image!=null (el SQL incluye imagen=?)
                 int i = bindUsuario(ps, u, null, image, generoId, tipoPagoId, bancoId,
-                        periodoPagoId, tipoContratoId, paisId, estadoId, ciudadId, tipoUsuarioId, 1);
+                        periodoPagoId, tipoContratoId, paisId, estadoId, ciudadId, tipoUsuarioId, 1, image != null);
                 ps.setString(i, u.getUsuarioId());
                 return ps.executeUpdate();
             }
@@ -202,11 +203,12 @@ public class UsuariosDao {
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
-    /** Binds all usuario fields. Returns the next parameter index after the last bound. */
+    /** Liga todos los campos de usuario. Retorna el siguiente índice de parámetro tras el último ligado.
+     *  @param bindImagen si true liga el campo imagen (INSERT siempre; UPDATE solo cuando hay bytes nuevos) */
     private static int bindUsuario(PreparedStatement ps, UsuarioDetalle u, String password, byte[] image,
             Integer generoId, Integer tipoPagoId, Integer bancoId, Integer periodoPagoId,
             Integer tipoContratoId, Integer paisId, Integer estadoId, Integer ciudadId,
-            Integer tipoUsuarioId, int startIdx) throws SQLException {
+            Integer tipoUsuarioId, int startIdx, boolean bindImagen) throws SQLException {
         int i = startIdx;
         ps.setString(i++, u.getNombre());
         ps.setString(i++, u.getApellidoPaterno());
@@ -235,8 +237,10 @@ public class UsuariosDao {
         ps.setString(i++, u.getCodigoPostal());
         ps.setString(i++, u.getNumeroInterior());
         setNullableInt(ps, i++, tipoUsuarioId);
-        if (image != null) ps.setBytes(i++, image);
-        else               ps.setNull(i++, java.sql.Types.BLOB);
+        if (bindImagen) {
+            if (image != null) ps.setBytes(i++, image);
+            else               ps.setNull(i++, java.sql.Types.BLOB);
+        }
         return i;
     }
 
