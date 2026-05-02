@@ -98,7 +98,6 @@ import net.sf.jasperreports.engine.JasperCompileManager;
 import net.sf.jasperreports.engine.JasperFillManager;
 import net.sf.jasperreports.engine.JasperPrint;
 import net.sf.jasperreports.engine.JasperReport;
-import net.sf.jasperreports.engine.design.JRDesignQuery;
 import net.sf.jasperreports.engine.design.JasperDesign;
 import net.sf.jasperreports.engine.xml.JRXmlLoader;
 import net.sf.jasperreports.view.JasperViewer;
@@ -615,14 +614,6 @@ public class DashboardController implements Initializable {
     private String usuario = LoginController.getSesion();
     String tipo_empleado;
     
-    private static Connection con;
-    ResultSet resultSet = null;
-    PreparedStatement pst = null;
-    
-    public DashboardController() throws SQLException {
-        con = ConnectionUtil.getConnection();
-    }
-    
     double x = 0, y = 0;
 
     @FXML
@@ -999,21 +990,25 @@ public class DashboardController implements Initializable {
     //FIN PERFIL EMPLEADO
 
     //ELIMNAR EMPLEADO
-    
+
     public void EliminarEmpleado(){
+        String id = Integer.toString(indexEmpleado);
         String sql = "delete from usuarios where usuario_id = ?";
-        String in = Integer.toString(indexEmpleado);
-        try{
-            pst = con.prepareStatement(sql);
-            pst.setString(1, in);
-            pst.execute();
+        try (Connection conn = ConnectionUtil.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, id);
+            ps.executeUpdate();
             UpdateTable();
-        } catch (Exception e){
-            
+        } catch (SQLException ex) {
+            LOGGER.log(Level.SEVERE, "Error al eliminar empleado id=" + id, ex);
+            Alert alert = new Alert(AlertType.ERROR);
+            alert.setTitle("Error al eliminar");
+            alert.setHeaderText(null);
+            alert.setContentText("No se pudo eliminar el empleado: " + ex.getMessage());
+            alert.showAndWait();
         }
-        
     }
-    
+
     //ELIMINAR EMPLEADO
     
     //ACTUALIZAR TABLA EMPLEADOS
@@ -1029,21 +1024,12 @@ public class DashboardController implements Initializable {
     }
     //ACTUALIZAR TABLA EMPLEADOS
     public void CodigoUsuario(){
-        Connection con;
-        try {
-            
-            con = ConnectionUtil.getConnection();      
-            ResultSet rs = con.createStatement().executeQuery("select * from usuarios");
-           
-            while (rs.next()){
-                dataList.add(new Empleados(rs.getInt(1),rs.getString("nombre")+" "+rs.getString("apellido_paterno")+" "+rs.getString("apellido_materno"),rs.getString("edad"),rs.getString("sueldo")));
-                int id = rs.getInt(1)+1;
-                String l_id = Integer.toString(id);
-                tbCodigoUsuarioAgregar.setText(l_id);
-            }
-            
-        } catch (Exception ex) {
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
+        dataList.setAll(UsuariosDao.getAll());
+        if (!dataList.isEmpty()) {
+            int nextId = dataList.stream()
+                    .mapToInt(e -> e.getEmpIdUsuario())
+                    .max().orElse(0) + 1;
+            tbCodigoUsuarioAgregar.setText(String.valueOf(nextId));
         }
     }
 
@@ -1598,7 +1584,8 @@ public class DashboardController implements Initializable {
 
         String sql = "update produccion set material= ?, calibre=?, altura=?, rombos=?, metros=?, cantidad=?, fecha_registro=?, dia=? where id=?";
         LOGGER.log(Level.FINE, "RECORD RUNNING: {0}", sql);
-        try (PreparedStatement ps = con.prepareStatement(sql)) {
+        try (Connection conn = ConnectionUtil.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, material);
             ps.setString(2, calibre);
             ps.setString(3, altura);
@@ -1669,7 +1656,7 @@ public class DashboardController implements Initializable {
         cbRomboEditar.setValue(cbRomboEditar.getValue());
     }
     public void AgregarProduccion(){
-        System.out.println("AGREGAR PRODUCCION BOTON PRESSED");
+        LOGGER.log(Level.FINE, "AgregarProduccion button pressed");
         LocalDate fecha, day;
         if(tbFechaRegistro.getValue() == null){
             fecha = LocalDate.now();
@@ -1703,7 +1690,8 @@ public class DashboardController implements Initializable {
         
         String sql = "insert into produccion (material, calibre, altura, rombos, metros, cantidad, autor_id, fecha_registro, dia) values(?,?,?,?,?,?,?,?,?)";
         LOGGER.log(Level.FINE, "Preparing insert: {0}", sql);
-        try (PreparedStatement ps = con.prepareStatement(sql)) {
+        try (Connection conn = ConnectionUtil.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, material);
             ps.setString(2, calibre);
             ps.setString(3, altura);
@@ -1911,32 +1899,42 @@ public class DashboardController implements Initializable {
 
             JasperDesign jdesign = JRXmlLoader.load(reportStream);
 
-            // Build query that includes an `autor` column expected by the JRXML
-                    String Query = "select p.id, p.fecha_registro, p.material, p.calibre, p.altura, p.rombos, p.metros, p.cantidad, p.dia, p.autor_id, "
-                        + "concat(u.nombre, ' ', u.apellido_paterno, ' ', u.apellido_materno) as autor "
-                    + "from produccion p left join usuarios u on p.autor_id = u.usuario_id "
-                    + "where p.autor_id = '" + autor + "'";
+            // Build query with PreparedStatement to prevent SQL injection
+            StringBuilder sqlBuilder = new StringBuilder(
+                "select p.id, p.fecha_registro, p.material, p.calibre, p.altura, p.rombos, p.metros, p.cantidad, p.dia, p.autor_id, "
+                + "concat(u.nombre, ' ', u.apellido_paterno, ' ', u.apellido_materno) as autor "
+                + "from produccion p left join usuarios u on p.autor_id = u.usuario_id "
+                + "where p.autor_id = ?");
+            java.util.List<String> queryParams = new java.util.ArrayList<>();
+            queryParams.add(autor);
             if (!de.isEmpty() && !a.isEmpty()) {
-                Query += " and (p.fecha_registro BETWEEN '" + de + "' AND '" + a + "')";
+                sqlBuilder.append(" and (p.fecha_registro BETWEEN ? AND ?)");
+                queryParams.add(de);
+                queryParams.add(a);
             }
-            Query += " order by p.fecha_registro";
+            sqlBuilder.append(" order by p.fecha_registro");
 
-            LOGGER.log(Level.FINE, Query);
-
-            JRDesignQuery updateQuery = new JRDesignQuery();
-            updateQuery.setText(Query);
-            jdesign.setQuery(updateQuery);
+            LOGGER.log(Level.FINE, "ImprimirReporte sql: {0}", sqlBuilder);
 
             JasperReport jreport = JasperCompileManager.compileReport(jdesign);
-            try (InputStream logoStream = DashboardController.class.getResourceAsStream("/icons/LogoInicio.png")) {
-                Map<String, Object> params = new HashMap<>();
-                if (logoStream != null) {
-                    params.put("LOGO", logoStream);
-                } else {
-                    LOGGER.log(Level.WARNING, "Logo resource '/icons/LogoInicio.png' not found on classpath");
+            try (Connection reportConn = ConnectionUtil.getConnection();
+                 PreparedStatement ps = reportConn.prepareStatement(sqlBuilder.toString())) {
+                for (int i = 0; i < queryParams.size(); i++) {
+                    ps.setString(i + 1, queryParams.get(i));
                 }
-                JasperPrint jprint = JasperFillManager.fillReport(jreport, params, con);
-                JasperViewer.viewReport(jprint, false);
+                try (ResultSet rs = ps.executeQuery();
+                     InputStream logoStream = DashboardController.class.getResourceAsStream("/icons/LogoInicio.png")) {
+                    Map<String, Object> params = new HashMap<>();
+                    if (logoStream != null) {
+                        params.put("LOGO", logoStream);
+                    } else {
+                        LOGGER.log(Level.WARNING, "Logo resource '/icons/LogoInicio.png' not found on classpath");
+                    }
+                    net.sf.jasperreports.engine.JRResultSetDataSource dataSource =
+                            new net.sf.jasperreports.engine.JRResultSetDataSource(rs);
+                    JasperPrint jprint = JasperFillManager.fillReport(jreport, params, dataSource);
+                    JasperViewer.viewReport(jprint, false);
+                }
             }
 
         } catch (JRException ex) {
@@ -1966,143 +1964,35 @@ public class DashboardController implements Initializable {
         });
     }
     
-    public void UpdateMesHistorial(){     
-        
-        int año;
-        String sAño;
+    public void UpdateMesHistorial(){
+        // Map de nombre de mes (en español) → Month del API de Java
+        final java.util.Map<String, Month> MESES = new java.util.LinkedHashMap<>();
+        MESES.put("ENERO",      Month.JANUARY);
+        MESES.put("FEBRERO",    Month.FEBRUARY);
+        MESES.put("MARZO",      Month.MARCH);
+        MESES.put("ABRIL",      Month.APRIL);
+        MESES.put("MAYO",       Month.MAY);
+        MESES.put("JUNIO",      Month.JUNE);
+        MESES.put("JULIO",      Month.JULY);
+        MESES.put("AGOSTO",     Month.AUGUST);
+        MESES.put("SEPTIEMBRE", Month.SEPTEMBER);
+        MESES.put("OCTUBRE",    Month.OCTOBER);
+        MESES.put("NOVIEMBRE",  Month.NOVEMBER);
+        MESES.put("DICIEMBRE",  Month.DECEMBER);
 
-        año = tbFechaDe.getValue().getYear();
-        sAño = Integer.toString(año);
-
-        
-        cbHistorialMes.valueProperty().addListener((newValue) -> {
-            
-            LocalDate date1, date2;
-            String nuevaFecha1, nuevaFecha2;
-            Month month;
-            
-            if(cbHistorialMes.getValue() == "ENERO"){  
-                month = Month.JANUARY;
-                nuevaFecha1 = sAño+"-01-"+"01";
-                nuevaFecha2 = sAño+"-01-"+month.length(true);
-                date1 = LocalDate.parse(nuevaFecha1);
-                date2 = LocalDate.parse(nuevaFecha2);
-                tbFechaDe.setValue(date1);
-                tbFechaA.setValue(date2);
-            }
-            
-            if(cbHistorialMes.getValue() == "FEBRERO"){  
-                month = Month.FEBRUARY;
-                nuevaFecha1 = sAño+"-02-"+"01";
-                nuevaFecha2 = sAño+"-02-"+month.length(true);
-                date1 = LocalDate.parse(nuevaFecha1);
-                date2 = LocalDate.parse(nuevaFecha2);
-                tbFechaDe.setValue(date1);
-                tbFechaA.setValue(date2);
-            }
-            
-            if(cbHistorialMes.getValue() == "MARZO"){  
-                month = Month.MARCH;
-                nuevaFecha1 = sAño+"-03-"+"01";
-                nuevaFecha2 = sAño+"-03-"+month.length(true);
-                date1 = LocalDate.parse(nuevaFecha1);
-                date2 = LocalDate.parse(nuevaFecha2);
-                tbFechaDe.setValue(date1);
-                tbFechaA.setValue(date2);
-            }
-            
-            if(cbHistorialMes.getValue() == "ABRIL"){  
-                month = Month.APRIL;
-                nuevaFecha1 = sAño+"-04-"+"01";
-                nuevaFecha2 = sAño+"-04-"+month.length(true);
-                date1 = LocalDate.parse(nuevaFecha1);
-                date2 = LocalDate.parse(nuevaFecha2);
-                tbFechaDe.setValue(date1);
-                tbFechaA.setValue(date2);
-            }
-            
-            if(cbHistorialMes.getValue() == "MAYO"){  
-                month = Month.MAY;
-                nuevaFecha1 = sAño+"-05-"+"01";
-                nuevaFecha2 = sAño+"-05-"+month.length(true);
-                date1 = LocalDate.parse(nuevaFecha1);
-                date2 = LocalDate.parse(nuevaFecha2);
-                tbFechaDe.setValue(date1);
-                tbFechaA.setValue(date2);
-            }
-            
-            if(cbHistorialMes.getValue() == "JUNIO"){  
-                month = Month.JUNE;
-                nuevaFecha1 = sAño+"-06-"+"01";
-                nuevaFecha2 = sAño+"-06-"+month.length(true);
-                date1 = LocalDate.parse(nuevaFecha1);
-                date2 = LocalDate.parse(nuevaFecha2);
-                tbFechaDe.setValue(date1);
-                tbFechaA.setValue(date2);
-            }
-            
-            if(cbHistorialMes.getValue() == "JULIO"){  
-                month = Month.JULY;
-                nuevaFecha1 = sAño+"-07-"+"01";
-                nuevaFecha2 = sAño+"-07-"+month.length(true);
-                date1 = LocalDate.parse(nuevaFecha1);
-                date2 = LocalDate.parse(nuevaFecha2);
-                tbFechaDe.setValue(date1);
-                tbFechaA.setValue(date2);
-            }
-            
-            if(cbHistorialMes.getValue() == "AGOSTO"){  
-                month = Month.AUGUST;
-                nuevaFecha1 = sAño+"-08-"+"01";
-                nuevaFecha2 = sAño+"-08-"+month.length(true);
-                date1 = LocalDate.parse(nuevaFecha1);
-                date2 = LocalDate.parse(nuevaFecha2);
-                tbFechaDe.setValue(date1);
-                tbFechaA.setValue(date2);
-            }
-            
-            if(cbHistorialMes.getValue() == "SEPTIEMBRE"){  
-                month = Month.SEPTEMBER;
-                nuevaFecha1 = sAño+"-09-"+"01";
-                nuevaFecha2 = sAño+"-09-"+month.length(true);
-                date1 = LocalDate.parse(nuevaFecha1);
-                date2 = LocalDate.parse(nuevaFecha2);
-                tbFechaDe.setValue(date1);
-                tbFechaA.setValue(date2);
-            }
-            
-            if(cbHistorialMes.getValue() == "OCTUBRE"){  
-                month = Month.OCTOBER;
-                nuevaFecha1 = sAño+"-10-"+"01";
-                nuevaFecha2 = sAño+"-10-"+month.length(true);
-                date1 = LocalDate.parse(nuevaFecha1);
-                date2 = LocalDate.parse(nuevaFecha2);
-                tbFechaDe.setValue(date1);
-                tbFechaA.setValue(date2);
-            }
-            
-            if(cbHistorialMes.getValue() == "NOVIEMBRE"){  
-                month = Month.NOVEMBER;
-                nuevaFecha1 = sAño+"-11-"+"01";
-                nuevaFecha2 = sAño+"-11-"+month.length(true);
-                date1 = LocalDate.parse(nuevaFecha1);
-                date2 = LocalDate.parse(nuevaFecha2);
-                tbFechaDe.setValue(date1);
-                tbFechaA.setValue(date2);
-            }
-            
-            if(cbHistorialMes.getValue() == "DICIEMBRE"){  
-                month = Month.DECEMBER;
-                nuevaFecha1 = sAño+"-12-"+"01";
-                nuevaFecha2 = sAño+"-12-"+month.length(true);
-                date1 = LocalDate.parse(nuevaFecha1);
-                date2 = LocalDate.parse(nuevaFecha2);
-                tbFechaDe.setValue(date1);
-                tbFechaA.setValue(date2);
-            }
+        cbHistorialMes.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal == null) return;
+            Month month = MESES.get(newVal);  // .equals() implícito — corrige bug de ==
+            if (month == null) return;
+            int anio = tbFechaDe.getValue() != null
+                    ? tbFechaDe.getValue().getYear()
+                    : LocalDate.now().getYear();
+            LocalDate primero = LocalDate.of(anio, month, 1);
+            LocalDate ultimo  = primero.withDayOfMonth(month.length(primero.isLeapYear()));
+            tbFechaDe.setValue(primero);
+            tbFechaA.setValue(ultimo);
             UpdateHistorial();
         });
-        
     }
     
     public void UpdateHistorial(){
@@ -2191,42 +2081,33 @@ public class DashboardController implements Initializable {
     }
     
     public void EliminarMaterial(){
+        String id = Integer.toString(indexMaterial);
         String sql = "delete from materiales where id = ?";
-        String in = Integer.toString(indexMaterial);
-        try{
-            pst = con.prepareStatement(sql);
-            pst.setString(1, in);
-            pst.execute();
+        try (Connection conn = ConnectionUtil.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, id);
+            ps.executeUpdate();
             UpdateMateriales();
             CodigoMaterial();
             cbMaterial.getItems().clear();
             fillComboBoxMaterial();
-        } catch (Exception e){
-            
+        } catch (SQLException e){
+            LOGGER.log(Level.SEVERE, "Error al eliminar material id=" + id, e);
         }
-        
     }
     
     public void CodigoMaterial(){
-        Connection con;
-        try {
-            
-            con = ConnectionUtil.getConnection();      
-            ResultSet rs = con.createStatement().executeQuery("select id from materiales");
-           
-            if(rs.next()){
-              while (rs.next()){
-                int id = rs.getInt(1)+1;
-                String l_id = Integer.toString(id);
-                tbCodigoMaterial.setText(l_id);
-            }  
-            }else{
+        String sql = "select max(id) from materiales";
+        try (Connection conn = ConnectionUtil.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next() && rs.getObject(1) != null) {
+                tbCodigoMaterial.setText(String.valueOf(rs.getInt(1) + 1));
+            } else {
                 tbCodigoMaterial.setText("1");
             }
-            
-            
-        } catch (Exception ex) {
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (SQLException ex) {
+            LOGGER.log(Level.SEVERE, "Error obteniendo codigo material", ex);
         }
     }
     
@@ -2338,24 +2219,17 @@ public class DashboardController implements Initializable {
     }
     
     public void CodigoAltura(){
-        Connection con;
-        try {
-            
-            con = ConnectionUtil.getConnection();      
-            ResultSet rs = con.createStatement().executeQuery("select id from alturas");
-           
-            if(rs.next()){
-              while (rs.next()){
-                int id = rs.getInt(1)+1;
-                String l_id = Integer.toString(id);
-                tbCodigoAltura.setText(l_id);
-            }  
-            }else{
+        String sql = "select max(id) from alturas";
+        try (Connection conn = ConnectionUtil.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next() && rs.getObject(1) != null) {
+                tbCodigoAltura.setText(String.valueOf(rs.getInt(1) + 1));
+            } else {
                 tbCodigoAltura.setText("1");
             }
-            
         } catch (SQLException ex) {
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
+            LOGGER.log(Level.SEVERE, "Error obteniendo codigo altura", ex);
         }
     }
     
@@ -2454,41 +2328,33 @@ public class DashboardController implements Initializable {
     }
     
     public void EliminarCalibre(){
+        String id = Integer.toString(indexCalibre);
         String sql = "delete from calibres where id = ?";
-        String in = Integer.toString(indexCalibre);
-        try{
-            pst = con.prepareStatement(sql);
-            pst.setString(1, in);
-            pst.execute();
+        try (Connection conn = ConnectionUtil.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, id);
+            ps.executeUpdate();
             UpdateCalibres();
             CodigoCalibres();
             cbCalibre.getItems().clear();
             fillComboBoxCalibre();
-        } catch (Exception e){
-            
+        } catch (SQLException e){
+            LOGGER.log(Level.SEVERE, "Error al eliminar calibre id=" + id, e);
         }
-        
     }
     
     public void CodigoCalibres(){
-        Connection con;
-        try {
-            
-            con = ConnectionUtil.getConnection();      
-            ResultSet rs = con.createStatement().executeQuery("select id from calibres");
-           
-            if(rs.next()){
-              while (rs.next()){
-                int id = rs.getInt(1)+1;
-                String l_id = Integer.toString(id);
-                tbCodigoCalibre.setText(l_id);
-            }  
-            }else{
+        String sql = "select max(id) from calibres";
+        try (Connection conn = ConnectionUtil.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next() && rs.getObject(1) != null) {
+                tbCodigoCalibre.setText(String.valueOf(rs.getInt(1) + 1));
+            } else {
                 tbCodigoCalibre.setText("1");
             }
-            
-        } catch (Exception ex) {
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (SQLException ex) {
+            LOGGER.log(Level.SEVERE, "Error obteniendo codigo calibre", ex);
         }
     }
     
@@ -2618,24 +2484,17 @@ public class DashboardController implements Initializable {
     }
     
     public void CodigoRombos(){
-        Connection con;
-        try {
-            
-            con = ConnectionUtil.getConnection();      
-            ResultSet rs = con.createStatement().executeQuery("select id from rombos");
-           
-            if(rs.next()){
-              while (rs.next()){
-                int id = rs.getInt(1)+1;
-                String l_id = Integer.toString(id);
-                tbCodigoRombo.setText(l_id);
-            }  
-            }else{
+        String sql = "select max(id) from rombos";
+        try (Connection conn = ConnectionUtil.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next() && rs.getObject(1) != null) {
+                tbCodigoRombo.setText(String.valueOf(rs.getInt(1) + 1));
+            } else {
                 tbCodigoRombo.setText("1");
             }
-            
-        } catch (Exception ex) {
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (SQLException ex) {
+            LOGGER.log(Level.SEVERE, "Error obteniendo codigo rombo", ex);
         }
     }   
     
