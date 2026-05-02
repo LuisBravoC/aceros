@@ -690,6 +690,7 @@ public class DashboardController implements Initializable {
         }
         
         cbHistorialMes.setItems(HistorialOpcion);
+        UpdateMesHistorial();
         
         TableValueEmpleados();
         TableMateriales();

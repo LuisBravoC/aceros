@@ -38,11 +38,11 @@ public class ReporteService {
      */
     public static void imprimirHistorial(String autor, String de, String a) throws Exception {
         try (InputStream reportStream =
-                ReporteService.class.getResourceAsStream("/controllers/report.jrxml")) {
+                ReporteService.class.getResourceAsStream("/reports/report.jrxml")) {
 
             if (reportStream == null) {
                 throw new IllegalStateException(
-                    "report.jrxml not found on classpath /controllers/report.jrxml");
+                    "report.jrxml not found on classpath /reports/report.jrxml");
             }
 
             JasperDesign jdesign = JRXmlLoader.load(reportStream);
