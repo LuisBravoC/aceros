@@ -129,6 +129,19 @@ CREATE TABLE `materiales` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Materiales más comunes en trefilado / malla
+INSERT INTO `materiales` (`nombre`) VALUES
+  ('ALAMBRE LISO'),
+  ('ALAMBRE TORCIDO'),
+  ('ALAMBRE GALVANIZADO'),
+  ('VARILLA CORRUGADA'),
+  ('VARILLA LISA'),
+  ('MALLA ELECTROSOLDADA'),
+  ('MALLA HEXAGONAL'),
+  ('CABLE DE ACERO'),
+  ('CLAVO'),
+  ('TREFILADO');
+
 DROP TABLE IF EXISTS `alturas`;
 CREATE TABLE `alturas` (
   `id`         INT          NOT NULL AUTO_INCREMENT,
@@ -137,6 +150,20 @@ CREATE TABLE `alturas` (
   `created_at` TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Alturas/longitudes estándar en metros
+INSERT INTO `alturas` (`nombre`, `altura`) VALUES
+  ('0.60 m',  0.60),
+  ('0.90 m',  0.90),
+  ('1.00 m',  1.00),
+  ('1.20 m',  1.20),
+  ('1.50 m',  1.50),
+  ('1.80 m',  1.80),
+  ('2.00 m',  2.00),
+  ('2.40 m',  2.40),
+  ('3.00 m',  3.00),
+  ('4.00 m',  4.00),
+  ('6.00 m',  6.00);
 
 DROP TABLE IF EXISTS `calibres`;
 CREATE TABLE `calibres` (
@@ -147,6 +174,23 @@ CREATE TABLE `calibres` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Calibres (diámetros en mm) comunes en trefilado de acero
+INSERT INTO `calibres` (`nombre`, `calibre`) VALUES
+  ('Cal 2.5 mm',  2.50),
+  ('Cal 3.0 mm',  3.00),
+  ('Cal 3.5 mm',  3.50),
+  ('Cal 4.0 mm',  4.00),
+  ('Cal 4.5 mm',  4.50),
+  ('Cal 5.0 mm',  5.00),
+  ('Cal 5.5 mm',  5.50),
+  ('Cal 6.0 mm',  6.00),
+  ('Cal 6.5 mm',  6.50),
+  ('Cal 7.0 mm',  7.00),
+  ('Cal 8.0 mm',  8.00),
+  ('Cal 9.0 mm',  9.00),
+  ('Cal 10.0 mm', 10.00),
+  ('Cal 12.0 mm', 12.00);
+
 DROP TABLE IF EXISTS `rombos`;
 CREATE TABLE `rombos` (
   `id`         INT          NOT NULL AUTO_INCREMENT,
@@ -155,6 +199,17 @@ CREATE TABLE `rombos` (
   `created_at` TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Tamaño de rombo (abertura de malla) en cm
+INSERT INTO `rombos` (`nombre`, `rombo`) VALUES
+  ('2.5 cm',   2.50),
+  ('5.0 cm',   5.00),
+  ('7.5 cm',   7.50),
+  ('10.0 cm', 10.00),
+  ('12.5 cm', 12.50),
+  ('15.0 cm', 15.00),
+  ('20.0 cm', 20.00),
+  ('25.0 cm', 25.00);
 
 -- ─────────────────────────────────────────────
 --  USUARIOS
@@ -203,7 +258,12 @@ CREATE TABLE `usuarios` (
   CONSTRAINT `fk_usr_tipo_usuario` FOREIGN KEY (`tipo_usuario_id`) REFERENCES `tipo_usuario`(`id`)     ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Seed: un usuario GERENTE inicial (password: 1234, primera_sesion=0 → debe cambiar)
+-- ─────────────────────────────────────────────
+--  SEED: USUARIO ADMINISTRADOR INICIAL
+--  usuario_id = 1
+--  password   = '1234'  (debe cambiar en primer inicio de sesión)
+--  primera_sesion = 0   → la app obliga a cambiar la contraseña al primer login
+-- ─────────────────────────────────────────────
 INSERT INTO `usuarios`
   (nombre, apellido_paterno, apellido_materno, password, tipo_usuario_id, primera_sesion)
 VALUES
