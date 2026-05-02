@@ -1,8 +1,3 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package controllers;
 
 import config.ConnectionUtil;
@@ -115,7 +110,7 @@ import net.sf.jasperreports.engine.xml.JRXmlLoader;
 import net.sf.jasperreports.view.JasperViewer;
 
 /**
- * FXML Controller class
+ * Controlador FXML del dashboard principal.
  *
  * @author LuisBravo
  */
@@ -656,10 +651,6 @@ public class DashboardController implements Initializable {
         tvSemanal.prefHeightProperty().bind(Bindings.size(tvSemanal.getItems()).multiply(tvSemanal.getFixedCellSize()).add(48));
     }
 
-    /**
-     * Initializes the controller class.
-     */
-
     @Override
     public void initialize(URL url, ResourceBundle rb) {
         
@@ -756,8 +747,8 @@ public class DashboardController implements Initializable {
     }
 
     /**
-     * Registers a mouse-click listener on a TableView that loads the selected
-     * catalog item from the DB and passes it to a populate consumer.
+     * Registra un listener de clic en una TableView que carga el ítem seleccionado
+     * desde la BD y lo pasa al consumidor populate.
      */
     private <T> void bindTableSelect(
             javafx.scene.control.TableView<T> tv,
@@ -782,7 +773,7 @@ public class DashboardController implements Initializable {
     }
 
 
-    /** Binds a text field filter to a FilteredList predicate using a getter. */
+    /** Vincula un filtro de texto a un predicado de FilteredList usando un getter. */
     private <T> void bindFilter(FilteredList<T> list, javafx.scene.control.TextField tf,
                                 Function<T, Object> getter) {
         tf.textProperty().addListener((obs, oldVal, newVal) ->
@@ -1004,7 +995,7 @@ public class DashboardController implements Initializable {
             public void handle(MouseEvent event) {
                 int selIdx = tableviewEmpleados.getSelectionModel().getSelectedIndex();
                 if (selIdx < 0) {
-                    // Click on column header (sort/reorder) or empty area — no row selected
+                    // Clic en encabezado de columna o área vacía — no hay fila seleccionada
                     btnEliminarEmpleado.setVisible(false);
                     btnEliminarEmpleado.setDisable(true);
                     btnEditarEmpleado.setDisable(true);
@@ -1013,10 +1004,10 @@ public class DashboardController implements Initializable {
 
                 Empleados index = tableviewEmpleados.getItems().get(selIdx);
 
-                // Enable PERFIL button whenever a row is selected
+                // Habilitar botón PERFIL al seleccionar una fila
                 btnEditarEmpleado.setDisable(false);
 
-                // Only show/enable delete for users with GERENTE role
+                // Mostrar y habilitar eliminar solo para usuarios con rol GERENTE
                 if (tipo_empleado != null && tipo_empleado.contains("GERENTE")) {
                     btnEliminarEmpleado.setVisible(true);
                     btnEliminarEmpleado.setDisable(false);
@@ -1052,9 +1043,7 @@ public class DashboardController implements Initializable {
     });
     }
     
-    // BusquedaEmpleado moved to dao.UsuariosDao (use UsuariosDao.findById)
-    
-    // COMBO BOX FILLS
+    // CARGAR COMBO BOXES
     public void fillComboBoxGenero(){
         GeneroOpcion.clear();
         GeneroOpcion.addAll(LookupService.getGeneros());
@@ -1116,7 +1105,7 @@ public class DashboardController implements Initializable {
         }
     
     
-    // COMBO BOX FILLS
+    // FIN CARGAR COMBO BOXES
     
     // AGREGAR EMPLEADO
     public void AgregarEmpleado(){
@@ -1188,7 +1177,7 @@ public class DashboardController implements Initializable {
         }
     }
 
-    /** Returns the trimmed text, or {@code defaultVal} if empty/null. */
+    /** Retorna el texto recortado, o {@code defaultVal} si está vacío o es nulo. */
     private String safeText(TextField tf, String defaultVal) {
         if (tf == null) return defaultVal;
         String t = tf.getText();
@@ -1196,7 +1185,7 @@ public class DashboardController implements Initializable {
         return t.trim();
     }
 
-    /** Returns the selected value, or {@code defaultVal} if empty/null. */
+    /** Retorna el valor seleccionado, o {@code defaultVal} si está vacío o es nulo. */
     private String safeCombo(ComboBox<String> cb, String defaultVal) {
         if (cb == null) return defaultVal;
         String v = cb.getValue();
@@ -1205,8 +1194,8 @@ public class DashboardController implements Initializable {
     }
 
     /**
-     * Converts a value from the DB to an empty string when it is null or
-     * the literal string "NULL" (legacy data saved before this fix).
+     * Convierte un valor de la BD a cadena vacía cuando es nulo o
+     * es la cadena literal "NULL" (datos heredados del formato anterior).
      */
     private static String orEmpty(String val) {
         if (val == null || val.equals("NULL")) return "";
@@ -1214,18 +1203,18 @@ public class DashboardController implements Initializable {
     }
 
     /**
-     * Reads all employee form fields and builds a UsuarioDetalle (without userId).
-     * Both add and modify paths use this to avoid duplication.
+     * Lee todos los campos del formulario de empleado y construye un UsuarioDetalle (sin userId).
+     * Tanto la ruta de agregar como la de modificar usan este método para evitar duplicación.
      */
     private UsuarioDetalle buildUsuarioDetalleFromForm() {
         LocalDate fecha    = tbFechaNacimiento.getValue()  != null ? tbFechaNacimiento.getValue()  : LocalDate.now();
         LocalDate fechaCon = tbFechaContratacion.getValue() != null ? tbFechaContratacion.getValue() : LocalDate.now();
         UsuarioDetalle u = new UsuarioDetalle();
-        // Required fields (NOT NULL in DB) — default to empty string, not "NULL"
+        // Campos obligatorios (NOT NULL en BD) — cadena vacía como valor por defecto
         u.setNombre(safeText(tbNombreEmpleado, ""));
         u.setApellidoPaterno(safeText(tbAPaternoEmpleado, ""));
         u.setApellidoMaterno(safeText(tbAMaternoEmpleado, ""));
-        // Optional fields — default null so DB stores NULL (not the string "NULL")
+        // Campos opcionales — null por defecto para que la BD almacene NULL
         u.setCurp(safeText(tbCurp, null));
         u.setRfc(safeText(tbRfc, null));
         u.setNss(safeText(tbNss, null));
@@ -1253,8 +1242,8 @@ public class DashboardController implements Initializable {
     }
 
     /**
-     * Populates all employee form fields from a UsuarioDetalle.
-     * Used by PerfilEmpleado() and PerfilEmpleadoProduccion().
+     * Rellena todos los campos del formulario de empleado a partir de un UsuarioDetalle.
+     * Utilizado por PerfilEmpleado() y PerfilEmpleadoProduccion().
      */
     private void populateFormFromUsuario(UsuarioDetalle u) {
         try {
@@ -1484,7 +1473,7 @@ public class DashboardController implements Initializable {
                 cbRombo, cbRomboEditar, LookupService::getRombos);
     }
 
-    /** Repopulates a pair of ObservableLists (and preserves current combo values). */
+    /** Recarga un par de ObservableLists preservando los valores actuales de los ComboBox. */
     private void refreshComboBoxPair(
             ObservableList<String> a, ObservableList<String> b,
             javafx.scene.control.ComboBox<String> cbA,
@@ -1542,8 +1531,8 @@ public class DashboardController implements Initializable {
     }
     
     /**
-     * Looks up an employee by id and populates the production screen's profile labels.
-     * Shows an error alert if not found.
+     * Busca un empleado por id y rellena las etiquetas de perfil en la pantalla de producción.
+     * Muestra una alerta de error si no se encuentra.
      */
     private void buscarYMostrarEmpleadoProduccion(String in) {
         UsuarioDetalle u = UsuariosDao.findById(in);
@@ -1901,9 +1890,9 @@ public class DashboardController implements Initializable {
         tbMedidaMaterialEditar.clear();
     }
 
-    // ── UI HELPERS ────────────────────────────────────────────────────────────
+    // ── UTILIDADES UI ─────────────────────────────────────────────────────────
 
-    /** Animates title label, then brings pnBlanco and target pane to front. */
+    /** Anima la etiqueta de título y trae pnBlanco y el panel destino al frente. */
     private void navigate(String title, Pane target) {
         new animatefx.animation.BounceIn(lbTitulo).play();
         lbTitulo.setText(title);
@@ -1921,7 +1910,7 @@ public class DashboardController implements Initializable {
         alert.showAndWait();
     }
 
-    /** Shows YES/CANCEL confirmation (CANCEL is default button) and runs accion on YES. */
+    /** Muestra confirmación SÍ/CANCELAR (CANCELAR es el botón por defecto) y ejecuta accion si se elige SÍ. */
     private void confirmarYEjecutar(String mensaje, Runnable accion) {
         Alert alert = new Alert(AlertType.CONFIRMATION, mensaje, ButtonType.YES, ButtonType.CANCEL);
         ((Button) alert.getDialogPane().lookupButton(ButtonType.YES)).setDefaultButton(false);
@@ -1932,7 +1921,7 @@ public class DashboardController implements Initializable {
         if (alert.getResult() == ButtonType.YES) accion.run();
     }
 
-    // ── NAVIGATION ────────────────────────────────────────────────────────────
+    // ── NAVEGACIÓN ────────────────────────────────────────────────────────────
 
     private void onNavPerfil()     { navigate("PERFIL",     pnPerfil);     Perfil(); }
     private void onNavInicio()     { navigate("INICIO",     pnInicio); }
@@ -2190,13 +2179,13 @@ public class DashboardController implements Initializable {
         tbMedidaMaterialEditar.setPromptText("SEPARACION DE ROMBOS");
     }
 
-    // ── EVENT DISPATCHER ──────────────────────────────────────────────────────
+    // ── MANEJO DE EVENTOS ─────────────────────────────────────────────────────
 
     @FXML
     private void handleClicks(ActionEvent actionEvent) throws IOException {
         Object src = actionEvent.getSource();
 
-        // Navigation — early return so remaining checks are skipped
+        // Navegación — retorno inmediato para omitir el resto de las comprobaciones
         if (src == btnPefil)      { onNavPerfil();         return; }
         if (src == btnInicio)     { onNavInicio();          return; }
         if (src == btnEmpleados)  { onNavEmpleados();       return; }
@@ -2204,12 +2193,12 @@ public class DashboardController implements Initializable {
         if (src == btnMateriales) { onNavMateriales();      return; }
         if (src == btnExit)       { onNavExit(actionEvent); return; }
 
-        // Profile
+        // Perfil
         if (src == btncambiarContraseña) onBtnCambiarPassword();
         if (src == btnVolverContraseña)  onBtnVolverPassword();
         if (src == btnGuardarContraseña) onBtnGuardarPassword();
 
-        // Employees
+        // Empleados
         if (src == btnNuevoEmpleado)      onBtnNuevoEmpleado();
         if (src == btnEditarEmpleado)     onBtnEditarEmpleado();
         if (src == btnVolverEmpleados)    onBtnVolverEmpleados();
@@ -2220,7 +2209,7 @@ public class DashboardController implements Initializable {
         if (src == btnProduccionEmpleado) onBtnProduccionEmpleado();
         if (src == btnSubirImagen)        onBtnSubirImagen(actionEvent);
 
-        // Production
+        // Producción
         if (src == btnBuscarEmpleado)           onBtnBuscarEmpleadoProduccion();
         if (src == btnEditarEmpleado2)           onBtnEditarEmpleado2();
         if (src == btnLimpiarProduccion)         onBtnLimpiarProduccion();
@@ -2233,28 +2222,28 @@ public class DashboardController implements Initializable {
         if (src == btnGuardarEditartProduccion)  onBtnGuardarEdicionProduccion();
         if (src == btnEditarHistorial)           pnEditarProduccion.toFront();
 
-        // History
+        // Historial
         if (src == btnBuscarHistorial) onBtnBuscarHistorial();
         if (src == btnReporte)         ImprimirReporte();
 
-        // Catalogs — save
+        // Catálogos — guardar
         if (src == btnGuardarMaterial) onBtnGuardarMaterial();
         if (src == btnGuardarAltura)   onBtnGuardarAltura();
         if (src == btnGuardarCalibre)  onBtnGuardarCalibre();
         if (src == btnGuardarRombo)    onBtnGuardarRombo();
 
-        // Catalogs — delete
+        // Catálogos — eliminar
         if (src == btnEliminarMaterial) confirmarYEjecutar("Desea eliminar material?",  this::EliminarMaterial);
         if (src == btnEliminarAltura)   confirmarYEjecutar("Desea eliminar altura?",    this::EliminarAltura);
         if (src == btnEliminarCalibre)  confirmarYEjecutar("Desea eliminar calibre?",   this::EliminarCalibre);
         if (src == btnEliminarRombo)    confirmarYEjecutar("Desea eliminar rombos?",    this::EliminarRombo);
 
-        // Catalogs — edit panel (Materiales)
+        // Catálogos — panel de edición (Materiales)
         if (src == btnEditarMaterial)       pnEditarMaterial.toFront();
         if (src == btnVolverEdiatMaterial)  pnEditarMaterial.toBack();
         if (src == btnGuardarEdiatMaterial) { ModificarMaterial(); pnEditarMaterial.toBack(); }
 
-        // Catalogs — edit panel (Alturas / Calibres / Rombos shared)
+        // Catálogos — panel de edición compartido (Alturas / Calibres / Rombos)
         if (src == btnVolverEditartMaterial2) { clearCambiarMaterial(); pnEditarMaterial2.toBack(); }
         if (src == btnEditarAltura)            onBtnEditarAltura();
         if (src == btnGuardarEditarAltura)     { ModificarAltura();  pnEditarMaterial2.toBack(); clearCambiarMaterial(); }
