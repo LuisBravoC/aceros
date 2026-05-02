@@ -975,11 +975,7 @@ public class DashboardController implements Initializable {
             UpdateTable();
         } catch (SQLException ex) {
             LOGGER.log(Level.SEVERE, "Error al eliminar empleado id=" + id, ex);
-            Alert alert = new Alert(AlertType.ERROR);
-            alert.setTitle("Error al eliminar");
-            alert.setHeaderText(null);
-            alert.setContentText("No se pudo eliminar el empleado: " + ex.getMessage());
-            alert.showAndWait();
+            showAlert(AlertType.ERROR, "Error al eliminar", null, "No se pudo eliminar el empleado: " + ex.getMessage());
         }
     }
 
@@ -1687,17 +1683,12 @@ public class DashboardController implements Initializable {
                         lbHApellidoHistorial.setText(u.getApellidoPaterno()+" "+u.getApellidoMaterno());
                         lbHDomicilioHistorial.setText(u.getTipoEmpleado());
                         imgPerfilHistorial.setImage(ImageUtils.fromBytesOrDefault(u.getImagen(), backup));
-                    }else{
-                     Alert alert = new Alert(AlertType.ERROR);
-                     Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-                     stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                     alert.setTitle("No hay coincidencias");
-                     alert.setHeaderText("No se encontro empleado");
-                     alert.showAndWait();
-                     imgPerfilHistorial.setImage(sinperfil);
-                     LOGGER.log(Level.FINE, "No hay informacion de domicilio");
-                }   
-                }catch (Exception e){
+                    } else {
+                        showAlert(AlertType.ERROR, "No hay coincidencias", "No se encontro empleado", null);
+                        imgPerfilHistorial.setImage(sinperfil);
+                        LOGGER.log(Level.FINE, "No hay informacion de domicilio");
+                    }
+                } catch (Exception e) {
                     LOGGER.log(Level.SEVERE, "Error in BuscarEmpleadoHistorial", e);
                 }
 
