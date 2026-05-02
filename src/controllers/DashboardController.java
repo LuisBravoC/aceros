@@ -1002,48 +1002,50 @@ public class DashboardController implements Initializable {
         tableviewEmpleados.setOnMouseClicked(new EventHandler<MouseEvent>(){
             @Override
             public void handle(MouseEvent event) {
-                Empleados index = tableviewEmpleados.getItems().get(tableviewEmpleados.getSelectionModel().getSelectedIndex());
-
                 int selIdx = tableviewEmpleados.getSelectionModel().getSelectedIndex();
-                if (selIdx >= 0) {
-                    // Enable PERFIL button whenever a row is selected (viewing profile)
-                    btnEditarEmpleado.setDisable(false);
-
-                    // Only show/enable delete for users with GERENTE role
-                    if (tipo_empleado != null && tipo_empleado.contains("GERENTE")) {
-                        btnEliminarEmpleado.setVisible(true);
-                        btnEliminarEmpleado.setDisable(false);
-                    } else {
-                        btnEliminarEmpleado.setVisible(false);
-                        btnEliminarEmpleado.setDisable(true);
-                    }
-                } else {
+                if (selIdx < 0) {
+                    // Click on column header (sort/reorder) or empty area — no row selected
                     btnEliminarEmpleado.setVisible(false);
                     btnEliminarEmpleado.setDisable(true);
                     btnEditarEmpleado.setDisable(true);
+                    return;
                 }
 
-                indexEmpleado = index.getEmpIdUsuario();     
+                Empleados index = tableviewEmpleados.getItems().get(selIdx);
+
+                // Enable PERFIL button whenever a row is selected
+                btnEditarEmpleado.setDisable(false);
+
+                // Only show/enable delete for users with GERENTE role
+                if (tipo_empleado != null && tipo_empleado.contains("GERENTE")) {
+                    btnEliminarEmpleado.setVisible(true);
+                    btnEliminarEmpleado.setDisable(false);
+                } else {
+                    btnEliminarEmpleado.setVisible(false);
+                    btnEliminarEmpleado.setDisable(true);
+                }
+
+                indexEmpleado = index.getEmpIdUsuario();
                 String in = Integer.toString(indexEmpleado);
-                
+
                 UsuarioDetalle u = UsuariosDao.findById(in);
                 LOGGER.log(Level.FINE, "Index seleccionado {0}", in);
-                try{
-                    if(u != null){
+                try {
+                    if (u != null) {
                         lbHDomicilio.setText(u.getTipoEmpleado());
                         String timestamp = u.getCreateTime();
                         if (timestamp != null && timestamp.length() >= 10) {
                             lbHFecha.setText(DateUtils.formatLongDate(timestamp, true));
                         }
                         imgPerfil.setImage(ImageUtils.fromBytesOrDefault(u.getImagen(), backup));
-                    }else{
-                     imgPerfil.setImage(sinperfil);
-                     LOGGER.log(Level.FINE, "No hay informacion de domicilio");
-                }   
-                }catch (Exception e){
+                    } else {
+                        imgPerfil.setImage(sinperfil);
+                        LOGGER.log(Level.FINE, "No hay informacion de domicilio");
+                    }
+                } catch (Exception e) {
                     LOGGER.log(Level.SEVERE, "Error in TableValueEmpleados handler", e);
                 }
-                
+
                 lbHCodigo.setText(String.valueOf(indexEmpleado));
                 lbHNombre.setText(index.getEmpNombre());
             }
