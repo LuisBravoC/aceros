@@ -50,6 +50,8 @@ import java.util.ResourceBundle;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.function.Consumer;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -749,6 +751,33 @@ public class DashboardController implements Initializable {
         tableviewEmpleados.setItems(sortedData);
     }
 
+    /**
+     * Registers a mouse-click listener on a TableView that loads the selected
+     * catalog item from the DB and passes it to a populate consumer.
+     */
+    private <T> void bindTableSelect(
+            javafx.scene.control.TableView<T> tv,
+            Function<T, Integer> getId,
+            Function<String, T> findById,
+            Consumer<T> populate) {
+        tv.setOnMouseClicked(event -> {
+            int sel = tv.getSelectionModel().getSelectedIndex();
+            if (sel < 0 || sel >= tv.getItems().size()) return;
+            T item = tv.getItems().get(sel);
+            if (item == null) return;
+            String in = Integer.toString(getId.apply(item));
+            T found = findById.apply(in);
+            LOGGER.log(Level.FINE, "Index seleccionado {0}", in);
+            try {
+                if (found != null) populate.accept(found);
+                else LOGGER.log(Level.FINE, "No hay informacion del catalogo");
+            } catch (Exception ex) {
+                LOGGER.log(Level.SEVERE, "Error en handler de tabla", ex);
+            }
+        });
+    }
+
+
     /** Binds a text field filter to a FilteredList predicate using a getter. */
     private <T> void bindFilter(FilteredList<T> list, javafx.scene.control.TextField tf,
                                 Function<T, Object> getter) {
@@ -1108,87 +1137,16 @@ public class DashboardController implements Initializable {
     }
 
     private void addEmpleadoInternal(boolean withImage){
-        int edad; LocalDate fecha, fecha_con;
-        if(tbFechaNacimiento.getValue() == null){
-            edad = 0; fecha = LocalDate.now();
-        }else {
-            fecha = tbFechaNacimiento.getValue();
-            LocalDate date = LocalDate.now();
-            edad = Period.between(tbFechaNacimiento.getValue(), date).getYears();   
-        }
-
-        if(tbFechaContratacion.getValue() == null){
-            fecha_con = LocalDate.now();
-        }else { 
-            fecha_con = tbFechaContratacion.getValue();
-        }
-        String fecha_nacimiento = fecha.toString();
-        String fecha_contratacion = fecha_con.toString();
-
-        String nombre = tbNombreEmpleado.getText();         if (tbNombreEmpleado.getText().isEmpty()){nombre = "NULL";}
-        String apellido_p = tbAPaternoEmpleado.getText();   if (tbAPaternoEmpleado.getText().isEmpty()){apellido_p = "NULL";}
-        String apellido_m = tbAMaternoEmpleado.getText();   if (tbAMaternoEmpleado.getText().isEmpty()){apellido_m = "NULL";}
-        String curp = tbCurp.getText();                     if (tbCurp.getText().isEmpty()){curp = "NULL";}
-        String rfc = tbRfc.getText();                       if (tbRfc.getText().isEmpty()){rfc = "NULL";}
-        String nss = tbNss.getText();                       if (tbNss.getText().isEmpty()){nss = "NULL";}
-        String email = tbEmailEmpleado.getText();           if (tbEmailEmpleado.getText().isEmpty()){email = "NULL";}
-        String genero = cbGenero.getValue();                if (cbGenero.getValue() == null){genero = "NULL";}
-        String sueldo = tbSueldoEmpleado.getText();         if (tbSueldoEmpleado.getText().isEmpty()){sueldo = "0";}
-        String metodo_pago = cbMetodoPago.getValue();       if (cbMetodoPago.getValue() == null){metodo_pago = "NULL";}
-        String banco = cbBanco.getValue();                  if (cbBanco.getValue() == null){banco = "NULL";}
-        String numero_cuenta = tbNCuenta.getText();         if (tbNCuenta.getText().isEmpty()){numero_cuenta = "NULL";}
-        String periodo_pago = cbPeriodoPago.getValue();     if (cbPeriodoPago.getValue() == null){periodo_pago = "NULL";}
-        String tipo_contrato = cbContrato.getValue();       if (cbContrato.getValue() == null){tipo_contrato = "NULL";}
-        String pais = cbPais.getValue();                    if (cbPais.getValue() == null){pais = "NULL";}
-        String estado = cbEstado.getValue();                if (cbEstado.getValue() == null){estado = "NULL";}
-        String localidad = tbLocalidad.getText();           if (tbLocalidad.getText().isEmpty()){localidad = "NULL";}
-        String colonia = tbColonia.getText();               if (tbColonia.getText().isEmpty()){colonia = "NULL";}
-        String numero_exterior = tbNExterior.getText();     if (tbNExterior.getText().isEmpty()){numero_exterior = "NULL";}
-        String ciudad = cbCiudad.getValue();                if (cbCiudad.getValue() == null){ciudad = "NULL";}
-        String calle = tbCalle.getText();                   if (tbCalle.getText().isEmpty()){calle = "NULL";}
-        String codigo_postal = tbCodigoPostal.getText();    if (tbCodigoPostal.getText().isEmpty()){codigo_postal = "NULL";}
-        String numero_interior = tbNInterior.getText();     if (tbNInterior.getText().isEmpty()){numero_interior = "NULL";}
-        String tipo_emp = cbTipoUsuario.getValue();
-        if (tipo_emp == null || tipo_emp.isEmpty()) { tipo_emp = "NULL"; }
-        String edad_emp = String.valueOf(edad);
-        String password = tbCodigoUsuarioAgregar.getText();
-
         LOGGER.log(Level.FINE, "RECORD RUNNING!!!");
         try {
-            UsuarioDetalle u = new UsuarioDetalle();
-            u.setNombre(nombre);
-            u.setApellidoPaterno(apellido_p);
-            u.setApellidoMaterno(apellido_m);
-            u.setCurp(curp);
-            u.setRfc(rfc);
-            u.setNss(nss);
-            u.setFechaNacimiento(fecha_nacimiento);
-            u.setFechaContratacion(fecha_contratacion);
-            u.setEmail(email);
-            u.setGenero(genero);
-            u.setSueldo(sueldo);
-            u.setMetodoPago(metodo_pago);
-            u.setBanco(banco);
-            u.setNumeroCuenta(numero_cuenta);
-            u.setPeriodoPago(periodo_pago);
-            u.setTipoContrato(tipo_contrato);
-            u.setPais(pais);
-            u.setEstado(estado);
-            u.setLocalidad(localidad);
-            u.setColonia(colonia);
-            u.setNumeroExterior(numero_exterior);
-            u.setCiudad(ciudad);
-            u.setCalle(calle);
-            u.setCodigoPostal(codigo_postal);
-            u.setNumeroInterior(numero_interior);
-            u.setTipoEmpleado(tipo_emp);
-
+            UsuarioDetalle u = buildUsuarioDetalleFromForm();
+            String password = tbCodigoUsuarioAgregar.getText();
             boolean ok = UsuariosService.saveUsuario(u, password, withImage, file);
             if (ok) {
                 LOGGER.log(Level.INFO, "RECORD ADDED");
                 LimpiarPerfil();
                 UpdateTable();
-                int id = Integer.parseInt(tbCodigoUsuarioAgregar.getText())+1;
+                int id = Integer.parseInt(tbCodigoUsuarioAgregar.getText()) + 1;
                 tbCodigoUsuarioAgregar.setText(String.valueOf(id));
             } else {
                 LOGGER.log(Level.WARNING, "RECORD FAILED");
@@ -1209,91 +1167,27 @@ public class DashboardController implements Initializable {
     }
 
     private void modifyEmpleadoInternal(boolean withImage){
-        Empleados index = null;
-        try{
-            index = tableviewEmpleados.getItems().get(tableviewEmpleados.getSelectionModel().getSelectedIndex());
-        } catch (Exception e){
+        Empleados selectedRow = null;
+        try {
+            selectedRow = tableviewEmpleados.getItems().get(tableviewEmpleados.getSelectionModel().getSelectedIndex());
+        } catch (Exception e) {
             LOGGER.log(Level.WARNING, "No hay fila seleccionada para modificar", e);
             return;
         }
-        if (index == null) return;
-        indexEmpleado = index.getEmpIdUsuario();
+        if (selectedRow == null) return;
+        indexEmpleado = selectedRow.getEmpIdUsuario();
         String in = Integer.toString(indexEmpleado);
-
-        LocalDate fecha = (tbFechaNacimiento != null) ? tbFechaNacimiento.getValue() : null;
-        LocalDate fecha_con = (tbFechaContratacion != null) ? tbFechaContratacion.getValue() : null;
-        int edad = 0;
-        if (fecha != null) {
-            try { edad = Period.between(fecha, LocalDate.now()).getYears(); } catch (Exception ex) { edad = 0; }
-        }
-        if (fecha == null) fecha = LocalDate.now();
-        if (fecha_con == null) fecha_con = LocalDate.now();
-        String fecha_nacimiento = fecha.toString();
-        String fecha_contratacion = fecha_con.toString();
-
-        String nombre = safeText(tbNombreEmpleado, "NULL");
-        String apellido_p = safeText(tbAPaternoEmpleado, "NULL");
-        String apellido_m = safeText(tbAMaternoEmpleado, "NULL");
-        String curp = safeText(tbCurp, "NULL");
-        String rfc = safeText(tbRfc, "NULL");
-        String nss = safeText(tbNss, "NULL");
-        String email = safeText(tbEmailEmpleado, "NULL");
-        String genero = safeCombo(cbGenero, "NULL");
-        String sueldo = safeText(tbSueldoEmpleado, "0");
-        String metodo_pago = safeCombo(cbMetodoPago, "NULL");
-        String banco = safeCombo(cbBanco, "NULL");
-        String numero_cuenta = safeText(tbNCuenta, "NULL");
-        String periodo_pago = safeCombo(cbPeriodoPago, "NULL");
-        String tipo_contrato = safeCombo(cbContrato, "NULL");
-        String pais = safeCombo(cbPais, "NULL");
-        String estado = safeCombo(cbEstado, "NULL");
-        String localidad = safeText(tbLocalidad, "NULL");
-        String colonia = safeText(tbColonia, "NULL");
-        String numero_exterior = safeText(tbNExterior, "NULL");
-        String ciudad = safeCombo(cbCiudad, "NULL");
-        String calle = safeText(tbCalle, "NULL");
-        String codigo_postal = safeText(tbCodigoPostal, "NULL");
-        String numero_interior = safeText(tbNInterior, "NULL");
-        String tipo_emp = safeCombo(cbTipoUsuario, "NULL");
-        String edad_emp = String.valueOf(edad);
 
         LOGGER.log(Level.FINE, "RECORD RUNNING (modify)!!!");
         try {
-            UsuarioDetalle u = new UsuarioDetalle();
+            UsuarioDetalle u = buildUsuarioDetalleFromForm();
             u.setUsuarioId(in);
-            u.setNombre(nombre);
-            u.setApellidoPaterno(apellido_p);
-            u.setApellidoMaterno(apellido_m);
-            u.setCurp(curp);
-            u.setRfc(rfc);
-            u.setNss(nss);
-            u.setFechaNacimiento(fecha_nacimiento);
-            u.setFechaContratacion(fecha_contratacion);
-            u.setEmail(email);
-            u.setGenero(genero);
-            u.setSueldo(sueldo);
-            u.setMetodoPago(metodo_pago);
-            u.setBanco(banco);
-            u.setNumeroCuenta(numero_cuenta);
-            u.setPeriodoPago(periodo_pago);
-            u.setTipoContrato(tipo_contrato);
-            u.setPais(pais);
-            u.setEstado(estado);
-            u.setLocalidad(localidad);
-            u.setColonia(colonia);
-            u.setNumeroExterior(numero_exterior);
-            u.setCiudad(ciudad);
-            u.setCalle(calle);
-            u.setCodigoPostal(codigo_postal);
-            u.setNumeroInterior(numero_interior);
-            u.setTipoEmpleado(tipo_emp);
-
             boolean ok = UsuariosService.saveUsuario(u, null, withImage, file);
             if (ok) {
                 LOGGER.log(Level.INFO, "RECORD UPDATED");
                 LimpiarPerfil();
                 UpdateTable();
-                int id = Integer.parseInt(tbCodigoUsuarioAgregar.getText())+1;
+                int id = Integer.parseInt(tbCodigoUsuarioAgregar.getText()) + 1;
                 tbCodigoUsuarioAgregar.setText(String.valueOf(id));
             } else {
                 LOGGER.log(Level.WARNING, "RECORD FAILED");
@@ -1316,6 +1210,44 @@ public class DashboardController implements Initializable {
         if (v == null || v.isEmpty()) return defaultVal;
         return v;
     }
+
+    /**
+     * Reads all employee form fields and builds a UsuarioDetalle (without userId).
+     * Both add and modify paths use this to avoid duplication.
+     */
+    private UsuarioDetalle buildUsuarioDetalleFromForm() {
+        LocalDate fecha    = tbFechaNacimiento.getValue()  != null ? tbFechaNacimiento.getValue()  : LocalDate.now();
+        LocalDate fechaCon = tbFechaContratacion.getValue() != null ? tbFechaContratacion.getValue() : LocalDate.now();
+        UsuarioDetalle u = new UsuarioDetalle();
+        u.setNombre(safeText(tbNombreEmpleado, "NULL"));
+        u.setApellidoPaterno(safeText(tbAPaternoEmpleado, "NULL"));
+        u.setApellidoMaterno(safeText(tbAMaternoEmpleado, "NULL"));
+        u.setCurp(safeText(tbCurp, "NULL"));
+        u.setRfc(safeText(tbRfc, "NULL"));
+        u.setNss(safeText(tbNss, "NULL"));
+        u.setFechaNacimiento(fecha.toString());
+        u.setFechaContratacion(fechaCon.toString());
+        u.setEmail(safeText(tbEmailEmpleado, "NULL"));
+        u.setGenero(safeCombo(cbGenero, "NULL"));
+        u.setSueldo(safeText(tbSueldoEmpleado, "0"));
+        u.setMetodoPago(safeCombo(cbMetodoPago, "NULL"));
+        u.setBanco(safeCombo(cbBanco, "NULL"));
+        u.setNumeroCuenta(safeText(tbNCuenta, "NULL"));
+        u.setPeriodoPago(safeCombo(cbPeriodoPago, "NULL"));
+        u.setTipoContrato(safeCombo(cbContrato, "NULL"));
+        u.setPais(safeCombo(cbPais, "NULL"));
+        u.setEstado(safeCombo(cbEstado, "NULL"));
+        u.setLocalidad(safeText(tbLocalidad, "NULL"));
+        u.setColonia(safeText(tbColonia, "NULL"));
+        u.setNumeroExterior(safeText(tbNExterior, "NULL"));
+        u.setCiudad(safeCombo(cbCiudad, "NULL"));
+        u.setCalle(safeText(tbCalle, "NULL"));
+        u.setCodigoPostal(safeText(tbCodigoPostal, "NULL"));
+        u.setNumeroInterior(safeText(tbNInterior, "NULL"));
+        u.setTipoEmpleado(safeCombo(cbTipoUsuario, "NULL"));
+        return u;
+    }
+
     // MODIFICAR EMPLEADO
     
     public void PerfilEmpleado(){
@@ -1916,30 +1848,12 @@ public class DashboardController implements Initializable {
     
     int indexMaterial;
     public void TableMateriales(){
-        
-        tvMateriales.setOnMouseClicked(new EventHandler<MouseEvent>(){
-            public void handle(MouseEvent event) {
-                Materiales index = tvMateriales.getItems().get(tvMateriales.getSelectionModel().getSelectedIndex());
-                indexMaterial = index.getTcCodigoMaterial();
-                String in = Integer.toString(indexMaterial);
-                
-                models.Materiales mat = MaterialesService.findById(in);
-                LOGGER.log(Level.FINE, "Index seleccionado {0}", in);
-                try{
-                    if(mat != null){
-                        tbCodigoMaterialEditar.setText(String.valueOf(mat.getTcCodigoMaterial()));
-                        tbNombreMaterialEditar.setText(mat.getTcNombreMaterial());
-                    }else{
-                        LOGGER.log(Level.FINE, "No hay informacion de material");
-                    }
-                }catch (Exception e){
-                    LOGGER.log(Level.SEVERE, "Error in TableMateriales handler", e);
-                }
-                
-            }
-        }
-        );
-        
+        bindTableSelect(tvMateriales, Materiales::getTcCodigoMaterial, MaterialesService::findById,
+            mat -> {
+                indexMaterial = mat.getTcCodigoMaterial();
+                tbCodigoMaterialEditar.setText(String.valueOf(mat.getTcCodigoMaterial()));
+                tbNombreMaterialEditar.setText(mat.getTcNombreMaterial());
+            });
     }
     
     public void EliminarMaterial(){
@@ -1960,52 +1874,13 @@ public class DashboardController implements Initializable {
     }
     
     public void AgregarMaterial(){
-        
-        //String codigo = tbCodigoMaterial.getText();     if (tbCodigoMaterial.getText().isEmpty()){codigo = "NULL";}
-        String nombre = tbNombreMaterial.getText();     if (tbNombreMaterial.getText().isEmpty()){nombre = "NULL";}
-        
-        try{
-            LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
-            boolean ok = MaterialesService.insert(nombre);
-            LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
-            if (ok){
-                LOGGER.log(Level.INFO, "RECORD ADDED");
-                tbNombreMaterial.clear();
-                UpdateMateriales();
-                CodigoMaterial();
-                cbMaterial.getItems().clear();
-                fillComboBoxMaterial();
-            }else{
-                LOGGER.log(Level.WARNING, "RECORD FAILED");
-            }
-        }catch (Exception e){
-            LOGGER.log(Level.SEVERE, "Error adding material", e);
-        }
-    
+        CatalogoUtils.agregarCatalogo(MaterialesService::insert, tbNombreMaterial,
+                () -> { UpdateMateriales(); CodigoMaterial(); cbMaterial.getItems().clear(); fillComboBoxMaterial(); });
     }
     
     public void ModificarMaterial(){
-        
-        String id = tbCodigoMaterialEditar.getText();     if (tbCodigoMaterialEditar.getText().isEmpty()){id = "NULL";}
-        String nombre = tbNombreMaterialEditar.getText(); if (tbNombreMaterialEditar.getText().isEmpty()){nombre = "NULL";}
-        
-        try{
-            LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
-            boolean ok = MaterialesService.update(id, nombre);
-            LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
-            if (ok){
-                LOGGER.log(Level.INFO, "RECORD UPDATED");
-                UpdateMateriales();
-                CodigoMaterial();
-                cbMaterial.getItems().clear();
-                fillComboBoxMaterial();
-            }else{
-                LOGGER.log(Level.WARNING, "RECORD FAILED");
-            }
-        }catch (Exception e){
-            LOGGER.log(Level.SEVERE, "Error updating material", e);
-        }
-    
+        CatalogoUtils.modificarCatalogo(MaterialesService::update, tbCodigoMaterialEditar, tbNombreMaterialEditar,
+                () -> { UpdateMateriales(); CodigoMaterial(); cbMaterial.getItems().clear(); fillComboBoxMaterial(); });
     }
     
     
@@ -2013,31 +1888,13 @@ public class DashboardController implements Initializable {
     
     int indexAltura;
     public void TableAltura(){
-        
-        tvAlturas.setOnMouseClicked(new EventHandler<MouseEvent>(){
-            public void handle(MouseEvent event) {
-                Alturas index = tvAlturas.getItems().get(tvAlturas.getSelectionModel().getSelectedIndex());
-                indexAltura = index.getTcCodigoAltura();
-                String in = Integer.toString(indexAltura);
-                
-                models.Alturas a = AlturasService.findById(in);
-                LOGGER.log(Level.FINE, "Index seleccionado {0}", in);
-                try{
-                    if(a != null){
-                        tbCodigoMaterialEditar2.setText(String.valueOf(a.getTcCodigoAltura()));
-                        tbNombreMaterialEditar2.setText(a.getTcNombreAltura());
-                        tbMedidaMaterialEditar.setText(a.getTcAltura());
-                    }else{
-                        LOGGER.log(Level.FINE, "No hay informacion de altura");
-                    }
-                }catch (Exception e){
-                    LOGGER.log(Level.SEVERE, "Error in TableAltura handler", e);
-                }
-                
-            }
-        }
-        );
-        
+        bindTableSelect(tvAlturas, Alturas::getTcCodigoAltura, AlturasService::findById,
+            a -> {
+                indexAltura = a.getTcCodigoAltura();
+                tbCodigoMaterialEditar2.setText(String.valueOf(a.getTcCodigoAltura()));
+                tbNombreMaterialEditar2.setText(a.getTcNombreAltura());
+                tbMedidaMaterialEditar.setText(a.getTcAltura());
+            });
     }
     
     public void EliminarAltura(){
@@ -2084,31 +1941,13 @@ public class DashboardController implements Initializable {
     
     int indexCalibre;
     public void TableCalibre(){
-        
-        tvCalibres.setOnMouseClicked(new EventHandler<MouseEvent>(){
-            public void handle(MouseEvent event) {
-                Calibres index = tvCalibres.getItems().get(tvCalibres.getSelectionModel().getSelectedIndex());
-                indexCalibre = index.getTcCodigoCalibre();
-                String in = Integer.toString(indexCalibre);
-                
-                models.Calibres c = CalibresService.findById(in);
-                LOGGER.log(Level.FINE, "Index seleccionado {0}", in);
-                try{
-                    if(c != null){
-                        tbCodigoMaterialEditar2.setText(String.valueOf(c.getTcCodigoCalibre()));
-                        tbNombreMaterialEditar2.setText(c.getTcNombreCalibre());
-                        tbMedidaMaterialEditar.setText(c.getTcCalibre());
-                    }else{
-                        LOGGER.log(Level.FINE, "No hay informacion de calibre");
-                    }
-                }catch (Exception e){
-                    LOGGER.log(Level.SEVERE, "Error in TableCalibre handler", e);
-                }
-                
-            }
-        }
-        );
-        
+        bindTableSelect(tvCalibres, Calibres::getTcCodigoCalibre, CalibresService::findById,
+            c -> {
+                indexCalibre = c.getTcCodigoCalibre();
+                tbCodigoMaterialEditar2.setText(String.valueOf(c.getTcCodigoCalibre()));
+                tbNombreMaterialEditar2.setText(c.getTcNombreCalibre());
+                tbMedidaMaterialEditar.setText(c.getTcCalibre());
+            });
     }
     
     public void EliminarCalibre(){
@@ -2144,31 +1983,13 @@ public class DashboardController implements Initializable {
     
     int indexRombo;
     public void TableRombos(){
-        
-        tvRombos.setOnMouseClicked(new EventHandler<MouseEvent>(){
-            public void handle(MouseEvent event) {
-                Rombos index = tvRombos.getItems().get(tvRombos.getSelectionModel().getSelectedIndex());
-                indexRombo = index.getTcCodigoRombo();
-                String in = Integer.toString(indexRombo);
-                
-                models.Rombos r = RombosDao.findById(in);
-                LOGGER.log(Level.FINE, "Index seleccionado {0}", in);
-                try{
-                    if(r != null){
-                        tbCodigoMaterialEditar2.setText(String.valueOf(r.getTcCodigoRombo()));
-                        tbNombreMaterialEditar2.setText(r.getTcNombreRombo());
-                        tbMedidaMaterialEditar.setText(r.getTcRombo());
-                    }else{
-                        LOGGER.log(Level.FINE, "No hay informacion de rombo");
-                    }
-                }catch (Exception e){
-                    LOGGER.log(Level.SEVERE, "Error in TableRombos handler", e);
-                }
-                
-            }
-        }
-        );
-        
+        bindTableSelect(tvRombos, Rombos::getTcCodigoRombo, RombosDao::findById,
+            r -> {
+                indexRombo = r.getTcCodigoRombo();
+                tbCodigoMaterialEditar2.setText(String.valueOf(r.getTcCodigoRombo()));
+                tbNombreMaterialEditar2.setText(r.getTcNombreRombo());
+                tbMedidaMaterialEditar.setText(r.getTcRombo());
+            });
     }
 
     public void EliminarRombo(){

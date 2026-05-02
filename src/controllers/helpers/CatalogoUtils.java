@@ -19,7 +19,7 @@ public final class CatalogoUtils {
 
     private CatalogoUtils() { /* utility class - no instances */ }
 
-    // -- functional interfaces --------------------------------------------
+    // -- functional interfaces (two-field) ----------------------------------
 
     /** Insert operation: (nombre, medida) -> boolean. */
     @FunctionalInterface
@@ -33,12 +33,22 @@ public final class CatalogoUtils {
         boolean apply(String id, String nombre, String medida);
     }
 
-    // -- cargarSiguienteId -----------------------------------------------
+    // -- functional interfaces (single-field) -------------------------------
+
+    /** Insert with a single text param (nombre only). */
+    @FunctionalInterface
+    public interface CrudInsertSingle { boolean apply(String nombre); }
+
+    /** Update with two params: (id, nombre). */
+    @FunctionalInterface
+    public interface CrudUpdateSingle { boolean apply(String id, String nombre); }
+
+    // -- cargarSiguienteId --------------------------------------------------
 
     /**
      * Queries SELECT MAX(id) FROM tabla and writes the next available ID
      * into campoCodigo. Sets "1" when the table is empty.
-     * tabla MUST be a compile-time constant - never pass user input.
+     * tabla MUST be a compile-time constant -- never pass user input.
      */
     public static void cargarSiguienteId(String tabla, TextField campoCodigo) {
         String sql = "SELECT MAX(id) FROM " + tabla;
@@ -55,12 +65,11 @@ public final class CatalogoUtils {
         }
     }
 
-    // -- agregarCatalogo -------------------------------------------------
+    // -- agregarCatalogo (two-field: nombre + medida) -----------------------
 
     /**
      * Inserts a catalog entry with two text fields (nombre + medida).
-     * Clears both fields and runs onSuccess if the insert succeeds.
-     * Use method references: AlturasService::insert
+     * Use method reference: AlturasService::insert
      */
     public static void agregarCatalogo(
             CrudInsert insertFn,
@@ -78,20 +87,40 @@ public final class CatalogoUtils {
                 nombreField.clear();
                 medidaField.clear();
                 onSuccess.run();
-            } else {
-                LOGGER.log(Level.WARNING, "RECORD FAILED");
-            }
+            } else { LOGGER.log(Level.WARNING, "RECORD FAILED"); }
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Error adding catalog entry", e);
         }
     }
 
-    // -- modificarCatalogo -----------------------------------------------
+    // -- agregarCatalogo (single-field: nombre only) ------------------------
+
+    /**
+     * Inserts a catalog entry with a single text field (nombre only).
+     * Use method reference: MaterialesService::insert
+     */
+    public static void agregarCatalogo(
+            CrudInsertSingle insertFn, TextField nombreField, Runnable onSuccess) {
+        String nombre = safeText(nombreField);
+        try {
+            LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
+            boolean ok = insertFn.apply(nombre);
+            LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
+            if (ok) {
+                LOGGER.log(Level.INFO, "RECORD ADDED");
+                nombreField.clear();
+                onSuccess.run();
+            } else { LOGGER.log(Level.WARNING, "RECORD FAILED"); }
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error adding entry", e);
+        }
+    }
+
+    // -- modificarCatalogo (three-field: id, nombre, medida) ----------------
 
     /**
      * Updates a catalog entry reading from three shared edit fields.
-     * Runs onSuccess if the update succeeds.
-     * Use method references: AlturasService::update
+     * Use method reference: AlturasService::update
      */
     public static void modificarCatalogo(
             CrudUpdate updateFn,
@@ -109,15 +138,37 @@ public final class CatalogoUtils {
             if (ok) {
                 LOGGER.log(Level.INFO, "RECORD UPDATED");
                 onSuccess.run();
-            } else {
-                LOGGER.log(Level.WARNING, "RECORD FAILED");
-            }
+            } else { LOGGER.log(Level.WARNING, "RECORD FAILED"); }
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Error updating catalog entry", e);
         }
     }
 
-    // -- private helpers -------------------------------------------------
+    // -- modificarCatalogo (single-field: id, nombre) -----------------------
+
+    /**
+     * Updates a catalog entry with two fields: id and nombre.
+     * Use method reference: MaterialesService::update
+     */
+    public static void modificarCatalogo(
+            CrudUpdateSingle updateFn, TextField codField, TextField nombreField,
+            Runnable onSuccess) {
+        String id     = safeText(codField);
+        String nombre = safeText(nombreField);
+        try {
+            LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
+            boolean ok = updateFn.apply(id, nombre);
+            LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
+            if (ok) {
+                LOGGER.log(Level.INFO, "RECORD UPDATED");
+                onSuccess.run();
+            } else { LOGGER.log(Level.WARNING, "RECORD FAILED"); }
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error updating entry", e);
+        }
+    }
+
+    // -- private helpers ----------------------------------------------------
 
     private static String safeText(TextField tf) {
         String t = tf.getText();
