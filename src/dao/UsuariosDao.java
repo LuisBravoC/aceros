@@ -94,9 +94,12 @@ public class UsuariosDao {
             while (rs.next()) {
                 String edad = calcularEdad(rs.getString("fecha_nacimiento"));
                 String sueldo = rs.getString("sueldo");
+                String nombre = coalesce(rs.getString("nombre"), "")
+                              + " " + coalesce(rs.getString("apellido_paterno"), "")
+                              + " " + coalesce(rs.getString("apellido_materno"), "");
                 list.add(new Empleados(
                         rs.getInt("usuario_id"),
-                        rs.getString("nombre") + " " + rs.getString("apellido_paterno") + " " + rs.getString("apellido_materno"),
+                        nombre.trim(),
                         edad,
                         sueldo != null ? sueldo : "0"));
             }
@@ -284,5 +287,10 @@ public class UsuariosDao {
         } catch (Exception ex) {
             return "0";
         }
+    }
+
+    /** Returns {@code val} if non-null, otherwise {@code fallback}. */
+    private static String coalesce(String val, String fallback) {
+        return val != null ? val : fallback;
     }
 }

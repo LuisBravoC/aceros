@@ -1186,18 +1186,29 @@ public class DashboardController implements Initializable {
         }
     }
 
+    /** Returns the trimmed text, or {@code defaultVal} if empty/null. */
     private String safeText(TextField tf, String defaultVal) {
         if (tf == null) return defaultVal;
         String t = tf.getText();
-        if (t == null || t.isEmpty()) return defaultVal;
-        return t;
+        if (t == null || t.trim().isEmpty()) return defaultVal;
+        return t.trim();
     }
 
+    /** Returns the selected value, or {@code defaultVal} if empty/null. */
     private String safeCombo(ComboBox<String> cb, String defaultVal) {
         if (cb == null) return defaultVal;
         String v = cb.getValue();
-        if (v == null || v.isEmpty()) return defaultVal;
+        if (v == null || v.trim().isEmpty()) return defaultVal;
         return v;
+    }
+
+    /**
+     * Converts a value from the DB to an empty string when it is null or
+     * the literal string "NULL" (legacy data saved before this fix).
+     */
+    private static String orEmpty(String val) {
+        if (val == null || val.equals("NULL")) return "";
+        return val;
     }
 
     /**
@@ -1208,32 +1219,34 @@ public class DashboardController implements Initializable {
         LocalDate fecha    = tbFechaNacimiento.getValue()  != null ? tbFechaNacimiento.getValue()  : LocalDate.now();
         LocalDate fechaCon = tbFechaContratacion.getValue() != null ? tbFechaContratacion.getValue() : LocalDate.now();
         UsuarioDetalle u = new UsuarioDetalle();
-        u.setNombre(safeText(tbNombreEmpleado, "NULL"));
-        u.setApellidoPaterno(safeText(tbAPaternoEmpleado, "NULL"));
-        u.setApellidoMaterno(safeText(tbAMaternoEmpleado, "NULL"));
-        u.setCurp(safeText(tbCurp, "NULL"));
-        u.setRfc(safeText(tbRfc, "NULL"));
-        u.setNss(safeText(tbNss, "NULL"));
-        u.setFechaNacimiento(fecha.toString());
-        u.setFechaContratacion(fechaCon.toString());
-        u.setEmail(safeText(tbEmailEmpleado, "NULL"));
-        u.setGenero(safeCombo(cbGenero, "NULL"));
-        u.setSueldo(safeText(tbSueldoEmpleado, "0"));
-        u.setMetodoPago(safeCombo(cbMetodoPago, "NULL"));
-        u.setBanco(safeCombo(cbBanco, "NULL"));
-        u.setNumeroCuenta(safeText(tbNCuenta, "NULL"));
-        u.setPeriodoPago(safeCombo(cbPeriodoPago, "NULL"));
-        u.setTipoContrato(safeCombo(cbContrato, "NULL"));
-        u.setPais(safeCombo(cbPais, "NULL"));
-        u.setEstado(safeCombo(cbEstado, "NULL"));
-        u.setLocalidad(safeText(tbLocalidad, "NULL"));
-        u.setColonia(safeText(tbColonia, "NULL"));
-        u.setNumeroExterior(safeText(tbNExterior, "NULL"));
-        u.setCiudad(safeCombo(cbCiudad, "NULL"));
-        u.setCalle(safeText(tbCalle, "NULL"));
-        u.setCodigoPostal(safeText(tbCodigoPostal, "NULL"));
-        u.setNumeroInterior(safeText(tbNInterior, "NULL"));
-        u.setTipoEmpleado(safeCombo(cbTipoUsuario, "NULL"));
+        // Required fields (NOT NULL in DB) — default to empty string, not "NULL"
+        u.setNombre(safeText(tbNombreEmpleado, ""));
+        u.setApellidoPaterno(safeText(tbAPaternoEmpleado, ""));
+        u.setApellidoMaterno(safeText(tbAMaternoEmpleado, ""));
+        // Optional fields — default null so DB stores NULL (not the string "NULL")
+        u.setCurp(safeText(tbCurp, null));
+        u.setRfc(safeText(tbRfc, null));
+        u.setNss(safeText(tbNss, null));
+        u.setFechaNacimiento(fecha != null ? fecha.toString() : null);
+        u.setFechaContratacion(fechaCon != null ? fechaCon.toString() : null);
+        u.setEmail(safeText(tbEmailEmpleado, null));
+        u.setGenero(safeCombo(cbGenero, null));
+        u.setSueldo(safeText(tbSueldoEmpleado, null));
+        u.setMetodoPago(safeCombo(cbMetodoPago, null));
+        u.setBanco(safeCombo(cbBanco, null));
+        u.setNumeroCuenta(safeText(tbNCuenta, null));
+        u.setPeriodoPago(safeCombo(cbPeriodoPago, null));
+        u.setTipoContrato(safeCombo(cbContrato, null));
+        u.setPais(safeCombo(cbPais, null));
+        u.setEstado(safeCombo(cbEstado, null));
+        u.setLocalidad(safeText(tbLocalidad, null));
+        u.setColonia(safeText(tbColonia, null));
+        u.setNumeroExterior(safeText(tbNExterior, null));
+        u.setCiudad(safeCombo(cbCiudad, null));
+        u.setCalle(safeText(tbCalle, null));
+        u.setCodigoPostal(safeText(tbCodigoPostal, null));
+        u.setNumeroInterior(safeText(tbNInterior, null));
+        u.setTipoEmpleado(safeCombo(cbTipoUsuario, null));
         return u;
     }
 
@@ -1247,37 +1260,43 @@ public class DashboardController implements Initializable {
                 LOGGER.log(Level.FINE, "No hay informacion del empleado");
                 return;
             }
-            tbCodigoUsuarioAgregar.setText(u.getUsuarioId());
-            tbNombreEmpleado.setText(u.getNombre());
-            tbAPaternoEmpleado.setText(u.getApellidoPaterno());
-            tbAMaternoEmpleado.setText(u.getApellidoMaterno());
-            tbCurp.setText(u.getCurp());
-            tbRfc.setText(u.getRfc());
-            tbNss.setText(u.getNss());
-            if (u.getFechaNacimiento() != null && !u.getFechaNacimiento().isEmpty()) {
-                tbFechaNacimiento.setValue(LocalDate.parse(u.getFechaNacimiento()));
+            tbCodigoUsuarioAgregar.setText(orEmpty(u.getUsuarioId()));
+            tbNombreEmpleado.setText(orEmpty(u.getNombre()));
+            tbAPaternoEmpleado.setText(orEmpty(u.getApellidoPaterno()));
+            tbAMaternoEmpleado.setText(orEmpty(u.getApellidoMaterno()));
+            tbCurp.setText(orEmpty(u.getCurp()));
+            tbRfc.setText(orEmpty(u.getRfc()));
+            tbNss.setText(orEmpty(u.getNss()));
+            String fn = u.getFechaNacimiento();
+            if (fn != null && !fn.isEmpty() && !fn.equals("NULL")) {
+                try { tbFechaNacimiento.setValue(LocalDate.parse(fn)); } catch (Exception ignored) {}
+            } else {
+                tbFechaNacimiento.setValue(null);
             }
-            if (u.getFechaContratacion() != null && !u.getFechaContratacion().isEmpty()) {
-                tbFechaContratacion.setValue(LocalDate.parse(u.getFechaContratacion()));
+            String fc = u.getFechaContratacion();
+            if (fc != null && !fc.isEmpty() && !fc.equals("NULL")) {
+                try { tbFechaContratacion.setValue(LocalDate.parse(fc)); } catch (Exception ignored) {}
+            } else {
+                tbFechaContratacion.setValue(null);
             }
-            tbEmailEmpleado.setText(u.getEmail());
-            cbGenero.setValue(u.getGenero());
-            cbTipoUsuario.setValue(u.getTipoEmpleado());
-            tbSueldoEmpleado.setText(u.getSueldo());
-            cbMetodoPago.setValue(u.getMetodoPago());
-            cbBanco.setValue(u.getBanco());
-            tbNCuenta.setText(u.getNumeroCuenta());
-            cbPeriodoPago.setValue(u.getPeriodoPago());
-            cbContrato.setValue(u.getTipoContrato());
-            cbPais.setValue(u.getPais());
-            cbEstado.setValue(u.getEstado());
-            tbLocalidad.setText(u.getLocalidad());
-            tbColonia.setText(u.getColonia());
-            tbNExterior.setText(u.getNumeroExterior());
-            cbCiudad.setValue(u.getCiudad());
-            tbCalle.setText(u.getCalle());
-            tbCodigoPostal.setText(u.getCodigoPostal());
-            tbNInterior.setText(u.getNumeroInterior());
+            tbEmailEmpleado.setText(orEmpty(u.getEmail()));
+            cbGenero.setValue("NULL".equals(u.getGenero()) ? null : u.getGenero());
+            cbTipoUsuario.setValue("NULL".equals(u.getTipoEmpleado()) ? null : u.getTipoEmpleado());
+            tbSueldoEmpleado.setText(orEmpty(u.getSueldo()));
+            cbMetodoPago.setValue("NULL".equals(u.getMetodoPago()) ? null : u.getMetodoPago());
+            cbBanco.setValue("NULL".equals(u.getBanco()) ? null : u.getBanco());
+            tbNCuenta.setText(orEmpty(u.getNumeroCuenta()));
+            cbPeriodoPago.setValue("NULL".equals(u.getPeriodoPago()) ? null : u.getPeriodoPago());
+            cbContrato.setValue("NULL".equals(u.getTipoContrato()) ? null : u.getTipoContrato());
+            cbPais.setValue("NULL".equals(u.getPais()) ? null : u.getPais());
+            cbEstado.setValue("NULL".equals(u.getEstado()) ? null : u.getEstado());
+            tbLocalidad.setText(orEmpty(u.getLocalidad()));
+            tbColonia.setText(orEmpty(u.getColonia()));
+            tbNExterior.setText(orEmpty(u.getNumeroExterior()));
+            cbCiudad.setValue("NULL".equals(u.getCiudad()) ? null : u.getCiudad());
+            tbCalle.setText(orEmpty(u.getCalle()));
+            tbCodigoPostal.setText(orEmpty(u.getCodigoPostal()));
+            tbNInterior.setText(orEmpty(u.getNumeroInterior()));
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Error in populateFormFromUsuario", e);
         }
