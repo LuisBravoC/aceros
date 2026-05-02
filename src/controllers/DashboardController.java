@@ -16,7 +16,6 @@ import dao.AlturasDao;
 import services.AlturasService;
 import dao.CalibresDao;
 import services.CalibresService;
-import dao.RombosDao;
 import services.RombosService;
 import dao.ProduccionDao;
 import dao.HistorialDao;
@@ -700,6 +699,7 @@ public class DashboardController implements Initializable {
         TableProduccionS();
         
         UpdateTable();
+        Filtro();
         fillComboBoxPais(); 
         fillComboBoxEstados();
         fillComboBoxCiudades();
@@ -740,6 +740,7 @@ public class DashboardController implements Initializable {
         UpdateProduccionSemanal(); 
         VerificarTipoEmpleado();
         LOGGER.log(Level.INFO, "EL TIPO DE EMPLEADO ES: {0}", tipo_empleado);
+        ComprobarPrimerSesion();
         UpdateHistorial();
         }
 
@@ -898,17 +899,12 @@ public class DashboardController implements Initializable {
             if (UsuariosService.verifyPassword(usuario, contraseña)) {
                 UpdateContraseña();
             } else {
-                Alert alert = new Alert(AlertType.ERROR);
-                alert.setHeaderText("La contraseña actual no es correcta");
-                alert.setContentText("Vuelva a intentarlo de nuevo");
-                Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-                stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                alert.showAndWait();
+                tbContraseñaActual.clear();
+                showAlert(AlertType.ERROR, null, "La contraseña actual no es correcta", "Vuelva a intentarlo de nuevo");
             }
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Error in CambiarContraseña", e);
         }
-    
     }
     
     public void UpdateContraseña(){
@@ -918,13 +914,8 @@ public class DashboardController implements Initializable {
             boolean changed = UsuariosService.changePassword(usuario, contraseñanueva);
             if (changed) {
                 LOGGER.log(Level.INFO, "SE CAMBIO CONTRASEÑA");
-                Alert alert = new Alert(AlertType.INFORMATION);
-                alert.setTitle("Operacion exitosa");
-                alert.setHeaderText(null);
-                alert.setContentText("Se cambio contraseña de manera exitosa");
-                Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-                stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                alert.showAndWait();
+                tbContraseñaActual.clear(); tbContraseñaNueva.clear(); tbContraseñaRepetir.clear();
+                showAlert(AlertType.INFORMATION, "Operacion exitosa", null, "Se cambio contraseña de manera exitosa");
                 pnDashboard.setDisable(false);
                 btnVolverContraseña.setDisable(false);
                 btnVolverContraseña.setVisible(true);
@@ -937,7 +928,6 @@ public class DashboardController implements Initializable {
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Error in UpdateContraseña", e);
         }
-        
     }
     
     public void ComprobarPrimerSesion(){
@@ -992,7 +982,7 @@ public class DashboardController implements Initializable {
         empSueldo.setCellValueFactory(new PropertyValueFactory<>("empSueldo"));       
         
         listM = UsuariosDao.getAll();
-        tableviewEmpleados.setItems(listM);        
+        dataList.setAll(listM);
     }
     //ACTUALIZAR TABLA EMPLEADOS
     public void CodigoUsuario(){
@@ -1347,19 +1337,15 @@ public class DashboardController implements Initializable {
 
     @FXML
     void updateMetodo(ActionEvent event) {
-        
-        if (cbMetodoPago.getSelectionModel().isSelected(1)){  
-            cbBanco.setDisable(false);
-            tbNCuenta.setDisable(false);
-            LOGGER.log(Level.FINE, "FALSE!!! {0}", cbMetodoPago.getValue());
-        }else{
-            cbBanco.setDisable(true);
-            tbNCuenta.setDisable(true);
+        String metodo = cbMetodoPago.getValue();
+        boolean requiereBanco = metodo != null && !"EFECTIVO".equals(metodo);
+        cbBanco.setDisable(!requiereBanco);
+        tbNCuenta.setDisable(!requiereBanco);
+        if (!requiereBanco) {
             cbBanco.setValue(null);
             tbNCuenta.clear();
-            LOGGER.log(Level.FINE, "TRUE!!! {0}", cbMetodoPago.getValue());
         }
-        LOGGER.log(Level.FINE, "FUERAAA {0}", cbMetodoPago.getValue());
+        LOGGER.log(Level.FINE, "Metodo pago seleccionado: {0}, requiere banco: {1}", new Object[]{metodo, requiereBanco});
     }
     // FIN PANTALLA EMPLEADOS
     
@@ -1838,7 +1824,7 @@ public class DashboardController implements Initializable {
     
     int indexRombo;
     public void TableRombos(){
-        bindTableSelect(tvRombos, Rombos::getTcCodigoRombo, RombosDao::findById,
+        bindTableSelect(tvRombos, Rombos::getTcCodigoRombo, RombosService::findById,
             r -> {
                 indexRombo = r.getTcCodigoRombo();
                 tbCodigoMaterialEditar2.setText(String.valueOf(r.getTcCodigoRombo()));
@@ -1969,9 +1955,12 @@ public class DashboardController implements Initializable {
             showAlert(AlertType.ERROR, null, "No se ingreso contrasena actual", "La contrasena actual debe ser ingresada");
         } else if (tbContraseñaNueva.getText().isEmpty() || tbContraseñaRepetir.getText().isEmpty()) {
             tbContraseñaActual.clear(); tbContraseñaNueva.clear(); tbContraseñaRepetir.clear();
-            showAlert(AlertType.ERROR, null, "Las contrasenas nuevas no coinciden", "Vuelva a intentarlo de nuevo");
+            showAlert(AlertType.ERROR, null, "Uno o mas campos vacios", "Ingrese la contrasena nueva dos veces");
         } else if (tbContraseñaNueva.getText().equals(tbContraseñaRepetir.getText())) {
             CambiarContraseña();
+        } else {
+            tbContraseñaNueva.clear(); tbContraseñaRepetir.clear();
+            showAlert(AlertType.ERROR, null, "Las contrasenas nuevas no coinciden", "Vuelva a intentarlo de nuevo");
         }
     }
 
