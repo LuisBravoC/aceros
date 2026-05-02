@@ -104,6 +104,7 @@ import javafx.stage.Stage;
 import javafx.stage.Window;
 import javax.imageio.ImageIO;
 import javax.swing.text.Document;
+import services.ReporteService;
 import net.sf.jasperreports.engine.JRException;
 import net.sf.jasperreports.engine.JasperCompileManager;
 import net.sf.jasperreports.engine.JasperFillManager;
@@ -1248,65 +1249,63 @@ public class DashboardController implements Initializable {
         return u;
     }
 
+    /**
+     * Populates all employee form fields from a UsuarioDetalle.
+     * Used by PerfilEmpleado() and PerfilEmpleadoProduccion().
+     */
+    private void populateFormFromUsuario(UsuarioDetalle u) {
+        try {
+            if (u == null) {
+                LOGGER.log(Level.FINE, "No hay informacion del empleado");
+                return;
+            }
+            tbCodigoUsuarioAgregar.setText(u.getUsuarioId());
+            tbNombreEmpleado.setText(u.getNombre());
+            tbAPaternoEmpleado.setText(u.getApellidoPaterno());
+            tbAMaternoEmpleado.setText(u.getApellidoMaterno());
+            tbCurp.setText(u.getCurp());
+            tbRfc.setText(u.getRfc());
+            tbNss.setText(u.getNss());
+            if (u.getFechaNacimiento() != null && !u.getFechaNacimiento().isEmpty()) {
+                tbFechaNacimiento.setValue(LocalDate.parse(u.getFechaNacimiento()));
+            }
+            if (u.getFechaContratacion() != null && !u.getFechaContratacion().isEmpty()) {
+                tbFechaContratacion.setValue(LocalDate.parse(u.getFechaContratacion()));
+            }
+            tbEmailEmpleado.setText(u.getEmail());
+            cbGenero.setValue(u.getGenero());
+            cbTipoUsuario.setValue(u.getTipoEmpleado());
+            tbSueldoEmpleado.setText(u.getSueldo());
+            cbMetodoPago.setValue(u.getMetodoPago());
+            cbBanco.setValue(u.getBanco());
+            tbNCuenta.setText(u.getNumeroCuenta());
+            cbPeriodoPago.setValue(u.getPeriodoPago());
+            cbContrato.setValue(u.getTipoContrato());
+            cbPais.setValue(u.getPais());
+            cbEstado.setValue(u.getEstado());
+            tbLocalidad.setText(u.getLocalidad());
+            tbColonia.setText(u.getColonia());
+            tbNExterior.setText(u.getNumeroExterior());
+            cbCiudad.setValue(u.getCiudad());
+            tbCalle.setText(u.getCalle());
+            tbCodigoPostal.setText(u.getCodigoPostal());
+            tbNInterior.setText(u.getNumeroInterior());
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error in populateFormFromUsuario", e);
+        }
+    }
+
     // MODIFICAR EMPLEADO
     
     public void PerfilEmpleado(){
-        
         btnModificarEmpleado.toFront();
         btnVolverEmpleados.toFront();
         Empleados index = tableviewEmpleados.getItems().get(tableviewEmpleados.getSelectionModel().getSelectedIndex());
-        indexEmpleado = index.getEmpIdUsuario();     
+        indexEmpleado = index.getEmpIdUsuario();
         String in = Integer.toString(indexEmpleado);
         UsuarioDetalle u = UsuariosDao.findById(in);
         LOGGER.log(Level.FINE, "Index seleccionado {0}", in);
-        try{
-            if(u != null){
-                tbCodigoUsuarioAgregar.setText(u.getUsuarioId());
-                tbNombreEmpleado.setText(u.getNombre());
-                tbAPaternoEmpleado.setText(u.getApellidoPaterno());
-                tbAMaternoEmpleado.setText(u.getApellidoMaterno());
-                tbCurp.setText(u.getCurp());
-                tbRfc.setText(u.getRfc());
-                tbNss.setText(u.getNss());
-
-                String fecha_nacimiento = u.getFechaNacimiento();
-                if (fecha_nacimiento != null && !fecha_nacimiento.isEmpty()){
-                    LocalDate localDate = LocalDate.parse(fecha_nacimiento);
-                    tbFechaNacimiento.setValue(localDate);
-                }
-
-                String fecha_contratacion = u.getFechaContratacion();
-                if (fecha_contratacion != null && !fecha_contratacion.isEmpty()){
-                    LocalDate localDate = LocalDate.parse(fecha_contratacion);
-                    tbFechaContratacion.setValue(localDate);
-                }
-
-                tbEmailEmpleado.setText(u.getEmail());
-                cbGenero.setValue(u.getGenero());
-                cbTipoUsuario.setValue(u.getTipoEmpleado());
-                tbSueldoEmpleado.setText(u.getSueldo());
-                cbMetodoPago.setValue(u.getMetodoPago());
-                cbBanco.setValue(u.getBanco());
-                tbNCuenta.setText(u.getNumeroCuenta());
-                cbPeriodoPago.setValue(u.getPeriodoPago());
-                cbContrato.setValue(u.getTipoContrato());
-
-                cbPais.setValue(u.getPais());
-                cbEstado.setValue(u.getEstado());
-                tbLocalidad.setText(u.getLocalidad());
-                tbColonia.setText(u.getColonia());
-                tbNExterior.setText(u.getNumeroExterior());
-
-                cbCiudad.setValue(u.getCiudad());
-                tbCalle.setText(u.getCalle());
-                tbCodigoPostal.setText(u.getCodigoPostal());
-                tbNInterior.setText(u.getNumeroInterior());
-            }else{
-            LOGGER.log(Level.FINE, "No hay informacion de domicilio");
-        }   
-        }catch (Exception e){
-            LOGGER.log(Level.SEVERE, "Error in PerfilEmpleado", e);
-        }  
+        populateFormFromUsuario(u);
     }
     
     public void updateImagenPerfil(){
@@ -1528,127 +1527,50 @@ public class DashboardController implements Initializable {
     }
     
     public void BuscarEmpleadoProduccion(){
-                
-                String in = tbCodigoProduccion.getText();
-                
-                UsuarioDetalle u = UsuariosDao.findById(in);
-                LOGGER.log(Level.FINE, "Index seleccionado {0}", in);
-                try{
-                    if(u != null){
-                        btnEditarEmpleado2.setDisable(false);
-                        lbHCodigo2.setText(u.getUsuarioId());
-                        lbHNombre2.setText(u.getNombre() + " " + u.getApellidoPaterno() + " " + u.getApellidoMaterno());
-                        lbHDomicilio2.setText(u.getTipoEmpleado());
-                        String timestamp = u.getCreateTime();
-                        if (timestamp != null && timestamp.length() >= 10) {
-                            lbHFecha2.setText(DateUtils.formatLongDate(timestamp, true));
-                        }
-                        imgPerfilProduccion.setImage(ImageUtils.fromBytesOrDefault(u.getImagen(), backup));
-                    }else{
-                     Alert alert = new Alert(AlertType.ERROR);
-                     Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-                     stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                     alert.setTitle("No hay coincidencias");
-                     alert.setHeaderText("No se encontro empleado");
-                     alert.showAndWait();
-                     imgPerfil.setImage(sinperfil);
-                     LOGGER.log(Level.FINE, "No hay informacion de domicilio");
-                }   
-                }catch (Exception e){
-                    LOGGER.log(Level.SEVERE, "Error in BuscarEmpleadoProduccion", e);
-                }
-
+        buscarYMostrarEmpleadoProduccion(tbCodigoProduccion.getText());
     }
     
     public void BuscarEmpleadoConBotonProduccion(){
-                
-                String in = lbHCodigo.getText();
-                
-                UsuarioDetalle u = UsuariosDao.findById(in);
-                LOGGER.log(Level.FINE, "Index seleccionado {0}", in);
-                try{
-                    if(u != null){
-                        btnEditarEmpleado2.setDisable(false);
-                        tbCodigoProduccion.setText(u.getUsuarioId());
-                        lbHCodigo2.setText(u.getUsuarioId());
-                        lbHNombre2.setText(u.getNombre()+" "+u.getApellidoPaterno()+" "+u.getApellidoMaterno());
-                        lbHDomicilio2.setText(u.getTipoEmpleado());
-                        String timestamp = u.getCreateTime();
-                        if (timestamp != null && timestamp.length() >= 10) {
-                            lbHFecha2.setText(DateUtils.formatLongDate(timestamp, true));
-                        }
-                        imgPerfilProduccion.setImage(ImageUtils.fromBytesOrDefault(u.getImagen(), backup));
-                    }else{
-                     Alert alert = new Alert(AlertType.ERROR);
-                     Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-                     stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                     alert.setTitle("No hay coincidencias");
-                     alert.setHeaderText("No se encontro empleado");
-                     alert.showAndWait();
-                     imgPerfil.setImage(sinperfil);
-                     LOGGER.log(Level.FINE, "No hay informacion de domicilio");
-                }   
-                }catch (Exception e){
-                    LOGGER.log(Level.SEVERE, "Error in BuscarEmpleadoConBotonProduccion", e);
-                }
-
+        String id = lbHCodigo.getText();
+        tbCodigoProduccion.setText(id);
+        buscarYMostrarEmpleadoProduccion(id);
     }
     
+    /**
+     * Looks up an employee by id and populates the production screen's profile labels.
+     * Shows an error alert if not found.
+     */
+    private void buscarYMostrarEmpleadoProduccion(String in) {
+        UsuarioDetalle u = UsuariosDao.findById(in);
+        LOGGER.log(Level.FINE, "Index seleccionado {0}", in);
+        try {
+            if (u != null) {
+                btnEditarEmpleado2.setDisable(false);
+                lbHCodigo2.setText(u.getUsuarioId());
+                lbHNombre2.setText(u.getNombre() + " " + u.getApellidoPaterno() + " " + u.getApellidoMaterno());
+                lbHDomicilio2.setText(u.getTipoEmpleado());
+                String timestamp = u.getCreateTime();
+                if (timestamp != null && timestamp.length() >= 10) {
+                    lbHFecha2.setText(DateUtils.formatLongDate(timestamp, true));
+                }
+                imgPerfilProduccion.setImage(ImageUtils.fromBytesOrDefault(u.getImagen(), backup));
+            } else {
+                showAlert(AlertType.ERROR, "No hay coincidencias", "No se encontro empleado", null);
+                imgPerfil.setImage(sinperfil);
+                LOGGER.log(Level.FINE, "No hay informacion de domicilio");
+            }
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error en buscarYMostrarEmpleadoProduccion", e);
+        }
+    }
+
     public void PerfilEmpleadoProduccion(){
-        
         btnModificarEmpleado.toFront();
         btnVolverHistorial.toFront();
         String in = lbHCodigo2.getText();
         UsuarioDetalle u = UsuariosDao.findById(in);
         LOGGER.log(Level.FINE, "Index seleccionado {0}", in);
-        try{
-            if(u != null){
-                tbCodigoUsuarioAgregar.setText(u.getUsuarioId());
-                tbNombreEmpleado.setText(u.getNombre());
-                tbAPaternoEmpleado.setText(u.getApellidoPaterno());
-                tbAMaternoEmpleado.setText(u.getApellidoMaterno());
-                tbCurp.setText(u.getCurp());
-                tbRfc.setText(u.getRfc());
-                tbNss.setText(u.getNss());
-
-                String fecha_nacimiento = u.getFechaNacimiento();
-                if (fecha_nacimiento != null && !fecha_nacimiento.isEmpty()){
-                    LocalDate localDate = LocalDate.parse(fecha_nacimiento);
-                    tbFechaNacimiento.setValue(localDate);
-                }
-
-                String fecha_contratacion = u.getFechaContratacion();
-                if (fecha_contratacion != null && !fecha_contratacion.isEmpty()){
-                    LocalDate localDate = LocalDate.parse(fecha_contratacion);
-                    tbFechaContratacion.setValue(localDate);
-                }
-
-                tbEmailEmpleado.setText(u.getEmail());
-                cbGenero.setValue(u.getGenero());
-                cbTipoUsuario.setValue(u.getTipoEmpleado());
-                tbSueldoEmpleado.setText(u.getSueldo());
-                cbMetodoPago.setValue(u.getMetodoPago());
-                cbBanco.setValue(u.getBanco());
-                tbNCuenta.setText(u.getNumeroCuenta());
-                cbPeriodoPago.setValue(u.getPeriodoPago());
-                cbContrato.setValue(u.getTipoContrato());
-
-                cbPais.setValue(u.getPais());
-                cbEstado.setValue(u.getEstado());
-                tbLocalidad.setText(u.getLocalidad());
-                tbColonia.setText(u.getColonia());
-                tbNExterior.setText(u.getNumeroExterior());
-
-                cbCiudad.setValue(u.getCiudad());
-                tbCalle.setText(u.getCalle());
-                tbCodigoPostal.setText(u.getCodigoPostal());
-                tbNInterior.setText(u.getNumeroInterior());
-            }else{
-            LOGGER.log(Level.FINE, "No hay informacion de domicilio");
-        }   
-        }catch (Exception e){
-            LOGGER.log(Level.SEVERE, "Error in PerfilEmpleadoProduccion", e);
-        }  
+        populateFormFromUsuario(u);
     }
     
     public void UpdateProduccionSemanal(){
@@ -1669,81 +1591,21 @@ public class DashboardController implements Initializable {
     // FIN PANTALLA PRODUCCION
     // PANTALLA HISTORIAL
     
-    public void ImprimirReporte(){        
-        LocalDate fechaDe = tbFechaDe.getValue();
-        LocalDate fechaA = tbFechaA.getValue();
-
+    public void ImprimirReporte(){
         String autor = tbCodigoHistorial.getText();
+        LocalDate fechaDe = tbFechaDe.getValue();
+        LocalDate fechaA  = tbFechaA.getValue();
         String de = fechaDe != null ? fechaDe.toString() : "";
-        String a = fechaA != null ? fechaA.toString() : "";
-
-        // Load report template from classpath resources (safer than absolute paths)
-        try (InputStream reportStream = DashboardController.class.getResourceAsStream("/controllers/report.jrxml")) {
-            if (reportStream == null) {
-                LOGGER.log(Level.SEVERE, "report.jrxml not found on classpath /controllers/report.jrxml");
-                Alert alert = new Alert(AlertType.ERROR);
-                alert.setTitle("Plantilla de reporte no encontrada");
-                alert.setHeaderText("Falta archivo report.jrxml");
-                alert.setContentText("No se pudo localizar la plantilla de reporte. Asegúrese de que 'report.jrxml' esté en 'src/controllers' y que se incluya en el classpath.");
-                Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-                stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                alert.showAndWait();
-                return;
-            }
-
-            JasperDesign jdesign = JRXmlLoader.load(reportStream);
-
-            // Build query with PreparedStatement to prevent SQL injection
-            StringBuilder sqlBuilder = new StringBuilder(
-                "select p.id, p.fecha_registro, p.material, p.calibre, p.altura, p.rombos, p.metros, p.cantidad, p.dia, p.autor_id, "
-                + "concat(u.nombre, ' ', u.apellido_paterno, ' ', u.apellido_materno) as autor "
-                + "from produccion p left join usuarios u on p.autor_id = u.usuario_id "
-                + "where p.autor_id = ?");
-            java.util.List<String> queryParams = new java.util.ArrayList<>();
-            queryParams.add(autor);
-            if (!de.isEmpty() && !a.isEmpty()) {
-                sqlBuilder.append(" and (p.fecha_registro BETWEEN ? AND ?)");
-                queryParams.add(de);
-                queryParams.add(a);
-            }
-            sqlBuilder.append(" order by p.fecha_registro");
-
-            LOGGER.log(Level.FINE, "ImprimirReporte sql: {0}", sqlBuilder);
-
-            JasperReport jreport = JasperCompileManager.compileReport(jdesign);
-            try (Connection reportConn = ConnectionUtil.getConnection();
-                 PreparedStatement ps = reportConn.prepareStatement(sqlBuilder.toString())) {
-                for (int i = 0; i < queryParams.size(); i++) {
-                    ps.setString(i + 1, queryParams.get(i));
-                }
-                try (ResultSet rs = ps.executeQuery();
-                     InputStream logoStream = DashboardController.class.getResourceAsStream("/icons/LogoInicio.png")) {
-                    Map<String, Object> params = new HashMap<>();
-                    if (logoStream != null) {
-                        params.put("LOGO", logoStream);
-                    } else {
-                        LOGGER.log(Level.WARNING, "Logo resource '/icons/LogoInicio.png' not found on classpath");
-                    }
-                    net.sf.jasperreports.engine.JRResultSetDataSource dataSource =
-                            new net.sf.jasperreports.engine.JRResultSetDataSource(rs);
-                    JasperPrint jprint = JasperFillManager.fillReport(jreport, params, dataSource);
-                    JasperViewer.viewReport(jprint, false);
-                }
-            }
-
-        } catch (JRException ex) {
-            LOGGER.log(Level.SEVERE, "Error in ImprimirReporte", ex);
-            Alert alert = new Alert(AlertType.ERROR);
-            alert.setTitle("Error al generar reporte");
-            alert.setHeaderText("Error al compilar/llenar el reporte");
-            alert.setContentText(ex.getMessage());
-            Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-            stage.getIcons().add(new Image("icons/IconBlanco.png"));
-            alert.showAndWait();
+        String a  = fechaA  != null ? fechaA.toString()  : "";
+        try {
+            ReporteService.imprimirHistorial(autor, de, a);
+        } catch (IllegalStateException ex) {
+            LOGGER.log(Level.SEVERE, "Plantilla de reporte no encontrada", ex);
+            showAlert(AlertType.ERROR, "Plantilla no encontrada", "Falta report.jrxml", ex.getMessage());
         } catch (Exception ex) {
-            LOGGER.log(Level.SEVERE, "Unexpected error in ImprimirReporte", ex);
+            LOGGER.log(Level.SEVERE, "Error al generar reporte", ex);
+            showAlert(AlertType.ERROR, "Error al generar reporte", "Error al compilar/llenar el reporte", ex.getMessage());
         }
-        
     }
     
     public void UpdateFechaHistorial(){        
