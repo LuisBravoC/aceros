@@ -14,17 +14,13 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.time.LocalDate;
 import java.time.Period;
-import java.util.Arrays;
-import java.util.List;
 
 public class UsuariosDao {
 
     private static final Logger LOGGER = Logger.getLogger(UsuariosDao.class.getName());
 
-    /**
-     * Verifica que {@code userId} y {@code password} coincidan en la BD.
-     * @return {@code true} si las credenciales son válidas, {@code false} en caso contrario.
-     */
+    // ── Auth ──────────────────────────────────────────────────────────────────
+
     public static boolean authenticate(String userId, String password) {
         String sql = "SELECT 1 FROM usuarios WHERE usuario_id = ? AND password = ?";
         try (Connection con = ConnectionUtil.getConnection();
@@ -40,15 +36,15 @@ public class UsuariosDao {
         return false;
     }
 
-    /** @return true si el usuario aún no ha cambiado su contraseña por defecto. */
+    /** @return true si el usuario aun no ha cambiado su contrasena por defecto. */
     public static boolean isFirstSession(String userId) {
-        String sql = "SELECT pimera_sesion FROM usuarios WHERE usuario_id = ?";
+        String sql = "SELECT primera_sesion FROM usuarios WHERE usuario_id = ?";
         try (Connection con = ConnectionUtil.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setString(1, userId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return "0".equals(rs.getString("pimera_sesion"));
+                    return rs.getInt("primera_sesion") == 0;
                 }
             }
         } catch (SQLException ex) {
@@ -57,7 +53,7 @@ public class UsuariosDao {
         return false;
     }
 
-    /** @return true si la contraseña coincide con la almacenada en BD. */
+    /** @return true si la contrasena coincide con la almacenada en BD. */
     public static boolean verifyPassword(String userId, String password) {
         String sql = "SELECT 1 FROM usuarios WHERE usuario_id = ? AND password = ?";
         try (Connection con = ConnectionUtil.getConnection();
@@ -73,9 +69,9 @@ public class UsuariosDao {
         return false;
     }
 
-    /** Actualiza la contraseña y marca pimera_sesion='1'. @return true si se actualizó 1 fila. */
+    /** Actualiza la contrasena y marca primera_sesion=1. @return true si se actualizo 1 fila. */
     public static boolean changePassword(String userId, String newPassword) {
-        String sql = "UPDATE usuarios SET password = ?, pimera_sesion = '1' WHERE usuario_id = ?";
+        String sql = "UPDATE usuarios SET password = ?, primera_sesion = 1 WHERE usuario_id = ?";
         try (Connection con = ConnectionUtil.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setString(1, newPassword);
@@ -87,14 +83,22 @@ public class UsuariosDao {
         return false;
     }
 
+    // ── Queries ───────────────────────────────────────────────────────────────
+
     public static ObservableList<Empleados> getAll() {
         ObservableList<Empleados> list = FXCollections.observableArrayList();
-        String sql = "select * from usuarios";
+        String sql = "SELECT usuario_id, nombre, apellido_paterno, apellido_materno, fecha_nacimiento, sueldo FROM usuarios ORDER BY usuario_id";
         try (Connection con = ConnectionUtil.getConnection();
-             Statement stmt = con.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+             PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
-                list.add(new Empleados(rs.getInt(1), rs.getString("nombre") + " " + rs.getString("apellido_paterno") + " " + rs.getString("apellido_materno"), rs.getString("edad"), rs.getString("sueldo")));
+                String edad = calcularEdad(rs.getString("fecha_nacimiento"));
+                String sueldo = rs.getString("sueldo");
+                list.add(new Empleados(
+                        rs.getInt("usuario_id"),
+                        rs.getString("nombre") + " " + rs.getString("apellido_paterno") + " " + rs.getString("apellido_materno"),
+                        edad,
+                        sueldo != null ? sueldo : "0"));
             }
         } catch (SQLException ex) {
             LOGGER.log(Level.SEVERE, null, ex);
@@ -102,44 +106,30 @@ public class UsuariosDao {
         return list;
     }
 
+    /** Loads full user detail with JOINs to resolve FK IDs to human-readable names. */
     public static UsuarioDetalle findById(String id) {
-        String sql = "select * from usuarios where usuario_id = ?";
+        String sql =
+            "SELECT u.*, " +
+            "  g.genero        AS genero_nombre, " +
+            "  tp.metodo       AS tipo_pago_nombre, " +
+            "  b.nombre        AS banco_nombre, " +
+            "  pp.periodo      AS periodo_pago_nombre, " +
+            "  tc.contrato     AS tipo_contrato_nombre, " +
+            "  tu.puesto       AS tipo_usuario_nombre " +
+            "FROM usuarios u " +
+            "LEFT JOIN genero            g  ON u.genero_id        = g.id " +
+            "LEFT JOIN tipo_pago         tp ON u.tipo_pago_id     = tp.id " +
+            "LEFT JOIN bancos            b  ON u.banco_id         = b.id " +
+            "LEFT JOIN periodicidad_pago pp ON u.periodo_pago_id  = pp.id " +
+            "LEFT JOIN tipo_contratos    tc ON u.tipo_contrato_id = tc.id " +
+            "LEFT JOIN tipo_usuario      tu ON u.tipo_usuario_id  = tu.id " +
+            "WHERE u.usuario_id = ?";
         try (Connection con = ConnectionUtil.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setString(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    UsuarioDetalle u = new UsuarioDetalle();
-                    u.setUsuarioId(rs.getString("usuario_id"));
-                    u.setNombre(rs.getString("nombre"));
-                    u.setApellidoPaterno(rs.getString("apellido_paterno"));
-                    u.setApellidoMaterno(rs.getString("apellido_materno"));
-                    u.setCurp(rs.getString("curp"));
-                    u.setRfc(rs.getString("rfc"));
-                    u.setNss(rs.getString("nss"));
-                    u.setFechaNacimiento(rs.getString("fecha_nacimiento"));
-                    u.setFechaContratacion(rs.getString("fecha_contratacion"));
-                    u.setEmail(rs.getString("email"));
-                    u.setGenero(rs.getString("genero"));
-                    u.setTipoEmpleado(rs.getString("tipo_empleado"));
-                    u.setSueldo(rs.getString("sueldo"));
-                    u.setMetodoPago(rs.getString("metodo_pago"));
-                    u.setBanco(rs.getString("banco"));
-                    u.setNumeroCuenta(rs.getString("numero_cuenta"));
-                    u.setPeriodoPago(rs.getString("periodo_pago"));
-                    u.setTipoContrato(rs.getString("tipo_contrato"));
-                    u.setPais(rs.getString("pais"));
-                    u.setEstado(rs.getString("estado"));
-                    u.setLocalidad(rs.getString("localidad"));
-                    u.setColonia(rs.getString("colonia"));
-                    u.setNumeroExterior(rs.getString("numero_exterior"));
-                    u.setCiudad(rs.getString("ciudad"));
-                    u.setCalle(rs.getString("calle"));
-                    u.setCodigoPostal(rs.getString("codigo_postal"));
-                    u.setNumeroInterior(rs.getString("numero_interior"));
-                    u.setCreateTime(rs.getString("create_time"));
-                    u.setImagen(rs.getBytes("imagen"));
-                    return u;
+                    return mapRow(rs);
                 }
             }
         } catch (SQLException ex) {
@@ -150,92 +140,149 @@ public class UsuariosDao {
 
     /**
      * Save a user: insert when usuarioId is null/empty, otherwise update.
-     * Returns number of affected rows (1 on success).
+     * FK string values are resolved to IDs before persisting.
      */
     public static int save(UsuarioDetalle u, String password, byte[] image) throws SQLException {
         if (u == null) return 0;
         boolean isInsert = (u.getUsuarioId() == null || u.getUsuarioId().trim().isEmpty());
 
-        // compute age from fechaNacimiento if available
-        String edadStr = "0";
-        if (u.getFechaNacimiento() != null && !u.getFechaNacimiento().isEmpty()) {
-            try {
-                LocalDate dob = LocalDate.parse(u.getFechaNacimiento());
-                int edad = Period.between(dob, LocalDate.now()).getYears();
-                edadStr = String.valueOf(edad);
-            } catch (Exception ex) {
-                edadStr = "0";
-            }
-        }
+        Integer generoId       = LookupDao.getGeneroId(u.getGenero());
+        Integer tipoPagoId     = LookupDao.getTipoPagoId(u.getMetodoPago());
+        Integer bancoId        = LookupDao.getBancoId(u.getBanco());
+        Integer periodoPagoId  = LookupDao.getPeriodoPagoId(u.getPeriodoPago());
+        Integer tipoContratoId = LookupDao.getTipoContratoId(u.getTipoContrato());
+        Integer tipoUsuarioId  = LookupDao.getTipoUsuarioId(u.getTipoEmpleado());
+        Integer paisId         = LookupDao.getPaisId(u.getPais());
+        Integer estadoId       = LookupDao.getEstadoId(u.getEstado());
+        Integer ciudadId       = LookupDao.getCiudadId(u.getCiudad());
 
         if (isInsert) {
-            // insert: include imagen column always and set it to NULL when no image is provided
-            String insertSql = "insert into usuarios (nombre, apellido_paterno, apellido_materno, curp, rfc, nss, edad, fecha_nacimiento, fecha_contratacion, "
-                    + "email, genero, password, sueldo, metodo_pago, banco, numero_cuenta, periodo_pago, tipo_contrato, pais, estado, localidad, colonia, numero_exterior, ciudad, "
-                    + "calle, codigo_postal, numero_interior, tipo_empleado, imagen) "
-                    + "values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-
-            List<String> params = Arrays.asList(
-                    u.getNombre(), u.getApellidoPaterno(), u.getApellidoMaterno(), u.getCurp(), u.getRfc(), u.getNss(), edadStr,
-                    u.getFechaNacimiento(), u.getFechaContratacion(), u.getEmail(), u.getGenero(), (password != null ? password : ""),
-                    u.getSueldo(), u.getMetodoPago(), u.getBanco(), u.getNumeroCuenta(), u.getPeriodoPago(), u.getTipoContrato(),
-                    u.getPais(), u.getEstado(), u.getLocalidad(), u.getColonia(), u.getNumeroExterior(), u.getCiudad(), u.getCalle(),
-                    u.getCodigoPostal(), u.getNumeroInterior(), u.getTipoEmpleado()
-            );
-
+            String sql =
+                "INSERT INTO usuarios (nombre, apellido_paterno, apellido_materno, curp, rfc, nss, " +
+                "fecha_nacimiento, fecha_contratacion, email, genero_id, password, sueldo, tipo_pago_id, banco_id, " +
+                "numero_cuenta, periodo_pago_id, tipo_contrato_id, pais_id, estado_id, localidad, colonia, " +
+                "numero_exterior, ciudad_id, calle, codigo_postal, numero_interior, tipo_usuario_id, imagen) " +
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
             try (Connection con = ConnectionUtil.getConnection();
-                 PreparedStatement ps = con.prepareStatement(insertSql, Statement.RETURN_GENERATED_KEYS)) {
-                int i = 1;
-                for (String p : params) {
-                    ps.setString(i++, p != null ? p : "");
-                }
-
-                if (image != null) {
-                    ps.setBytes(i++, image);
-                } else {
-                    ps.setNull(i++, java.sql.Types.BLOB);
-                }
-
+                 PreparedStatement ps = con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+                int i = bindUsuario(ps, u, password, image, generoId, tipoPagoId, bancoId,
+                        periodoPagoId, tipoContratoId, paisId, estadoId, ciudadId, tipoUsuarioId, 1);
                 int status = ps.executeUpdate();
                 try (ResultSet keys = ps.getGeneratedKeys()) {
-                    if (keys != null && keys.next()) {
-                        u.setUsuarioId(String.valueOf(keys.getInt(1)));
-                    }
-                } catch (Exception ex) {
-                    // ignore
+                    if (keys != null && keys.next()) u.setUsuarioId(String.valueOf(keys.getInt(1)));
                 }
                 return status;
             }
         } else {
-            // update: same columns (except password) and imagen at the end
-            String updateSql = "update usuarios set nombre=?, apellido_paterno=?, apellido_materno=?, curp=?, rfc=?, nss=?, edad=?, fecha_nacimiento=?, "
-                    + "fecha_contratacion=?, email=?, genero=?, sueldo=?, metodo_pago=?, banco=?, numero_cuenta=?, periodo_pago=?, tipo_contrato=?, "
-                    + "pais=?, estado=?, localidad=?, colonia=?, numero_exterior=?, ciudad=?, calle=?, codigo_postal=?, numero_interior=?, tipo_empleado=?, imagen=? where usuario_id=?";
-
-            List<String> params = Arrays.asList(
-                    u.getNombre(), u.getApellidoPaterno(), u.getApellidoMaterno(), u.getCurp(), u.getRfc(), u.getNss(), edadStr,
-                    u.getFechaNacimiento(), u.getFechaContratacion(), u.getEmail(), u.getGenero(), u.getSueldo(), u.getMetodoPago(), u.getBanco(),
-                    u.getNumeroCuenta(), u.getPeriodoPago(), u.getTipoContrato(), u.getPais(), u.getEstado(), u.getLocalidad(), u.getColonia(),
-                    u.getNumeroExterior(), u.getCiudad(), u.getCalle(), u.getCodigoPostal(), u.getNumeroInterior(), u.getTipoEmpleado()
-            );
-
+            String sql =
+                "UPDATE usuarios SET nombre=?, apellido_paterno=?, apellido_materno=?, curp=?, rfc=?, nss=?, " +
+                "fecha_nacimiento=?, fecha_contratacion=?, email=?, genero_id=?, sueldo=?, tipo_pago_id=?, banco_id=?, " +
+                "numero_cuenta=?, periodo_pago_id=?, tipo_contrato_id=?, pais_id=?, estado_id=?, localidad=?, colonia=?, " +
+                "numero_exterior=?, ciudad_id=?, calle=?, codigo_postal=?, numero_interior=?, tipo_usuario_id=?, imagen=? " +
+                "WHERE usuario_id=?";
             try (Connection con = ConnectionUtil.getConnection();
-                 PreparedStatement ps = con.prepareStatement(updateSql)) {
-                int i = 1;
-                for (String p : params) {
-                    ps.setString(i++, p != null ? p : "");
-                }
-
-                if (image != null) {
-                    ps.setBytes(i++, image);
-                } else {
-                    ps.setNull(i++, java.sql.Types.BLOB);
-                }
-
-                ps.setString(i++, u.getUsuarioId());
-                int status = ps.executeUpdate();
-                return status;
+                 PreparedStatement ps = con.prepareStatement(sql)) {
+                int i = bindUsuario(ps, u, null, image, generoId, tipoPagoId, bancoId,
+                        periodoPagoId, tipoContratoId, paisId, estadoId, ciudadId, tipoUsuarioId, 1);
+                ps.setString(i, u.getUsuarioId());
+                return ps.executeUpdate();
             }
+        }
+    }
+
+    // ── Private helpers ───────────────────────────────────────────────────────
+
+    /** Binds all usuario fields. Returns the next parameter index after the last bound. */
+    private static int bindUsuario(PreparedStatement ps, UsuarioDetalle u, String password, byte[] image,
+            Integer generoId, Integer tipoPagoId, Integer bancoId, Integer periodoPagoId,
+            Integer tipoContratoId, Integer paisId, Integer estadoId, Integer ciudadId,
+            Integer tipoUsuarioId, int startIdx) throws SQLException {
+        int i = startIdx;
+        ps.setString(i++, u.getNombre());
+        ps.setString(i++, u.getApellidoPaterno());
+        ps.setString(i++, u.getApellidoMaterno());
+        ps.setString(i++, u.getCurp());
+        ps.setString(i++, u.getRfc());
+        ps.setString(i++, u.getNss());
+        ps.setString(i++, u.getFechaNacimiento());
+        ps.setString(i++, u.getFechaContratacion());
+        ps.setString(i++, u.getEmail());
+        setNullableInt(ps, i++, generoId);
+        if (password != null) ps.setString(i++, password); // only on insert
+        ps.setString(i++, u.getSueldo());
+        setNullableInt(ps, i++, tipoPagoId);
+        setNullableInt(ps, i++, bancoId);
+        ps.setString(i++, u.getNumeroCuenta());
+        setNullableInt(ps, i++, periodoPagoId);
+        setNullableInt(ps, i++, tipoContratoId);
+        setNullableInt(ps, i++, paisId);
+        setNullableInt(ps, i++, estadoId);
+        ps.setString(i++, u.getLocalidad());
+        ps.setString(i++, u.getColonia());
+        ps.setString(i++, u.getNumeroExterior());
+        setNullableInt(ps, i++, ciudadId);
+        ps.setString(i++, u.getCalle());
+        ps.setString(i++, u.getCodigoPostal());
+        ps.setString(i++, u.getNumeroInterior());
+        setNullableInt(ps, i++, tipoUsuarioId);
+        if (image != null) ps.setBytes(i++, image);
+        else               ps.setNull(i++, java.sql.Types.BLOB);
+        return i;
+    }
+
+    private static UsuarioDetalle mapRow(ResultSet rs) throws SQLException {
+        UsuarioDetalle u = new UsuarioDetalle();
+        u.setUsuarioId(rs.getString("usuario_id"));
+        u.setNombre(rs.getString("nombre"));
+        u.setApellidoPaterno(rs.getString("apellido_paterno"));
+        u.setApellidoMaterno(rs.getString("apellido_materno"));
+        u.setCurp(rs.getString("curp"));
+        u.setRfc(rs.getString("rfc"));
+        u.setNss(rs.getString("nss"));
+        u.setFechaNacimiento(rs.getString("fecha_nacimiento"));
+        u.setFechaContratacion(rs.getString("fecha_contratacion"));
+        u.setEmail(rs.getString("email"));
+        u.setGenero(rs.getString("genero_nombre"));
+        u.setTipoEmpleado(rs.getString("tipo_usuario_nombre"));
+        u.setSueldo(rs.getString("sueldo"));
+        u.setMetodoPago(rs.getString("tipo_pago_nombre"));
+        u.setBanco(rs.getString("banco_nombre"));
+        u.setNumeroCuenta(rs.getString("numero_cuenta"));
+        u.setPeriodoPago(rs.getString("periodo_pago_nombre"));
+        u.setTipoContrato(rs.getString("tipo_contrato_nombre"));
+        u.setLocalidad(rs.getString("localidad"));
+        u.setColonia(rs.getString("colonia"));
+        u.setNumeroExterior(rs.getString("numero_exterior"));
+        u.setCalle(rs.getString("calle"));
+        u.setCodigoPostal(rs.getString("codigo_postal"));
+        u.setNumeroInterior(rs.getString("numero_interior"));
+        u.setCreateTime(rs.getString("created_at"));
+        u.setImagen(rs.getBytes("imagen"));
+        Integer paisId   = getIntOrNull(rs, "pais_id");
+        Integer estadoId = getIntOrNull(rs, "estado_id");
+        Integer ciudadId = getIntOrNull(rs, "ciudad_id");
+        u.setPais(LookupDao.getNameById("paises",   "name", paisId));
+        u.setEstado(LookupDao.getNameById("estados", "name", estadoId));
+        u.setCiudad(LookupDao.getNameById("ciudades","name", ciudadId));
+        return u;
+    }
+
+    private static Integer getIntOrNull(ResultSet rs, String col) throws SQLException {
+        int val = rs.getInt(col);
+        return rs.wasNull() ? null : val;
+    }
+
+    private static void setNullableInt(PreparedStatement ps, int idx, Integer val) throws SQLException {
+        if (val != null) ps.setInt(idx, val);
+        else             ps.setNull(idx, java.sql.Types.INTEGER);
+    }
+
+    private static String calcularEdad(String fechaNacimiento) {
+        if (fechaNacimiento == null || fechaNacimiento.isEmpty()) return "0";
+        try {
+            return String.valueOf(Period.between(LocalDate.parse(fechaNacimiento), LocalDate.now()).getYears());
+        } catch (Exception ex) {
+            return "0";
         }
     }
 }

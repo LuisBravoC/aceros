@@ -20,12 +20,12 @@ public class RombosDao {
 
     public static ObservableList<Rombos> getAll() {
         ObservableList<Rombos> list = FXCollections.observableArrayList();
-        String sql = "select * from rombos";
+        String sql = "SELECT id, nombre, rombo FROM rombos ORDER BY rombo";
         try (Connection con = ConnectionUtil.getConnection();
-             Statement stmt = con.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+             PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
-                list.add(new Rombos(rs.getInt(1), rs.getString("nombre"), rs.getString("rombo")));
+                list.add(new Rombos(rs.getInt("id"), rs.getString("nombre"), decimalToString(rs.getString("rombo"))));
             }
         } catch (SQLException ex) {
             LOGGER.log(Level.SEVERE, null, ex);
@@ -34,13 +34,13 @@ public class RombosDao {
     }
 
     public static Rombos findById(String id) {
-        String sql = "select * from rombos where id = ?";
+        String sql = "SELECT id, nombre, rombo FROM rombos WHERE id = ?";
         try (Connection con = ConnectionUtil.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setString(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return new Rombos(rs.getInt("id"), rs.getString("nombre"), rs.getString("rombo"));
+                    return new Rombos(rs.getInt("id"), rs.getString("nombre"), decimalToString(rs.getString("rombo")));
                 }
             }
         } catch (SQLException ex) {
@@ -94,6 +94,15 @@ public class RombosDao {
         } catch (SQLException ex) {
             LOGGER.log(Level.SEVERE, null, ex);
             return false;
+        }
+    }
+
+    static String decimalToString(String val) {
+        if (val == null) return null;
+        try {
+            return new java.math.BigDecimal(val).stripTrailingZeros().toPlainString();
+        } catch (NumberFormatException e) {
+            return val;
         }
     }
 }

@@ -18,7 +18,7 @@ public class UsuariosServiceTest extends BaseDaoSupport {
     @After
     public void restorePassword() {
         // Restore seed password after each test that might change it
-        execSql("UPDATE usuarios SET password = '" + SEED_PWD + "', pimera_sesion = '1' WHERE usuario_id = " + SEED_ID);
+        execSql("UPDATE usuarios SET password = '" + SEED_PWD + "', primera_sesion = 0 WHERE usuario_id = " + SEED_ID);
     }
 
     @Test

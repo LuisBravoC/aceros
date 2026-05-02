@@ -20,12 +20,12 @@ public class AlturasDao {
 
     public static ObservableList<Alturas> getAll() {
         ObservableList<Alturas> list = FXCollections.observableArrayList();
-        String sql = "select * from alturas";
+        String sql = "SELECT id, nombre, altura FROM alturas ORDER BY altura";
         try (Connection con = ConnectionUtil.getConnection();
-             Statement stmt = con.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+             PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
-                list.add(new Alturas(rs.getInt(1), rs.getString("nombre"), rs.getString("altura")));
+                list.add(new Alturas(rs.getInt("id"), rs.getString("nombre"), decimalToString(rs.getString("altura"))));
             }
         } catch (SQLException ex) {
             LOGGER.log(Level.SEVERE, null, ex);
@@ -34,13 +34,13 @@ public class AlturasDao {
     }
 
     public static Alturas findById(String id) {
-        String sql = "select * from alturas where id = ?";
+        String sql = "SELECT id, nombre, altura FROM alturas WHERE id = ?";
         try (Connection con = ConnectionUtil.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setString(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return new Alturas(rs.getInt("id"), rs.getString("nombre"), rs.getString("altura"));
+                    return new Alturas(rs.getInt("id"), rs.getString("nombre"), decimalToString(rs.getString("altura")));
                 }
             }
         } catch (SQLException ex) {
@@ -94,6 +94,15 @@ public class AlturasDao {
         } catch (SQLException ex) {
             LOGGER.log(Level.SEVERE, null, ex);
             return false;
+        }
+    }
+
+    static String decimalToString(String val) {
+        if (val == null) return null;
+        try {
+            return new java.math.BigDecimal(val).stripTrailingZeros().toPlainString();
+        } catch (NumberFormatException e) {
+            return val;
         }
     }
 }

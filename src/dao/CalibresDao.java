@@ -20,12 +20,12 @@ public class CalibresDao {
 
     public static ObservableList<Calibres> getAll() {
         ObservableList<Calibres> list = FXCollections.observableArrayList();
-        String sql = "select * from calibres";
+        String sql = "SELECT id, nombre, calibre FROM calibres ORDER BY calibre";
         try (Connection con = ConnectionUtil.getConnection();
-             Statement stmt = con.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+             PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
-                list.add(new Calibres(rs.getInt(1), rs.getString("nombre"), rs.getString("calibre")));
+                list.add(new Calibres(rs.getInt("id"), rs.getString("nombre"), decimalToString(rs.getString("calibre"))));
             }
         } catch (SQLException ex) {
             LOGGER.log(Level.SEVERE, null, ex);
@@ -34,13 +34,13 @@ public class CalibresDao {
     }
 
     public static Calibres findById(String id) {
-        String sql = "select * from calibres where id = ?";
+        String sql = "SELECT id, nombre, calibre FROM calibres WHERE id = ?";
         try (Connection con = ConnectionUtil.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setString(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return new Calibres(rs.getInt("id"), rs.getString("nombre"), rs.getString("calibre"));
+                    return new Calibres(rs.getInt("id"), rs.getString("nombre"), decimalToString(rs.getString("calibre")));
                 }
             }
         } catch (SQLException ex) {
@@ -94,6 +94,16 @@ public class CalibresDao {
         } catch (SQLException ex) {
             LOGGER.log(Level.SEVERE, null, ex);
             return false;
+        }
+    }
+
+    /** Strips trailing zeros from a DECIMAL string (e.g. "10.00" -> "10", "10.50" -> "10.5"). */
+    static String decimalToString(String val) {
+        if (val == null) return null;
+        try {
+            return new java.math.BigDecimal(val).stripTrailingZeros().toPlainString();
+        } catch (NumberFormatException e) {
+            return val;
         }
     }
 }

@@ -10,8 +10,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.Arrays;
-import java.util.List;
+
 
 public class HistorialDao {
 
@@ -19,17 +18,35 @@ public class HistorialDao {
 
     public static ObservableList<Historial> getHistorial(String s, String de, String a) {
         ObservableList<Historial> list = FXCollections.observableArrayList();
-        String sql = "select * from produccion where autor_id = ? and (fecha_registro BETWEEN ? AND ?) order by fecha_registro";
-        List<String> params = Arrays.asList(s, de, a);
+        String sql =
+            "SELECT p.id, p.fecha_registro, m.nombre AS material, " +
+            "  c.calibre AS calibre, " +
+            "  a2.altura  AS altura, " +
+            "  r.rombo   AS rombos, " +
+            "  p.metros   AS metros, " +
+            "  p.cantidad AS cantidad " +
+            "FROM produccion p " +
+            "LEFT JOIN materiales m  ON p.material_id = m.id " +
+            "LEFT JOIN calibres   c  ON p.calibre_id  = c.id " +
+            "LEFT JOIN alturas    a2 ON p.altura_id   = a2.id " +
+            "LEFT JOIN rombos     r  ON p.rombo_id    = r.id " +
+            "WHERE p.autor_id = ? AND (p.fecha_registro BETWEEN ? AND ?) ORDER BY p.fecha_registro";
         try (Connection con = ConnectionUtil.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
-            int i = 1;
-            for (String p : params) {
-                ps.setString(i++, p != null ? p : "");
-            }
+            ps.setString(1, s  != null ? s  : "");
+            ps.setString(2, de != null ? de : "");
+            ps.setString(3, a  != null ? a  : "");
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    list.add(new Historial(rs.getString("id"), rs.getString("fecha_registro"), rs.getString("material"), rs.getString("calibre"), rs.getString("altura"), rs.getString("rombos"), rs.getString("metros"), rs.getString("cantidad")));
+                    list.add(new Historial(
+                            rs.getString("id"),
+                            rs.getString("fecha_registro"),
+                            rs.getString("material"),
+                            CalibresDao.decimalToString(rs.getString("calibre")),
+                            AlturasDao.decimalToString(rs.getString("altura")),
+                            RombosDao.decimalToString(rs.getString("rombos")),
+                            RombosDao.decimalToString(rs.getString("metros")),
+                            rs.getString("cantidad")));
                 }
             }
         } catch (SQLException ex) {
