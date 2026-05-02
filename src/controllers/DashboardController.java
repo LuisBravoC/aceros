@@ -54,6 +54,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import util.ImageUtils;
 import util.DateUtils;
+import controllers.helpers.CatalogoUtils;
 import controllers.helpers.ProfileBinder;
 import services.UsuariosService;
 import models.Empleados;
@@ -2014,34 +2015,12 @@ public class DashboardController implements Initializable {
     
     public void EliminarMaterial(){
         String id = Integer.toString(indexMaterial);
-        String sql = "delete from materiales where id = ?";
-        try (Connection conn = ConnectionUtil.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, id);
-            ps.executeUpdate();
-            UpdateMateriales();
-            CodigoMaterial();
-            cbMaterial.getItems().clear();
-            fillComboBoxMaterial();
-        } catch (SQLException e){
-            LOGGER.log(Level.SEVERE, "Error al eliminar material id=" + id, e);
-        }
+        boolean ok = MaterialesService.delete(id);
+        if (ok) { UpdateMateriales(); CodigoMaterial(); cbMaterial.getItems().clear(); fillComboBoxMaterial(); }
+        else LOGGER.log(Level.WARNING, "No se pudo eliminar material id={0}", id);
     }
     
-    public void CodigoMaterial(){
-        String sql = "select max(id) from materiales";
-        try (Connection conn = ConnectionUtil.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-            if (rs.next() && rs.getObject(1) != null) {
-                tbCodigoMaterial.setText(String.valueOf(rs.getInt(1) + 1));
-            } else {
-                tbCodigoMaterial.setText("1");
-            }
-        } catch (SQLException ex) {
-            LOGGER.log(Level.SEVERE, "Error obteniendo codigo material", ex);
-        }
-    }
+    public void CodigoMaterial() { CatalogoUtils.cargarSiguienteId("materiales", tbCodigoMaterial); }
     
     public void UpdateMateriales(){
         tcCodigoMaterial.setCellValueFactory(new PropertyValueFactory<>("tcCodigoMaterial"));       
@@ -2150,20 +2129,7 @@ public class DashboardController implements Initializable {
         
     }
     
-    public void CodigoAltura(){
-        String sql = "select max(id) from alturas";
-        try (Connection conn = ConnectionUtil.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-            if (rs.next() && rs.getObject(1) != null) {
-                tbCodigoAltura.setText(String.valueOf(rs.getInt(1) + 1));
-            } else {
-                tbCodigoAltura.setText("1");
-            }
-        } catch (SQLException ex) {
-            LOGGER.log(Level.SEVERE, "Error obteniendo codigo altura", ex);
-        }
-    }
+    public void CodigoAltura() { CatalogoUtils.cargarSiguienteId("alturas", tbCodigoAltura); }
     
     public void UpdateAlturas(){
         tcCodigoAltura.setCellValueFactory(new PropertyValueFactory<>("tcCodigoAltura"));       
@@ -2261,34 +2227,12 @@ public class DashboardController implements Initializable {
     
     public void EliminarCalibre(){
         String id = Integer.toString(indexCalibre);
-        String sql = "delete from calibres where id = ?";
-        try (Connection conn = ConnectionUtil.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, id);
-            ps.executeUpdate();
-            UpdateCalibres();
-            CodigoCalibres();
-            cbCalibre.getItems().clear();
-            fillComboBoxCalibre();
-        } catch (SQLException e){
-            LOGGER.log(Level.SEVERE, "Error al eliminar calibre id=" + id, e);
-        }
+        boolean ok = CalibresService.delete(id);
+        if (ok) { UpdateCalibres(); CodigoCalibres(); cbCalibre.getItems().clear(); fillComboBoxCalibre(); }
+        else LOGGER.log(Level.WARNING, "No se pudo eliminar calibre id={0}", id);
     }
     
-    public void CodigoCalibres(){
-        String sql = "select max(id) from calibres";
-        try (Connection conn = ConnectionUtil.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-            if (rs.next() && rs.getObject(1) != null) {
-                tbCodigoCalibre.setText(String.valueOf(rs.getInt(1) + 1));
-            } else {
-                tbCodigoCalibre.setText("1");
-            }
-        } catch (SQLException ex) {
-            LOGGER.log(Level.SEVERE, "Error obteniendo codigo calibre", ex);
-        }
-    }
+    public void CodigoCalibres() { CatalogoUtils.cargarSiguienteId("calibres", tbCodigoCalibre); }
     
     public void UpdateCalibres(){
         tcCodigoCalibre.setCellValueFactory(new PropertyValueFactory<>("tcCodigoCalibre"));       
@@ -2415,20 +2359,7 @@ public class DashboardController implements Initializable {
         
     }
     
-    public void CodigoRombos(){
-        String sql = "select max(id) from rombos";
-        try (Connection conn = ConnectionUtil.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-            if (rs.next() && rs.getObject(1) != null) {
-                tbCodigoRombo.setText(String.valueOf(rs.getInt(1) + 1));
-            } else {
-                tbCodigoRombo.setText("1");
-            }
-        } catch (SQLException ex) {
-            LOGGER.log(Level.SEVERE, "Error obteniendo codigo rombo", ex);
-        }
-    }   
+    public void CodigoRombos() { CatalogoUtils.cargarSiguienteId("rombos", tbCodigoRombo); }   
     
     public void UpdateRombos(){
         tcCodigoRombo.setCellValueFactory(new PropertyValueFactory<>("tcCodigoRombo"));       
@@ -2492,755 +2423,370 @@ public class DashboardController implements Initializable {
     
     }
     
-    public void clearCambiarMaterial(){
-        
+    public void clearCambiarMaterial() {
         tbCodigoMaterialEditar2.clear();
         tbNombreMaterialEditar2.clear();
         tbMedidaMaterialEditar.clear();
-        
     }
 
-    // CONTROLLADOR DE PANTALLAS EN DASHBOARD
-    @FXML
-    private void handleClicks(ActionEvent actionEvent) throws IOException{
-        
-        if(actionEvent.getSource() == btnPefil){
-            
-            new animatefx.animation.BounceIn(lbTitulo).play();
-            
-            lbTitulo.setText("PERFIL");
-            
-            //new animatefx.animation.ZoomIn(pnPerfil).play();
-            Perfil();
-            pnBlanco.toFront();
-            pnPerfil.toFront();
-            
-        }
-                
-        if(actionEvent.getSource() == btnInicio){
-            
-            new animatefx.animation.BounceIn(lbTitulo).play();
-            
-            lbTitulo.setText("INICIO");
-            
-            //new animatefx.animation.ZoomIn(pnInicio).play();
-            
-            pnBlanco.toFront();
-            pnInicio.toFront();
-            
-        }
-        if(actionEvent.getSource() == btnEmpleados){
-            
-            new animatefx.animation.BounceIn(lbTitulo).play();
-            
-            lbTitulo.setText("EMPLEADOS");
+    // ── UI HELPERS ────────────────────────────────────────────────────────────
 
-            //new animatefx.animation.ZoomIn(pnEmpleados).play();
-            
-            pnBlanco.toFront();
-            pnEmpleados.toFront();
-            
-        }
-        if(actionEvent.getSource() == btnProduccion){
-            
-            new animatefx.animation.BounceIn(lbTitulo).play();
-            
-            lbTitulo.setText("PRODUCCION");
+    /** Animates title label, then brings pnBlanco and target pane to front. */
+    private void navigate(String title, Pane target) {
+        new animatefx.animation.BounceIn(lbTitulo).play();
+        lbTitulo.setText(title);
+        pnBlanco.toFront();
+        target.toFront();
+    }
 
-            //new animatefx.animation.ZoomIn(pnProduccion).play();
-            
-            pnBlanco.toFront();
-            pnProduccion.toFront();
-            
-        }
-        if(actionEvent.getSource() == btnMateriales){
-            
-            new animatefx.animation.BounceIn(lbTitulo).play();
-            
-            lbTitulo.setText("MATERIALES");
+    private void showAlert(AlertType type, String title, String header, String content) {
+        Alert alert = new Alert(type);
+        if (title   != null) alert.setTitle(title);
+        if (header  != null) alert.setHeaderText(header);
+        if (content != null) alert.setContentText(content);
+        Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
+        stage.getIcons().add(new Image("icons/IconBlanco.png"));
+        alert.showAndWait();
+    }
 
-            //new animatefx.animation.ZoomIn(pnMateriales).play();
-            
-            pnBlanco.toFront();
-            pnMateriales.toFront();
-            
-        }
-        if(actionEvent.getSource() == btnExit){
-            
-            Alert alert = new Alert(AlertType.CONFIRMATION, "Desea cerrar sesión?", ButtonType.YES, ButtonType.CANCEL);
-            Button yesButton = (Button) alert.getDialogPane().lookupButton( ButtonType.YES );
-            yesButton.setDefaultButton( false );
-            Button noButton = (Button) alert.getDialogPane().lookupButton( ButtonType.CANCEL );
-            noButton.setDefaultButton( true );
-            alert.showAndWait();
-            
-            if (alert.getResult() == ButtonType.YES) {
-                
-            LOGGER.log(Level.INFO, "Cerro sesión");
-            
+    /** Shows YES/CANCEL confirmation (CANCEL is default button) and runs accion on YES. */
+    private void confirmarYEjecutar(String mensaje, Runnable accion) {
+        Alert alert = new Alert(AlertType.CONFIRMATION, mensaje, ButtonType.YES, ButtonType.CANCEL);
+        ((Button) alert.getDialogPane().lookupButton(ButtonType.YES)).setDefaultButton(false);
+        ((Button) alert.getDialogPane().lookupButton(ButtonType.CANCEL)).setDefaultButton(true);
+        Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
+        stage.getIcons().add(new Image("icons/IconBlanco.png"));
+        alert.showAndWait();
+        if (alert.getResult() == ButtonType.YES) accion.run();
+    }
+
+    // ── NAVIGATION ────────────────────────────────────────────────────────────
+
+    private void onNavPerfil()     { navigate("PERFIL",     pnPerfil);     Perfil(); }
+    private void onNavInicio()     { navigate("INICIO",     pnInicio); }
+    private void onNavEmpleados()  { navigate("EMPLEADOS",  pnEmpleados); }
+    private void onNavProduccion() { navigate("PRODUCCION", pnProduccion); }
+    private void onNavMateriales() { navigate("MATERIALES", pnMateriales); }
+
+    private void onNavExit(ActionEvent actionEvent) throws IOException {
+        Alert alert = new Alert(AlertType.CONFIRMATION, "Desea cerrar sesion?", ButtonType.YES, ButtonType.CANCEL);
+        ((Button) alert.getDialogPane().lookupButton(ButtonType.YES)).setDefaultButton(false);
+        ((Button) alert.getDialogPane().lookupButton(ButtonType.CANCEL)).setDefaultButton(true);
+        alert.showAndWait();
+        if (alert.getResult() == ButtonType.YES) {
+            LOGGER.log(Level.INFO, "Cerro sesion");
+            Node node = (Node) actionEvent.getSource();
+            Stage stage = (Stage) node.getScene().getWindow();
             Parent root = FXMLLoader.load(getClass().getResource("/aceros/Login.fxml"));
-        
-            Node node = (Node) actionEvent.getSource();
-
-            Stage stage = (Stage) node.getScene().getWindow();
-        
             Scene scene = new Scene(root);
-
             scene.setFill(Color.TRANSPARENT);
-        
             stage.setScene(scene);
-        
             new animatefx.animation.ZoomIn(root).play();
-        
             stage.show();
-                
-            }
-            
         }
-        
-        // FIN DE CONTROLLADOR DE PANTALLAS EN DASHBOARD
-        
-        //PANTALLA PERFIL
-        
-        if(actionEvent.getSource() == btnPefil){
-            
-            new animatefx.animation.BounceIn(lbTitulo).play();
-            
-            lbTitulo.setText("PERFIL");
-            
-            //new animatefx.animation.ZoomIn(pnPerfil).play();
-            Perfil();
-            pnBlanco.toFront();
-            pnPerfil.toFront();
-            
-        }
-        
-        if(actionEvent.getSource() == btncambiarContraseña){
-            
-            new animatefx.animation.BounceIn(lbTitulo).play();
-            
-            lbTitulo.setText("CAMBIAR CONTRASEÑA");
-            pnDashboard.setDisable(true);
-            pnBlanco.toFront();
-            pnCambiarContraseña.toFront();
-            
-        }
-        
-        if(actionEvent.getSource() == btnVolverContraseña){
-            
-            new animatefx.animation.BounceIn(lbTitulo).play();
-            
-            lbTitulo.setText("PEFIL");
-            pnDashboard.setDisable(false);
-            
-            Perfil();
-            pnBlanco.toFront();
-            pnPerfil.toFront();
-            
-        }
-        
-        if(actionEvent.getSource() == btnGuardarContraseña){
-            
-            String nueva,repetir;
-            nueva = tbContraseñaNueva.getText();
-            repetir = tbContraseñaRepetir.getText();
-            LOGGER.log(Level.FINE, "NUEVA {0}", nueva);
-            LOGGER.log(Level.FINE, "REPETIR {0}", repetir);
-            
-            if(tbContraseñaActual.getText().isEmpty()){
-                Alert alert = new Alert(AlertType.ERROR);
-                alert.setHeaderText("No se ingreso contraseña actual");
-                alert.setContentText("La contraseña actual debe ser ingresada");
-                Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-                stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                alert.showAndWait();
-            }else if(tbContraseñaNueva.getText().isEmpty() || tbContraseñaRepetir.getText().isEmpty()){
-                Alert alert = new Alert(AlertType.ERROR);
-                alert.setHeaderText("Las contraseñas nuevas no coinciden");
-                alert.setContentText("Vuelva a intentarlo de nuevo");
-                Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-                stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                tbContraseñaActual.clear();
-                tbContraseñaNueva.clear();
-                tbContraseñaRepetir.clear();
-                alert.showAndWait();
-            }else if(tbContraseñaNueva.getText().equals(tbContraseñaRepetir.getText())){
-                CambiarContraseña();
-            }
-            
-        }
-        
-        //FIN PANTALLA PERFIL
-        
-        // PANTALLA EMPLEADOS
-        
-        if(actionEvent.getSource() == btnNuevoEmpleado){
-            
-            Alert alert = new Alert(AlertType.CONFIRMATION, "Desea agregar nuevo empleado?", ButtonType.YES, ButtonType.CANCEL);
-            Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-            stage.getIcons().add(new Image("icons/IconBlanco.png"));
-            alert.showAndWait();
-            
-            if (alert.getResult() == ButtonType.YES) {
-                // Limpiar formulario y preparar valores por defecto
-                LimpiarPerfil();
-                CodigoUsuario();
-                if (tableviewEmpleados != null) tableviewEmpleados.getSelectionModel().clearSelection();
+    }
 
-                btnGuardarEmpleado.toFront();
+    // ── PERFIL ────────────────────────────────────────────────────────────────
 
-                new animatefx.animation.BounceIn(lbTitulo).play();
+    private void onBtnCambiarPassword() {
+        pnDashboard.setDisable(true);
+        navigate("CAMBIAR CONTRASENA", pnCambiarContraseña);
+    }
 
-                lbTitulo.setText("Agregar nuevo empleado");
+    private void onBtnVolverPassword() {
+        pnDashboard.setDisable(false);
+        Perfil();
+        navigate("PERFIL", pnPerfil);
+    }
 
-                pnBlanco.toFront();
-                pnAgregarEmpleados.toFront();
-                
-            }
-            
+    private void onBtnGuardarPassword() {
+        if (tbContraseñaActual.getText().isEmpty()) {
+            showAlert(AlertType.ERROR, null, "No se ingreso contrasena actual", "La contrasena actual debe ser ingresada");
+        } else if (tbContraseñaNueva.getText().isEmpty() || tbContraseñaRepetir.getText().isEmpty()) {
+            tbContraseñaActual.clear(); tbContraseñaNueva.clear(); tbContraseñaRepetir.clear();
+            showAlert(AlertType.ERROR, null, "Las contrasenas nuevas no coinciden", "Vuelva a intentarlo de nuevo");
+        } else if (tbContraseñaNueva.getText().equals(tbContraseñaRepetir.getText())) {
+            CambiarContraseña();
         }
-        
-                
-        if(actionEvent.getSource() == btnEditarEmpleado){
-           PerfilEmpleado();
-            new animatefx.animation.BounceIn(lbTitulo).play();
-            
-            lbTitulo.setText("Editar empleado");
+    }
 
-            pnBlanco.toFront();
-            pnAgregarEmpleados.toFront();
-            
-        } 
-        
-        if(actionEvent.getSource() == btnVolverEmpleados){
-            
-            Alert alert = new Alert(AlertType.CONFIRMATION, "Desea volver a la pantalla anterior?", ButtonType.YES, ButtonType.CANCEL);
-            Button yesButton = (Button) alert.getDialogPane().lookupButton( ButtonType.YES );
-            yesButton.setDefaultButton( false );
-            Button noButton = (Button) alert.getDialogPane().lookupButton( ButtonType.CANCEL );
-            noButton.setDefaultButton( true );
-            Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-            stage.getIcons().add(new Image("icons/IconBlanco.png"));
-            alert.showAndWait();
-            
-            if (alert.getResult() == ButtonType.YES) {
-            
-            new animatefx.animation.BounceIn(lbTitulo).play();
-            
-            lbTitulo.setText("EMPLEADOS");
-            
+    // ── EMPLEADOS ─────────────────────────────────────────────────────────────
+
+    private void onBtnNuevoEmpleado() {
+        confirmarYEjecutar("Desea agregar nuevo empleado?", () -> {
             LimpiarPerfil();
-            
-            pnBlanco.toFront();
-            pnEmpleados.toFront();
-            
-            }            
-        }
-        
-        if(actionEvent.getSource() == btnGuardarEmpleado){
-            
-            Alert alert = new Alert(AlertType.CONFIRMATION, "Desea guardar empleado?", ButtonType.YES, ButtonType.CANCEL);
-            Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-            stage.getIcons().add(new Image("icons/IconBlanco.png"));
-            alert.showAndWait();
-            
-            if (alert.getResult() == ButtonType.YES) {
-                LOGGER.log(Level.FINE, "CON IMAGEN");
-                AgregarEmpleadoConImagen();
-                
-                /*if(file != null){
-                    
-                }else{
-                    LOGGER.log(Level.FINE, "SIN IMAGEN");
-                    AgregarEmpleado();
-                }
-                */
-                
-                
-                new animatefx.animation.BounceIn(lbTitulo).play();
-                lbTitulo.setText("EMPLEADOS");
-                pnBlanco.toFront();
-                pnEmpleados.toFront();
-            }
-            
-        }
-        
-        if(actionEvent.getSource() == btnModificarEmpleado){
-            
-            Alert alert = new Alert(AlertType.CONFIRMATION, "Desea guardar cambios del empleado?", ButtonType.YES, ButtonType.CANCEL);
-            Button yesButton = (Button) alert.getDialogPane().lookupButton( ButtonType.YES );
-            yesButton.setDefaultButton( false );
-            Button noButton = (Button) alert.getDialogPane().lookupButton( ButtonType.CANCEL );
-            noButton.setDefaultButton( true );
-            Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-            stage.getIcons().add(new Image("icons/IconBlanco.png"));
-            alert.showAndWait();
-            
-            if (alert.getResult() == ButtonType.YES) {
-                ModificarEmpleadoConImagen();
-                
-                /*
-                if(file == null){
-                    ModificarEmpleado();
-                }else{
-                   
-                }
-                */
-                
-                new animatefx.animation.BounceIn(lbTitulo).play();
-                lbTitulo.setText("EMPLEADOS");
-                pnBlanco.toFront();
-                pnEmpleados.toFront();
-            }
-            
-        }
+            CodigoUsuario();
+            if (tableviewEmpleados != null) tableviewEmpleados.getSelectionModel().clearSelection();
+            btnGuardarEmpleado.toFront();
+            navigate("Agregar nuevo empleado", pnAgregarEmpleados);
+        });
+    }
 
-        if(actionEvent.getSource() == btnEliminarEmpleado){
-            
-            Alert alert = new Alert(AlertType.CONFIRMATION, "Desea eliminar empleado?", ButtonType.YES, ButtonType.CANCEL);
-            Button yesButton = (Button) alert.getDialogPane().lookupButton( ButtonType.YES );
-            yesButton.setDefaultButton( false );
-            Button noButton = (Button) alert.getDialogPane().lookupButton( ButtonType.CANCEL );
-            noButton.setDefaultButton( true );
-            Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-            stage.getIcons().add(new Image("icons/IconBlanco.png"));
-            alert.showAndWait();
-            
-            if (alert.getResult() == ButtonType.YES) {
-                EliminarEmpleado();
-            }
-            
+    private void onBtnEditarEmpleado() {
+        PerfilEmpleado();
+        navigate("Editar empleado", pnAgregarEmpleados);
+    }
+
+    private void onBtnVolverEmpleados() {
+        confirmarYEjecutar("Desea volver a la pantalla anterior?", () -> {
+            LimpiarPerfil();
+            navigate("EMPLEADOS", pnEmpleados);
+        });
+    }
+
+    private void onBtnGuardarEmpleado() {
+        confirmarYEjecutar("Desea guardar empleado?", () -> {
+            LOGGER.log(Level.FINE, "CON IMAGEN");
+            AgregarEmpleadoConImagen();
+            navigate("EMPLEADOS", pnEmpleados);
+        });
+    }
+
+    private void onBtnModificarEmpleado() {
+        confirmarYEjecutar("Desea guardar cambios del empleado?", () -> {
+            ModificarEmpleadoConImagen();
+            navigate("EMPLEADOS", pnEmpleados);
+        });
+    }
+
+    private void onBtnEliminarEmpleado() {
+        confirmarYEjecutar("Desea eliminar empleado?", this::EliminarEmpleado);
+    }
+
+    private void onBtnProduccionEmpleado() {
+        BuscarEmpleadoConBotonProduccion();
+        UpdateProduccionSemanal();
+        navigate("PRODUCCION", pnProduccion);
+    }
+
+    private void onBtnSubirImagen(ActionEvent actionEvent) {
+        Node node = (Node) actionEvent.getSource();
+        Stage stage = (Stage) node.getScene().getWindow();
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Subir imagen de perfil");
+        fileChooser.getExtensionFilters().addAll(new ExtensionFilter("Imagenes", "*.png", " *.jpg"));
+        file = fileChooser.showOpenDialog(stage);
+        if (file != null) {
+            lbPath.setText(file.getAbsolutePath());
+            image = new Image(file.toURI().toString());
+            LOGGER.log(Level.FINE, "ESTE ES EL ARCHIVO {0}", file.getAbsolutePath());
+            LOGGER.log(Level.FINE, "ESTE ES EL ARCHIVO {0}", file.getPath());
+            LOGGER.log(Level.FINE, "CONSEGUI DENTRO {0}", image);
+            btnSubirImagen.setText(null);
+            btnImagenPerfil.setImage(image);
+            LOGGER.log(Level.FINE, "TERMINE DENTRO {0}", btnImagenPerfil.getImage());
+            updateImagenPerfil();
+        } else {
+            file = null;
         }
-        
-        if(actionEvent.getSource() == btnActualizarEmpleado){
-            
-            UpdateTable();
-            
-        }
-        
-        if(actionEvent.getSource() == btnProduccionEmpleado){
-            BuscarEmpleadoConBotonProduccion();
+    }
+
+    // ── PRODUCCION ────────────────────────────────────────────────────────────
+
+    private void onBtnBuscarEmpleadoProduccion() {
+        if (tbCodigoProduccion.getText().isEmpty()) {
+            showAlert(AlertType.ERROR, "Codigo de usuario vacio", "Llenar los datos correctamente", null);
+            tbCodigoProduccion.clear();
+        } else {
+            BuscarEmpleadoProduccion();
             UpdateProduccionSemanal();
-            new animatefx.animation.BounceIn(lbTitulo).play();
-            
-            lbTitulo.setText("PRODUCCION");
-            
-            pnBlanco.toFront();
-            pnProduccion.toFront();
-            
         }
-        
-        if(actionEvent.getSource() == btnSubirImagen){
-            
-            Node node = (Node) actionEvent.getSource();
-            Stage stage = (Stage) node.getScene().getWindow();
-            FileChooser fileChooser = new FileChooser();
-            fileChooser.setTitle("Subir imagen de perfil");
-            fileChooser.getExtensionFilters().addAll(new ExtensionFilter("Imagenes", "*.png", " *.jpg"));
-            file = fileChooser.showOpenDialog(stage);
-            
-            if(file !=null){
-                lbPath.setText(file.getAbsolutePath());
-                image = new Image(file.toURI().toString());
-                LOGGER.log(Level.FINE, "ESTE ES EL ARCHIVO {0}", file.getAbsolutePath());
-                LOGGER.log(Level.FINE, "ESTE ES EL ARCHIVO {0}", file.getPath());
-                LOGGER.log(Level.FINE, "CONSEGUI DENTRO {0}", image);
-                btnSubirImagen.setText(null);
-                btnImagenPerfil.setImage(image);
-                LOGGER.log(Level.FINE, "TERMINE DENTRO {0}", btnImagenPerfil.getImage());
-                updateImagenPerfil();
-            }else{
-                file = null;
-            }
-            
-        }
-        
-        // FIN DE PANTALLA EMPLEADOS
-        
-        // PANTALLA PRODUCCION
-        
-        if(actionEvent.getSource() == btnBuscarEmpleado){
-            
-            if(tbCodigoProduccion.getText().isEmpty()){
-                Alert error = new Alert(AlertType.ERROR);
-                    error.setTitle("Codigo de usuario vacio");
-                    error.setHeaderText("Llenar los datos correctamente");
-                    Stage stage = (Stage) error.getDialogPane().getScene().getWindow();
-                    stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                    error.showAndWait();
-                    tbCodigoProduccion.clear();           
-            }else{
-                BuscarEmpleadoProduccion();
-                UpdateProduccionSemanal();
-            }
-            
-        }
-        
-        if(actionEvent.getSource() == btnEditarEmpleado2){
-           PerfilEmpleadoProduccion();
-            new animatefx.animation.BounceIn(lbTitulo).play();
-            
-            lbTitulo.setText("Editar empleado");
+    }
 
-            pnBlanco.toFront();
-            pnAgregarEmpleados.toFront();
-            
-        } 
-                
-        if(actionEvent.getSource() == btnLimpiarProduccion){
-                Alert alert = new Alert(AlertType.CONFIRMATION, "Desea limpiar los campos?", ButtonType.YES, ButtonType.CANCEL);
-                Button yesButton = (Button) alert.getDialogPane().lookupButton( ButtonType.YES );
-                yesButton.setDefaultButton( false );
-                Button noButton = (Button) alert.getDialogPane().lookupButton( ButtonType.CANCEL );
-                noButton.setDefaultButton( true );
-                Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-                stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                alert.showAndWait();
-                if (alert.getResult() == ButtonType.YES) {
-                cleanProduccion();
-            }
-        }  
-        
-        if(actionEvent.getSource() == btnNuevoProduccion){
+    private void onBtnEditarEmpleado2() {
+        PerfilEmpleadoProduccion();
+        navigate("Editar empleado", pnAgregarEmpleados);
+    }
 
-            if(tbMetros.getText().isEmpty() || tbCantidadProduccion.getText().isEmpty() || tbFechaRegistro.getValue() == null || cbMaterial.getValue() == null || cbCalibre.getValue() == null || cbAltura.getValue() == null || cbRombo.getValue() == null){
-                Alert error = new Alert(AlertType.ERROR);
-                    error.setHeaderText("Uno o mas campos vacios!");
-                    Stage stage = (Stage) error.getDialogPane().getScene().getWindow();
-                    stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                    error.showAndWait();
-                    cleanProduccion();           
-            }else if (lbHCodigo2.getText().isEmpty() || tbCodigoProduccion.getText().isEmpty()){
-                Alert error = new Alert(AlertType.ERROR);
-                    error.setHeaderText("No se ha seleccionado ningun empleado");
-                    Stage stage = (Stage) error.getDialogPane().getScene().getWindow();
-                    stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                    error.showAndWait();
-                    cleanProduccion(); 
-            }else{
-                Alert alert = new Alert(AlertType.CONFIRMATION, "Desea guardar produccion?", ButtonType.YES, ButtonType.CANCEL);
-                Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-                stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                alert.showAndWait();
-                if (alert.getResult() == ButtonType.YES) {
+    private void onBtnLimpiarProduccion() {
+        confirmarYEjecutar("Desea limpiar los campos?", this::cleanProduccion);
+    }
+
+    private void onBtnGuardarProduccion() {
+        if (tbMetros.getText().isEmpty() || tbCantidadProduccion.getText().isEmpty()
+                || tbFechaRegistro.getValue() == null
+                || cbMaterial.getValue() == null || cbCalibre.getValue() == null
+                || cbAltura.getValue() == null || cbRombo.getValue() == null) {
+            showAlert(AlertType.ERROR, null, "Uno o mas campos vacios!", null);
+            cleanProduccion();
+        } else if (lbHCodigo2.getText().isEmpty() || tbCodigoProduccion.getText().isEmpty()) {
+            showAlert(AlertType.ERROR, null, "No se ha seleccionado ningun empleado", null);
+            cleanProduccion();
+        } else {
+            confirmarYEjecutar("Desea guardar produccion?", () -> {
                 AgregarProduccion();
                 UpdateProduccionSemanal();
                 DiasSemana();
-                }
-            }
-            
-        }        
-        
-        if(actionEvent.getSource() == btnHistorial){
-            
-            new animatefx.animation.BounceIn(lbTitulo).play();
-            
-            lbTitulo.setText("HISTORIAL Y REPORTES");
-            
-            if(lbHCodigo2.getText().isEmpty()){
-                
-            }else{
-                tbCodigoHistorial.setText(lbHCodigo2.getText());
-                BuscarEmpleadoHistorial();
-                UpdateHistorial();
-            }
-            
-            pnBlanco.toFront();
-            pnHistorial.toFront();
-            
+            });
         }
-        
-        if(actionEvent.getSource() == btnVolverHistorial){
-            
-            new animatefx.animation.BounceIn(lbTitulo).play();
-            
-            lbTitulo.setText("PRODUCCION");
-            
-            pnBlanco.toFront();
-            pnProduccion.toFront();
-            
-        }
-        
-        if(actionEvent.getSource() == btnVolverHistorial2){
-            
-            Alert alert = new Alert(AlertType.CONFIRMATION, "Desea volver a la pantalla anterior?", ButtonType.YES, ButtonType.CANCEL);
-            Button yesButton = (Button) alert.getDialogPane().lookupButton( ButtonType.YES );
-            yesButton.setDefaultButton( false );
-            Button noButton = (Button) alert.getDialogPane().lookupButton( ButtonType.CANCEL );
-            noButton.setDefaultButton( true );
-            Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-            stage.getIcons().add(new Image("icons/IconBlanco.png"));
-            alert.showAndWait();
-            
-            if (alert.getResult() == ButtonType.YES) {
-            
-            new animatefx.animation.BounceIn(lbTitulo).play();        
-            
-            lbTitulo.setText("PRODUCCION");
-            
-            LimpiarPerfil();
-            
-            pnBlanco.toFront();
-            pnProduccion.toFront();
-            
-            }            
-        }
-        
-        if(actionEvent.getSource() == btnVolverEditartProduccion){
-            pnEditarProduccion.toBack();
-        }
-        
-        if(actionEvent.getSource() == btnModificarProduccion){
-            pnEditarProduccion.toFront();
-        }
-        
-        if(actionEvent.getSource() == btnGuardarEditartProduccion){
-            ModificarProduccion();
-            UpdateProduccionSemanal();
-            pnEditarProduccion.toBack();
-        }
-        
-        if(actionEvent.getSource() == btnEditarHistorial){
-            pnEditarProduccion.toFront();
-        }
-        
-        // FIN PANTALLA PRODUCCION
-        // PANTALLA HISTORIAL
-        
-        if(actionEvent.getSource() == btnBuscarHistorial){
-            
-            if(tbCodigoHistorial.getText().isEmpty()){
-                Alert error = new Alert(AlertType.ERROR);
-                    error.setTitle("Codigo de usuario vacio");
-                    error.setHeaderText("Llenar los datos correctamente");
-                    Stage stage = (Stage) error.getDialogPane().getScene().getWindow();
-                    stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                    error.showAndWait();
-                    tbCodigoHistorial.clear();           
-            }else{
-                BuscarEmpleadoHistorial();
-                UpdateHistorial();
-            }
-            
-        }
-        
-        if(actionEvent.getSource() == btnReporte){
-            
-            ImprimirReporte();
-            
-        }
-        
-        // FIN PANTALLA HISTORIAL
-        // PANTALLA MATERIALES
-        if(actionEvent.getSource() == btnGuardarMaterial){
-
-            if(tbNombreMaterial.getText().isEmpty()){
-                Alert error = new Alert(AlertType.ERROR);
-                    //error.setTitle("Uno o mas campos vacios!");
-                    error.setHeaderText("Uno o mas campos vacios!");
-                    Stage stage = (Stage) error.getDialogPane().getScene().getWindow();
-                    stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                    error.showAndWait();
-            
-            }else{
-                Alert alert = new Alert(AlertType.CONFIRMATION, "Desea guardar material?", ButtonType.YES, ButtonType.CANCEL);
-                Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-                stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                alert.showAndWait();
-                if (alert.getResult() == ButtonType.YES) {
-                AgregarMaterial();
-                }
-            }
-            
-        }
-        
-        if(actionEvent.getSource() == btnEliminarMaterial){
-            
-            Alert alert = new Alert(AlertType.CONFIRMATION, "Desea eliminar material?", ButtonType.YES, ButtonType.CANCEL);
-            Button yesButton = (Button) alert.getDialogPane().lookupButton( ButtonType.YES );
-            yesButton.setDefaultButton( false );
-            Button noButton = (Button) alert.getDialogPane().lookupButton( ButtonType.CANCEL );
-            noButton.setDefaultButton( true );
-            Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-            stage.getIcons().add(new Image("icons/IconBlanco.png"));
-            alert.showAndWait();
-            
-            if (alert.getResult() == ButtonType.YES) {
-                EliminarMaterial();
-            }
-            
-        }
-        
-        if(actionEvent.getSource() == btnGuardarAltura){
-
-            if(tbNombreAltura.getText().isEmpty() || tbAltura.getText().isEmpty()){
-                Alert error = new Alert(AlertType.ERROR);
-                    error.setHeaderText("Uno o mas campos vacios!");
-                    Stage stage = (Stage) error.getDialogPane().getScene().getWindow();
-                    stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                    error.showAndWait();
-                    tbNombreAltura.clear();
-                    tbAltura.clear();
-            }else{
-                Alert alert = new Alert(AlertType.CONFIRMATION, "Desea guardar altura?", ButtonType.YES, ButtonType.CANCEL);
-                Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-                stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                alert.showAndWait();
-                if (alert.getResult() == ButtonType.YES) {
-                AgregarAltura();
-                }
-            }
-            
-        }
-        
-        if(actionEvent.getSource() == btnEliminarAltura){
-            
-            Alert alert = new Alert(AlertType.CONFIRMATION, "Desea eliminar altura?", ButtonType.YES, ButtonType.CANCEL);
-            Button yesButton = (Button) alert.getDialogPane().lookupButton( ButtonType.YES );
-            yesButton.setDefaultButton( false );
-            Button noButton = (Button) alert.getDialogPane().lookupButton( ButtonType.CANCEL );
-            noButton.setDefaultButton( true );
-            Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-            stage.getIcons().add(new Image("icons/IconBlanco.png"));
-            alert.showAndWait();
-            
-            if (alert.getResult() == ButtonType.YES) {
-                EliminarAltura();
-            }
-            
-        }
-        
-        if(actionEvent.getSource() == btnGuardarCalibre){
-
-            if(tbNombreCalibre.getText().isEmpty() || tbCalibre.getText().isEmpty()){
-                Alert error = new Alert(AlertType.ERROR);
-                    error.setHeaderText("Uno o mas campos vacios!");
-                    Stage stage = (Stage) error.getDialogPane().getScene().getWindow();
-                    stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                    error.showAndWait();
-                    tbNombreCalibre.clear();
-                    tbCalibre.clear();            
-            }else{
-                Alert alert = new Alert(AlertType.CONFIRMATION, "Desea guardar calibre?", ButtonType.YES, ButtonType.CANCEL);
-                Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-                stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                alert.showAndWait();
-                if (alert.getResult() == ButtonType.YES) {
-                AgregarCalibre();
-                }
-            }
-            
-        }
-        
-        if(actionEvent.getSource() == btnEliminarCalibre){
-            
-            Alert alert = new Alert(AlertType.CONFIRMATION, "Desea eliminar calibre?", ButtonType.YES, ButtonType.CANCEL);
-            Button yesButton = (Button) alert.getDialogPane().lookupButton( ButtonType.YES );
-            yesButton.setDefaultButton( false );
-            Button noButton = (Button) alert.getDialogPane().lookupButton( ButtonType.CANCEL );
-            noButton.setDefaultButton( true );
-            Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-            stage.getIcons().add(new Image("icons/IconBlanco.png"));
-            alert.showAndWait();
-            
-            if (alert.getResult() == ButtonType.YES) {
-                EliminarCalibre();
-            }
-            
-        }
-        
-        if(actionEvent.getSource() == btnGuardarRombo){
-
-            if(tbNombreRombo.getText().isEmpty() || tbRombo.getText().isEmpty()){
-                Alert error = new Alert(AlertType.ERROR);
-                    error.setHeaderText("Uno o mas campos vacios!");
-                    Stage stage = (Stage) error.getDialogPane().getScene().getWindow();
-                    stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                    error.showAndWait();
-                    tbNombreRombo.clear();
-                    tbRombo.clear();            
-            }else{
-                Alert alert = new Alert(AlertType.CONFIRMATION, "Desea guardar separacion de rombos?", ButtonType.YES, ButtonType.CANCEL);
-                Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-                stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                alert.showAndWait();
-                if (alert.getResult() == ButtonType.YES) {
-                AgregarRombos();
-                }
-            }
-            
-        }
-        
-        if(actionEvent.getSource() == btnEliminarRombo){
-            
-            Alert alert = new Alert(AlertType.CONFIRMATION, "Desea eliminar rombos?", ButtonType.YES, ButtonType.CANCEL);
-            Button yesButton = (Button) alert.getDialogPane().lookupButton( ButtonType.YES );
-            yesButton.setDefaultButton( false );
-            Button noButton = (Button) alert.getDialogPane().lookupButton( ButtonType.CANCEL );
-            noButton.setDefaultButton( true );
-            Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-            stage.getIcons().add(new Image("icons/IconBlanco.png"));
-            alert.showAndWait();
-            
-            if (alert.getResult() == ButtonType.YES) {
-                EliminarRombo();
-            }
-            
-        }
-        
-        if(actionEvent.getSource() == btnEditarMaterial){
-            pnEditarMaterial.toFront();
-        }
-        if(actionEvent.getSource() == btnVolverEdiatMaterial){
-            pnEditarMaterial.toBack();
-        }
-        if(actionEvent.getSource() == btnGuardarEdiatMaterial){
-            ModificarMaterial();
-            pnEditarMaterial.toBack();
-        }
-        
-        if(actionEvent.getSource() == btnVolverEditartMaterial2){
-            clearCambiarMaterial();
-            pnEditarMaterial2.toBack();
-        }
-        
-        if(actionEvent.getSource() == btnEditarAltura){
-            pnEditarMaterial2.toFront();
-            btnGuardarEditarAltura.toFront();
-            lbMedidaMaterialEditar.setText("ALTURA");
-            tbMedidaMaterialEditar.setPromptText("ALTURA");
-        }
-        if(actionEvent.getSource() == btnGuardarEditarAltura){
-            ModificarAltura();
-            pnEditarMaterial2.toBack();
-            clearCambiarMaterial();
-        }
-        
-        if(actionEvent.getSource() == btnEditarCalibre){
-            pnEditarMaterial2.toFront();
-            btnGuardarEditarCalibre.toFront();
-            lbMedidaMaterialEditar.setText("CALIBRE");
-            tbMedidaMaterialEditar.setPromptText("CALIBRE");
-        }
-        if(actionEvent.getSource() == btnGuardarEditarCalibre){
-            ModificarCalibre();
-            pnEditarMaterial2.toBack();
-            clearCambiarMaterial();
-        }
-        
-        if(actionEvent.getSource() == btnEditarRombo){
-            pnEditarMaterial2.toFront();
-            btnGuardarEditarRombos.toFront();
-            lbMedidaMaterialEditar.setText("SEPARACIÓN DE ROMBOS");
-            tbMedidaMaterialEditar.setPromptText("SEPARACIÓN DE ROMBOS");
-        }
-        if(actionEvent.getSource() == btnGuardarEditarRombos){
-            ModificarRombos();
-            pnEditarMaterial2.toBack();
-            clearCambiarMaterial();
-        }
-        
-       // FIN DE PANTALLA MATERIALES 
     }
-    
+
+    private void onBtnHistorial() {
+        navigate("HISTORIAL Y REPORTES", pnHistorial);
+        if (!lbHCodigo2.getText().isEmpty()) {
+            tbCodigoHistorial.setText(lbHCodigo2.getText());
+            BuscarEmpleadoHistorial();
+            UpdateHistorial();
+        }
+    }
+
+    private void onBtnVolverHistorial()  { navigate("PRODUCCION", pnProduccion); }
+
+    private void onBtnVolverHistorial2() {
+        confirmarYEjecutar("Desea volver a la pantalla anterior?", () -> {
+            LimpiarPerfil();
+            navigate("PRODUCCION", pnProduccion);
+        });
+    }
+
+    private void onBtnGuardarEdicionProduccion() {
+        ModificarProduccion();
+        UpdateProduccionSemanal();
+        pnEditarProduccion.toBack();
+    }
+
+    // ── HISTORIAL ─────────────────────────────────────────────────────────────
+
+    private void onBtnBuscarHistorial() {
+        if (tbCodigoHistorial.getText().isEmpty()) {
+            showAlert(AlertType.ERROR, "Codigo de usuario vacio", "Llenar los datos correctamente", null);
+            tbCodigoHistorial.clear();
+        } else {
+            BuscarEmpleadoHistorial();
+            UpdateHistorial();
+        }
+    }
+
+    // ── CATALOGOS ─────────────────────────────────────────────────────────────
+
+    private void onBtnGuardarMaterial() {
+        if (tbNombreMaterial.getText().isEmpty()) {
+            showAlert(AlertType.ERROR, null, "Uno o mas campos vacios!", null);
+        } else {
+            confirmarYEjecutar("Desea guardar material?", this::AgregarMaterial);
+        }
+    }
+
+    private void onBtnGuardarAltura() {
+        if (tbNombreAltura.getText().isEmpty() || tbAltura.getText().isEmpty()) {
+            tbNombreAltura.clear(); tbAltura.clear();
+            showAlert(AlertType.ERROR, null, "Uno o mas campos vacios!", null);
+        } else {
+            confirmarYEjecutar("Desea guardar altura?", this::AgregarAltura);
+        }
+    }
+
+    private void onBtnGuardarCalibre() {
+        if (tbNombreCalibre.getText().isEmpty() || tbCalibre.getText().isEmpty()) {
+            tbNombreCalibre.clear(); tbCalibre.clear();
+            showAlert(AlertType.ERROR, null, "Uno o mas campos vacios!", null);
+        } else {
+            confirmarYEjecutar("Desea guardar calibre?", this::AgregarCalibre);
+        }
+    }
+
+    private void onBtnGuardarRombo() {
+        if (tbNombreRombo.getText().isEmpty() || tbRombo.getText().isEmpty()) {
+            tbNombreRombo.clear(); tbRombo.clear();
+            showAlert(AlertType.ERROR, null, "Uno o mas campos vacios!", null);
+        } else {
+            confirmarYEjecutar("Desea guardar separacion de rombos?", this::AgregarRombos);
+        }
+    }
+
+    private void onBtnEditarAltura() {
+        pnEditarMaterial2.toFront();
+        btnGuardarEditarAltura.toFront();
+        lbMedidaMaterialEditar.setText("ALTURA");
+        tbMedidaMaterialEditar.setPromptText("ALTURA");
+    }
+
+    private void onBtnEditarCalibre() {
+        pnEditarMaterial2.toFront();
+        btnGuardarEditarCalibre.toFront();
+        lbMedidaMaterialEditar.setText("CALIBRE");
+        tbMedidaMaterialEditar.setPromptText("CALIBRE");
+    }
+
+    private void onBtnEditarRombo() {
+        pnEditarMaterial2.toFront();
+        btnGuardarEditarRombos.toFront();
+        lbMedidaMaterialEditar.setText("SEPARACION DE ROMBOS");
+        tbMedidaMaterialEditar.setPromptText("SEPARACION DE ROMBOS");
+    }
+
+    // ── EVENT DISPATCHER ──────────────────────────────────────────────────────
+
+    @FXML
+    private void handleClicks(ActionEvent actionEvent) throws IOException {
+        Object src = actionEvent.getSource();
+
+        // Navigation — early return so remaining checks are skipped
+        if (src == btnPefil)      { onNavPerfil();         return; }
+        if (src == btnInicio)     { onNavInicio();          return; }
+        if (src == btnEmpleados)  { onNavEmpleados();       return; }
+        if (src == btnProduccion) { onNavProduccion();      return; }
+        if (src == btnMateriales) { onNavMateriales();      return; }
+        if (src == btnExit)       { onNavExit(actionEvent); return; }
+
+        // Profile
+        if (src == btncambiarContraseña) onBtnCambiarPassword();
+        if (src == btnVolverContraseña)  onBtnVolverPassword();
+        if (src == btnGuardarContraseña) onBtnGuardarPassword();
+
+        // Employees
+        if (src == btnNuevoEmpleado)      onBtnNuevoEmpleado();
+        if (src == btnEditarEmpleado)     onBtnEditarEmpleado();
+        if (src == btnVolverEmpleados)    onBtnVolverEmpleados();
+        if (src == btnGuardarEmpleado)    onBtnGuardarEmpleado();
+        if (src == btnModificarEmpleado)  onBtnModificarEmpleado();
+        if (src == btnEliminarEmpleado)   onBtnEliminarEmpleado();
+        if (src == btnActualizarEmpleado) UpdateTable();
+        if (src == btnProduccionEmpleado) onBtnProduccionEmpleado();
+        if (src == btnSubirImagen)        onBtnSubirImagen(actionEvent);
+
+        // Production
+        if (src == btnBuscarEmpleado)           onBtnBuscarEmpleadoProduccion();
+        if (src == btnEditarEmpleado2)           onBtnEditarEmpleado2();
+        if (src == btnLimpiarProduccion)         onBtnLimpiarProduccion();
+        if (src == btnNuevoProduccion)           onBtnGuardarProduccion();
+        if (src == btnHistorial)                 onBtnHistorial();
+        if (src == btnVolverHistorial)           onBtnVolverHistorial();
+        if (src == btnVolverHistorial2)          onBtnVolverHistorial2();
+        if (src == btnVolverEditartProduccion)   pnEditarProduccion.toBack();
+        if (src == btnModificarProduccion)       pnEditarProduccion.toFront();
+        if (src == btnGuardarEditartProduccion)  onBtnGuardarEdicionProduccion();
+        if (src == btnEditarHistorial)           pnEditarProduccion.toFront();
+
+        // History
+        if (src == btnBuscarHistorial) onBtnBuscarHistorial();
+        if (src == btnReporte)         ImprimirReporte();
+
+        // Catalogs — save
+        if (src == btnGuardarMaterial) onBtnGuardarMaterial();
+        if (src == btnGuardarAltura)   onBtnGuardarAltura();
+        if (src == btnGuardarCalibre)  onBtnGuardarCalibre();
+        if (src == btnGuardarRombo)    onBtnGuardarRombo();
+
+        // Catalogs — delete
+        if (src == btnEliminarMaterial) confirmarYEjecutar("Desea eliminar material?",  this::EliminarMaterial);
+        if (src == btnEliminarAltura)   confirmarYEjecutar("Desea eliminar altura?",    this::EliminarAltura);
+        if (src == btnEliminarCalibre)  confirmarYEjecutar("Desea eliminar calibre?",   this::EliminarCalibre);
+        if (src == btnEliminarRombo)    confirmarYEjecutar("Desea eliminar rombos?",    this::EliminarRombo);
+
+        // Catalogs — edit panel (Materiales)
+        if (src == btnEditarMaterial)       pnEditarMaterial.toFront();
+        if (src == btnVolverEdiatMaterial)  pnEditarMaterial.toBack();
+        if (src == btnGuardarEdiatMaterial) { ModificarMaterial(); pnEditarMaterial.toBack(); }
+
+        // Catalogs — edit panel (Alturas / Calibres / Rombos shared)
+        if (src == btnVolverEditartMaterial2) { clearCambiarMaterial(); pnEditarMaterial2.toBack(); }
+        if (src == btnEditarAltura)            onBtnEditarAltura();
+        if (src == btnGuardarEditarAltura)     { ModificarAltura();  pnEditarMaterial2.toBack(); clearCambiarMaterial(); }
+        if (src == btnEditarCalibre)           onBtnEditarCalibre();
+        if (src == btnGuardarEditarCalibre)    { ModificarCalibre(); pnEditarMaterial2.toBack(); clearCambiarMaterial(); }
+        if (src == btnEditarRombo)             onBtnEditarRombo();
+        if (src == btnGuardarEditarRombos)     { ModificarRombos();  pnEditarMaterial2.toBack(); clearCambiarMaterial(); }
+    }
+
 }
