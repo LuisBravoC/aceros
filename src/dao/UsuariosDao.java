@@ -21,6 +21,25 @@ public class UsuariosDao {
 
     private static final Logger LOGGER = Logger.getLogger(UsuariosDao.class.getName());
 
+    /**
+     * Verifica que {@code userId} y {@code password} coincidan en la BD.
+     * @return {@code true} si las credenciales son válidas, {@code false} en caso contrario.
+     */
+    public static boolean authenticate(String userId, String password) {
+        String sql = "SELECT 1 FROM usuarios WHERE usuario_id = ? AND password = ?";
+        try (Connection con = ConnectionUtil.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, userId);
+            ps.setString(2, password);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (SQLException ex) {
+            LOGGER.log(Level.SEVERE, "Error during authentication for user: " + userId, ex);
+        }
+        return false;
+    }
+
     public static ObservableList<Empleados> getAll() {
         ObservableList<Empleados> list = FXCollections.observableArrayList();
         String sql = "select * from usuarios";

@@ -611,7 +611,7 @@ public class DashboardController implements Initializable {
     @FXML
     private Button btnEliminarRombo;
     
-    private String usuario = LoginController.getSesion();
+    private String usuario = services.SessionManager.getInstance().getUserId();
     String tipo_empleado;
     
     double x = 0, y = 0;
