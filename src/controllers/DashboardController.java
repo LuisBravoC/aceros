@@ -50,6 +50,7 @@ import java.util.ResourceBundle;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import util.ImageUtils;
@@ -738,91 +739,26 @@ public class DashboardController implements Initializable {
         }
 
     public void Filtro(){
-        
         FilteredList<Empleados> filteredData = new FilteredList<>(dataList, b -> true);
-            LOGGER.log(Level.WARNING, "RECORD FAILED");
-        filtroIdUsuario.textProperty().addListener((observable, oldValue, newValue) -> {
-			filteredData.setPredicate(empleados -> {
-                                // Si el filtro esta vacio despliega a todas las personas
-								
-				if (newValue == null || newValue.isEmpty()) {
-					return true;
-				}
-                                
-				String lowerCaseFilter = newValue.toLowerCase();
-				
-				if (String.valueOf(empleados.getEmpIdUsuario()).toLowerCase().indexOf(lowerCaseFilter) != -1 ) {
-					return true; // Filter matches first name.
-				}
-				     else  
-				    	 return false; // Does not match.
-			});
-		});
-        // FILTRO NOMBRE
-        filtroNombreUsuario.textProperty().addListener((observable, oldValue, newValue) -> {
-			filteredData.setPredicate(empleados -> {
-                                // Si el filtro esta vacio despliega a todas las personas
-								
-				if (newValue == null || newValue.isEmpty()) {
-					return true;
-				}
-                                
-				String lowerCaseFilter = newValue.toLowerCase();
-				
-				if (String.valueOf(empleados.getEmpNombre()).toLowerCase().indexOf(lowerCaseFilter) != -1 ) {
-					return true; // Filter matches first name.
-				}
-				     else  
-				    	 return false; // Does not match.
-			});
-		});
-        // FILTRO EDAD
-        filtroEdadUsuario.textProperty().addListener((observable, oldValue, newValue) -> {
-			filteredData.setPredicate(empleados -> {
-                                // Si el filtro esta vacio despliega a todas las personas
-								
-				if (newValue == null || newValue.isEmpty()) {
-					return true;
-				}
-                                
-				String lowerCaseFilter = newValue.toLowerCase();
-				
-				if (String.valueOf(empleados.getEmpEdad()).toLowerCase().indexOf(lowerCaseFilter) != -1 ) {
-					return true; // Filter matches first name.
-				}
-				     else  
-				    	 return false; // Does not match.
-			});
-		});
-        // FILTRO SUELDO
-        filtroSueldoUsuario.textProperty().addListener((observable, oldValue, newValue) -> {
-			filteredData.setPredicate(empleados -> {
-                                // Si el filtro esta vacio despliega a todas las personas
-								
-				if (newValue == null || newValue.isEmpty()) {
-					return true;
-				}
-                                
-				String lowerCaseFilter = newValue.toLowerCase();
-				
-				if (String.valueOf(empleados.getEmpSueldo()).toLowerCase().indexOf(lowerCaseFilter) != -1 ) {
-					return true; // Filter matches first name.
-				}
-				     else  
-				    	 return false; // Does not match.
-			});
-		});
-        
-                 // 3. Wrap the FilteredList in a SortedList. 
-		SortedList<Empleados> sortedData = new SortedList<>(filteredData);
-		
-		// 4. Bind the SortedList comparator to the TableView comparator.
-		// 	  Otherwise, sorting the TableView would have no effect.
-		sortedData.comparatorProperty().bind(tableviewEmpleados.comparatorProperty());
-		
-		// 5. Add sorted (and filtered) data to the table.
-		tableviewEmpleados.setItems(sortedData);
-        
+        bindFilter(filteredData, filtroIdUsuario,    e -> e.getEmpIdUsuario());
+        bindFilter(filteredData, filtroNombreUsuario, Empleados::getEmpNombre);
+        bindFilter(filteredData, filtroEdadUsuario,   Empleados::getEmpEdad);
+        bindFilter(filteredData, filtroSueldoUsuario, Empleados::getEmpSueldo);
+        SortedList<Empleados> sortedData = new SortedList<>(filteredData);
+        sortedData.comparatorProperty().bind(tableviewEmpleados.comparatorProperty());
+        tableviewEmpleados.setItems(sortedData);
+    }
+
+    /** Binds a text field filter to a FilteredList predicate using a getter. */
+    private <T> void bindFilter(FilteredList<T> list, javafx.scene.control.TextField tf,
+                                Function<T, Object> getter) {
+        tf.textProperty().addListener((obs, oldVal, newVal) ->
+            list.setPredicate(item -> {
+                if (newVal == null || newVal.isEmpty()) return true;
+                return String.valueOf(getter.apply(item)).toLowerCase()
+                             .contains(newVal.toLowerCase());
+            })
+        );
     }
     
     //PERFIL EMPLEADO
@@ -1593,43 +1529,36 @@ public class DashboardController implements Initializable {
     }
     
     public void fillComboBoxMaterial(){
-        ObservableList<String> list = LookupService.getMateriales();
-        MaterialOpcion.clear();
-        EditarMaterialOpcion.clear();
-        MaterialOpcion.addAll(list);
-        EditarMaterialOpcion.addAll(list);
-        cbMaterial.setValue(cbMaterial.getValue());
-        cbMaterialEditar.setValue(cbMaterialEditar.getValue());
+        refreshComboBoxPair(MaterialOpcion, EditarMaterialOpcion,
+                cbMaterial, cbMaterialEditar, LookupService::getMateriales);
     }
-    
+
     public void fillComboBoxAltura(){
-        ObservableList<String> list = LookupService.getAlturas();
-        AlturaOpcion.clear();
-        EditarAlturaOpcion.clear();
-        AlturaOpcion.addAll(list);
-        EditarAlturaOpcion.addAll(list);
-        cbAltura.setValue(cbAltura.getValue());
-        cbAlturaEditar.setValue(cbAlturaEditar.getValue());
+        refreshComboBoxPair(AlturaOpcion, EditarAlturaOpcion,
+                cbAltura, cbAlturaEditar, LookupService::getAlturas);
     }
-    
+
     public void fillComboBoxCalibre(){
-        ObservableList<String> list = LookupService.getCalibres();
-        CalibreOpcion.clear();
-        EditarCalibreOpcion.clear();
-        CalibreOpcion.addAll(list);
-        EditarCalibreOpcion.addAll(list);
-        cbCalibre.setValue(cbCalibre.getValue());
-        cbCalibreEditar.setValue(cbCalibreEditar.getValue());
+        refreshComboBoxPair(CalibreOpcion, EditarCalibreOpcion,
+                cbCalibre, cbCalibreEditar, LookupService::getCalibres);
     }
-    
+
     public void fillComboBoxRombo(){
-        ObservableList<String> list = LookupService.getRombos();
-        RomboOpcion.clear();
-        EditarRomboOpcion.clear();
-        RomboOpcion.addAll(list);
-        EditarRomboOpcion.addAll(list);
-        cbRombo.setValue(cbRombo.getValue());
-        cbRomboEditar.setValue(cbRomboEditar.getValue());
+        refreshComboBoxPair(RomboOpcion, EditarRomboOpcion,
+                cbRombo, cbRomboEditar, LookupService::getRombos);
+    }
+
+    /** Repopulates a pair of ObservableLists (and preserves current combo values). */
+    private void refreshComboBoxPair(
+            ObservableList<String> a, ObservableList<String> b,
+            javafx.scene.control.ComboBox<String> cbA,
+            javafx.scene.control.ComboBox<String> cbB,
+            Supplier<ObservableList<String>> supplier) {
+        ObservableList<String> list = supplier.get();
+        a.clear(); b.clear();
+        a.addAll(list); b.addAll(list);
+        cbA.setValue(cbA.getValue());
+        cbB.setValue(cbB.getValue());
     }
     public void AgregarProduccion(){
         LOGGER.log(Level.FINE, "AgregarProduccion button pressed");
@@ -2141,57 +2070,14 @@ public class DashboardController implements Initializable {
     }
     
     public void AgregarAltura(){
-        
-        String nombre = tbNombreAltura.getText();        if (tbNombreAltura.getText().isEmpty()){nombre = "NULL";}
-        String altura = tbAltura.getText();              if (tbAltura.getText().isEmpty()){altura = "NULL";}
-        
-        try{
-            LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
-            boolean ok = AlturasService.insert(nombre, altura);
-            LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
-            if (ok){
-            LOGGER.log(Level.INFO, "RECORD ADDED");
-            tbNombreAltura.clear();
-            tbAltura.clear();
-            UpdateAlturas();
-            CodigoAltura();
-            cbAltura.getItems().clear();
-            fillComboBoxAltura();
-            int id = Integer.parseInt(tbCodigoAltura.getText())+1;
-            tbCodigoAltura.setText(String.valueOf(id));
-        }else{
-            LOGGER.log(Level.WARNING, "RECORD FAILED");
-        }
-            
-        } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "Error adding altura", e);
-        }
-    
+        CatalogoUtils.agregarCatalogo(AlturasService::insert, tbNombreAltura, tbAltura,
+                () -> { UpdateAlturas(); CodigoAltura(); cbAltura.getItems().clear(); fillComboBoxAltura(); });
     }
     
     public void ModificarAltura(){
-        
-        String id = tbCodigoMaterialEditar2.getText();     if (tbCodigoMaterialEditar2.getText().isEmpty()){id = "NULL";}
-        String nombre = tbNombreMaterialEditar2.getText(); if (tbNombreMaterialEditar2.getText().isEmpty()){nombre = "NULL";}
-        String medida = tbMedidaMaterialEditar.getText();  if (tbMedidaMaterialEditar.getText().isEmpty()){medida = "NULL";}
-        
-        try{
-            LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
-            boolean ok = AlturasService.update(id, nombre, medida);
-            LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
-            if (ok){
-                LOGGER.log(Level.INFO, "RECORD UPDATED");
-                UpdateAlturas();
-                CodigoAltura();
-                cbAltura.getItems().clear();
-                fillComboBoxAltura();
-            }else{
-                LOGGER.log(Level.WARNING, "RECORD FAILED");
-            }
-        }catch (Exception e){
-            LOGGER.log(Level.SEVERE, "Error updating altura", e);
-        }
-    
+        CatalogoUtils.modificarCatalogo(AlturasService::update,
+                tbCodigoMaterialEditar2, tbNombreMaterialEditar2, tbMedidaMaterialEditar,
+                () -> { UpdateAlturas(); CodigoAltura(); cbAltura.getItems().clear(); fillComboBoxAltura(); });
     }
     
     
@@ -2244,56 +2130,14 @@ public class DashboardController implements Initializable {
     }
     
     public void AgregarCalibre(){
-        
-        String nombre = tbNombreCalibre.getText();        if (tbNombreCalibre.getText().isEmpty()){nombre = "NULL";}
-        String calibre = tbCalibre.getText();             if (tbCalibre.getText().isEmpty()){calibre = "NULL";}
-        
-        try{
-            LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
-            boolean ok = CalibresService.insert(nombre, calibre);
-            LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
-            if (ok){
-                LOGGER.log(Level.INFO, "RECORD ADDED");
-                tbNombreCalibre.clear();
-                tbCalibre.clear();
-                UpdateCalibres();
-                CodigoCalibres();
-                cbCalibre.getItems().clear();
-                fillComboBoxCalibre();
-                int id = Integer.parseInt(tbCodigoCalibre.getText())+1;
-                tbCodigoCalibre.setText(String.valueOf(id));
-            }else{
-                LOGGER.log(Level.WARNING, "RECORD FAILED");
-            }
-        }catch (Exception e){
-            LOGGER.log(Level.SEVERE, "Error adding calibre", e);
-        }
-    
+        CatalogoUtils.agregarCatalogo(CalibresService::insert, tbNombreCalibre, tbCalibre,
+                () -> { UpdateCalibres(); CodigoCalibres(); cbCalibre.getItems().clear(); fillComboBoxCalibre(); });
     }
     
     public void ModificarCalibre(){
-        
-        String id = tbCodigoMaterialEditar2.getText();     if (tbCodigoMaterialEditar2.getText().isEmpty()){id = "NULL";}
-        String nombre = tbNombreMaterialEditar2.getText(); if (tbNombreMaterialEditar2.getText().isEmpty()){nombre = "NULL";}
-        String medida = tbMedidaMaterialEditar.getText();  if (tbMedidaMaterialEditar.getText().isEmpty()){medida = "NULL";}
-        
-        try{
-            LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
-            boolean ok = CalibresService.update(id, nombre, medida);
-            LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
-            if (ok){
-                LOGGER.log(Level.INFO, "RECORD UPDATED");
-                UpdateCalibres();
-                CodigoCalibres();
-                cbCalibre.getItems().clear();
-                fillComboBoxCalibre();
-            }else{
-                LOGGER.log(Level.WARNING, "RECORD FAILED");
-            }
-        }catch (Exception e){
-            LOGGER.log(Level.SEVERE, "Error updating calibre", e);
-        }
-    
+        CatalogoUtils.modificarCatalogo(CalibresService::update,
+                tbCodigoMaterialEditar2, tbNombreMaterialEditar2, tbMedidaMaterialEditar,
+                () -> { UpdateCalibres(); CodigoCalibres(); cbCalibre.getItems().clear(); fillComboBoxCalibre(); });
     }
     
     
@@ -2327,19 +2171,6 @@ public class DashboardController implements Initializable {
         
     }
 
-    public void TableValueRombo(){
-
-        tvRombos.setOnMouseClicked(new EventHandler<MouseEvent>(){
-            @Override
-            public void handle(MouseEvent event) {
-                Rombos index = tvRombos.getItems().get(tvRombos.getSelectionModel().getSelectedIndex());
-                
-                indexRombo = index.getTcCodigoRombo();     
-
-            }
-    });
-    }
-    
     public void EliminarRombo(){
         String in = Integer.toString(indexRombo);
         try{
@@ -2371,56 +2202,14 @@ public class DashboardController implements Initializable {
     }
     
     public void AgregarRombos(){
-        
-        String nombre = tbNombreRombo.getText();        if (tbNombreRombo.getText().isEmpty()){nombre = "NULL";}
-        String rombo = tbRombo.getText();               if (tbRombo.getText().isEmpty()){rombo = "NULL";}
-        
-        try{
-            LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
-            boolean ok = RombosService.insert(nombre, rombo);
-            LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
-            if (ok){
-                LOGGER.log(Level.INFO, "RECORD ADDED");
-                tbNombreRombo.clear();
-                tbRombo.clear();
-                UpdateRombos();
-                CodigoRombos();
-                cbRombo.getItems().clear();
-                fillComboBoxRombo();
-                int id = Integer.parseInt(tbCodigoRombo.getText())+1;
-                tbCodigoRombo.setText(String.valueOf(id));
-            }else{
-                LOGGER.log(Level.WARNING, "RECORD FAILED");
-            }
-        }catch (Exception e){
-            LOGGER.log(Level.SEVERE, "Error adding rombo", e);
-        }
-    
+        CatalogoUtils.agregarCatalogo(RombosService::insert, tbNombreRombo, tbRombo,
+                () -> { UpdateRombos(); CodigoRombos(); cbRombo.getItems().clear(); fillComboBoxRombo(); });
     }
     
     public void ModificarRombos(){
-        
-        String id = tbCodigoMaterialEditar2.getText();     if (tbCodigoMaterialEditar2.getText().isEmpty()){id = "NULL";}
-        String nombre = tbNombreMaterialEditar2.getText(); if (tbNombreMaterialEditar2.getText().isEmpty()){nombre = "NULL";}
-        String medida = tbMedidaMaterialEditar.getText();  if (tbMedidaMaterialEditar.getText().isEmpty()){medida = "NULL";}
-        
-        try{
-            LOGGER.log(Level.FINE, "RECORD RUNNING INSIDE!!!");
-            boolean ok = RombosService.update(id, nombre, medida);
-            LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY");
-            if (ok){
-                LOGGER.log(Level.INFO, "RECORD UPDATED");
-                UpdateRombos();
-                CodigoRombos();
-                cbRombo.getItems().clear();
-                fillComboBoxRombo();
-            }else{
-                LOGGER.log(Level.WARNING, "RECORD FAILED");
-            }
-        }catch (Exception e){
-            LOGGER.log(Level.SEVERE, "Error updating rombo", e);
-        }
-    
+        CatalogoUtils.modificarCatalogo(RombosService::update,
+                tbCodigoMaterialEditar2, tbNombreMaterialEditar2, tbMedidaMaterialEditar,
+                () -> { UpdateRombos(); CodigoRombos(); cbRombo.getItems().clear(); fillComboBoxRombo(); });
     }
     
     public void clearCambiarMaterial() {
