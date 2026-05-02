@@ -4,7 +4,7 @@
 >
 > Este programa nació como proyecto de una materia universitaria, hace ya algunos años. Su alcance original fue académico: demostrar conceptos de desarrollo de software con Java y JavaFX en un contexto de clase. Nunca estuvo pensado para un entorno de producción real.
 >
-> Lo que ves en esta rama es una **refactorización total**, hecha desde cero tomando como punto de partida el proyecto original (disponible en la rama [`legacy`](../../tree/legacy)), realizada como **hobby personal y ejercicio de nostalgia**. Es un tributo a esos momentos de universidad, ahora aplicando buenas prácticas, arquitectura en capas, seguridad básica, pruebas automatizadas y todo lo que con el tiempo uno aprende a hacer bien.
+> Lo que ves en esta rama es una **refactorización total**, hecha desde cero tomando como punto de partida el proyecto original (disponible en la rama [`legacy`](https://github.com/LuisBravoC/aceros/tree/legacy)), realizada como **hobby personal y ejercicio de nostalgia**. Es un tributo a esos momentos de universidad, ahora aplicando buenas prácticas, arquitectura en capas, seguridad básica, pruebas automatizadas y todo lo que con el tiempo uno aprende a hacer bien.
 >
 > Cualquiera puede usarlo, montarlo y adaptarlo libremente. Solo ten en cuenta que su punto de partida fue un proyecto escolar; si lo llevas a un uso real, tendrás que evaluar los requisitos adicionales (seguridad, escalabilidad, cumplimiento normativo, etc.) que ese contexto exige.
 
@@ -95,7 +95,7 @@ config/
 ### 1. Clonar el repositorio
 
 ```bash
-git clone <url-del-repo>
+git clone https://github.com/LuisBravoC/aceros.git
 cd aceros
 ```
 
