@@ -15,16 +15,21 @@ public class UsuariosService {
     private static final Logger LOGGER = Logger.getLogger(UsuariosService.class.getName());
 
     /**
-     * Save or update a usuario. If usuarioId is empty -> insert; otherwise update.
-     * If withImage is true, tries to read bytes from provided file; if file is null, falls back to classpath resource `/icons/sin_perfil.png`.
+     * Save or update a usuario.
+     * - INSERT: if withImage=true and no file is given, uses the default sin_perfil.png.
+     * - UPDATE: if withImage=true and no file is given, image bytes stay null
+     *           so the existing DB image is preserved (not overwritten).
      */
     public static boolean saveUsuario(UsuarioDetalle u, String password, boolean withImage, File file) {
         byte[] imageBytes = null;
+        boolean isInsert = (u.getUsuarioId() == null || u.getUsuarioId().trim().isEmpty());
         try {
             if (withImage) {
                 if (file != null && file.exists() && file.isFile()) {
+                    // New file explicitly chosen — use it for both insert and update
                     imageBytes = Files.readAllBytes(file.toPath());
-                } else {
+                } else if (isInsert) {
+                    // New employee with no photo selected — use default placeholder
                     try (InputStream ris = UsuariosService.class.getResourceAsStream("/icons/sin_perfil.png")) {
                         if (ris != null) {
                             ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -37,6 +42,7 @@ public class UsuariosService {
                         }
                     }
                 }
+                // UPDATE with no new file: imageBytes stays null → DAO skips imagen column
             }
 
             int status = UsuariosDao.save(u, password, imageBytes);

@@ -177,12 +177,19 @@ public class UsuariosDao {
                 return status;
             }
         } else {
-            String sql =
-                "UPDATE usuarios SET nombre=?, apellido_paterno=?, apellido_materno=?, curp=?, rfc=?, nss=?, " +
-                "fecha_nacimiento=?, fecha_contratacion=?, email=?, genero_id=?, sueldo=?, tipo_pago_id=?, banco_id=?, " +
-                "numero_cuenta=?, periodo_pago_id=?, tipo_contrato_id=?, pais_id=?, estado_id=?, localidad=?, colonia=?, " +
-                "numero_exterior=?, ciudad_id=?, calle=?, codigo_postal=?, numero_interior=?, tipo_usuario_id=?, imagen=? " +
-                "WHERE usuario_id=?";
+            // On UPDATE: only include imagen column when new bytes are provided.
+            // If image==null the existing image in the DB is preserved.
+            String sql = image != null
+                ? "UPDATE usuarios SET nombre=?, apellido_paterno=?, apellido_materno=?, curp=?, rfc=?, nss=?, " +
+                  "fecha_nacimiento=?, fecha_contratacion=?, email=?, genero_id=?, sueldo=?, tipo_pago_id=?, banco_id=?, " +
+                  "numero_cuenta=?, periodo_pago_id=?, tipo_contrato_id=?, pais_id=?, estado_id=?, localidad=?, colonia=?, " +
+                  "numero_exterior=?, ciudad_id=?, calle=?, codigo_postal=?, numero_interior=?, tipo_usuario_id=?, imagen=? " +
+                  "WHERE usuario_id=?"
+                : "UPDATE usuarios SET nombre=?, apellido_paterno=?, apellido_materno=?, curp=?, rfc=?, nss=?, " +
+                  "fecha_nacimiento=?, fecha_contratacion=?, email=?, genero_id=?, sueldo=?, tipo_pago_id=?, banco_id=?, " +
+                  "numero_cuenta=?, periodo_pago_id=?, tipo_contrato_id=?, pais_id=?, estado_id=?, localidad=?, colonia=?, " +
+                  "numero_exterior=?, ciudad_id=?, calle=?, codigo_postal=?, numero_interior=?, tipo_usuario_id=? " +
+                  "WHERE usuario_id=?";
             try (Connection con = ConnectionUtil.getConnection();
                  PreparedStatement ps = con.prepareStatement(sql)) {
                 int i = bindUsuario(ps, u, null, image, generoId, tipoPagoId, bancoId,
