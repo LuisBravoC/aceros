@@ -40,6 +40,53 @@ public class UsuariosDao {
         return false;
     }
 
+    /** @return true si el usuario aún no ha cambiado su contraseña por defecto. */
+    public static boolean isFirstSession(String userId) {
+        String sql = "SELECT pimera_sesion FROM usuarios WHERE usuario_id = ?";
+        try (Connection con = ConnectionUtil.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return "0".equals(rs.getString("pimera_sesion"));
+                }
+            }
+        } catch (SQLException ex) {
+            LOGGER.log(Level.SEVERE, "Error checking primera sesion for user: " + userId, ex);
+        }
+        return false;
+    }
+
+    /** @return true si la contraseña coincide con la almacenada en BD. */
+    public static boolean verifyPassword(String userId, String password) {
+        String sql = "SELECT 1 FROM usuarios WHERE usuario_id = ? AND password = ?";
+        try (Connection con = ConnectionUtil.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, userId);
+            ps.setString(2, password);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (SQLException ex) {
+            LOGGER.log(Level.SEVERE, "Error verifying password for user: " + userId, ex);
+        }
+        return false;
+    }
+
+    /** Actualiza la contraseña y marca pimera_sesion='1'. @return true si se actualizó 1 fila. */
+    public static boolean changePassword(String userId, String newPassword) {
+        String sql = "UPDATE usuarios SET password = ?, pimera_sesion = '1' WHERE usuario_id = ?";
+        try (Connection con = ConnectionUtil.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, newPassword);
+            ps.setString(2, userId);
+            return ps.executeUpdate() == 1;
+        } catch (SQLException ex) {
+            LOGGER.log(Level.SEVERE, "Error changing password for user: " + userId, ex);
+        }
+        return false;
+    }
+
     public static ObservableList<Empleados> getAll() {
         ObservableList<Empleados> list = FXCollections.observableArrayList();
         String sql = "select * from usuarios";

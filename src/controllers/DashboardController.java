@@ -1562,60 +1562,28 @@ public class DashboardController implements Initializable {
     }
     
     public void ModificarProduccion(){
-        
-        LocalDate fecha, day;
-        if(tbFechaRegistroEditar.getValue() == null){
-            fecha = LocalDate.now();
-            day = LocalDate.now();
-        }else { 
-        fecha = tbFechaRegistroEditar.getValue();
-        day = tbFechaRegistroEditar.getValue();
-        }
-        String fecha_registro = fecha.toString();
-        DateTimeFormatter format = DateTimeFormatter.ofPattern("EEEE", Locale.getDefault());
-        String dia = day.format(format);
-        String DiatoUpperCase = dia.toUpperCase();
-        
+        LocalDate fecha = tbFechaRegistroEditar.getValue() != null ? tbFechaRegistroEditar.getValue() : LocalDate.now();
         String id = indexProduccionS;
-        String material = cbMaterialEditar.getValue();      if (cbMaterialEditar.getValue() == null){material = "NULL";}
-        String calibre = cbCalibreEditar.getValue();        if (cbCalibreEditar.getValue() == null ){calibre = "NULL";}
-        String altura = cbAlturaEditar.getValue();          if (cbAlturaEditar.getValue() == null ){altura = "NULL";}
-        String rombo = cbRomboEditar.getValue();            if (cbRomboEditar.getValue() == null ){rombo = "NULL";}
-        String metros = tbMetrosEditar.getText();           if (tbMetrosEditar.getText().isEmpty()){metros = "NULL";}
-        String cantidad = tbCantidadProduccionEditar.getText(); if (tbCantidadProduccionEditar.getText().isEmpty()){cantidad = "NULL";}
-        
+        String material = cbMaterialEditar.getValue();
+        String calibre = cbCalibreEditar.getValue();
+        String altura = cbAlturaEditar.getValue();
+        String rombo = cbRomboEditar.getValue();
+        String metros = tbMetrosEditar.getText().isEmpty() ? "NULL" : tbMetrosEditar.getText();
+        String cantidad = tbCantidadProduccionEditar.getText().isEmpty() ? "NULL" : tbCantidadProduccionEditar.getText();
+
         if (id == null || id.trim().isEmpty()) {
             LOGGER.log(Level.WARNING, "No hay registro seleccionado para modificar produccion (id nulo)");
             return;
         }
 
-        String sql = "update produccion set material= ?, calibre=?, altura=?, rombos=?, metros=?, cantidad=?, fecha_registro=?, dia=? where id=?";
-        LOGGER.log(Level.FINE, "RECORD RUNNING: {0}", sql);
-        try (Connection conn = ConnectionUtil.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, material);
-            ps.setString(2, calibre);
-            ps.setString(3, altura);
-            ps.setString(4, rombo);
-            ps.setString(5, metros);
-            ps.setString(6, cantidad);
-            ps.setString(7, fecha_registro);
-            ps.setString(8, DiatoUpperCase);
-            ps.setString(9, id);
-
-            int status = ps.executeUpdate();
-            LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY, updated={0}", status);
-            if (status == 1) {
-                LOGGER.log(Level.INFO, "RECORD UPDATED (produccion id={0})", id);
-                UpdateProduccionSemanal();
-                UpdateHistorial();
-            } else {
-                LOGGER.log(Level.WARNING, "RECORD FAILED to update produccion id={0} (updated={1})", new Object[]{id, status});
-            }
-        } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "SQL error in ModificarProduccion for id=" + id, e);
+        boolean ok = ProduccionController.updateProduccion(id, material, calibre, altura, rombo, metros, cantidad, fecha);
+        if (ok) {
+            LOGGER.log(Level.INFO, "Produccion modificada correctamente id={0}", id);
+            UpdateProduccionSemanal();
+            UpdateHistorial();
+        } else {
+            LOGGER.log(Level.WARNING, "No se pudo modificar la produccion id={0}", id);
         }
-    
     }
     
     public void FechaActualProduccion(){
@@ -1664,70 +1632,27 @@ public class DashboardController implements Initializable {
     }
     public void AgregarProduccion(){
         LOGGER.log(Level.FINE, "AgregarProduccion button pressed");
-        LocalDate fecha, day;
-        if(tbFechaRegistro.getValue() == null){
-            fecha = LocalDate.now();
-            day = LocalDate.now();
-        }else { 
-        fecha = tbFechaRegistro.getValue();
-        day = tbFechaRegistro.getValue();
-        }
-        String fecha_registro = fecha.toString();
-        DateTimeFormatter format = DateTimeFormatter.ofPattern("EEEE", Locale.getDefault());
-        String dia = day.format(format);
-        String DiatoUpperCase = dia.toUpperCase();
+        LocalDate fecha = tbFechaRegistro.getValue() != null ? tbFechaRegistro.getValue() : LocalDate.now();
         String material = cbMaterial.getValue();
-        if (material == null || material.isEmpty()) material = "NULL";
         String calibre = cbCalibre.getValue();
-        if (calibre == null || calibre.isEmpty()) calibre = "NULL";
         String altura = cbAltura.getValue();
-        if (altura == null || altura.isEmpty()) altura = "NULL";
         String rombos = cbRombo.getValue();
-        if (rombos == null || rombos.isEmpty()) rombos = "NULL";
-        String metros = tbMetros.getText();
-        if (metros == null || metros.isEmpty()) metros = "NULL";
-        String cantidad = tbCantidadProduccion.getText();
-        if (cantidad == null || cantidad.isEmpty()) cantidad = "NULL";
+        String metros = (tbMetros.getText() == null || tbMetros.getText().isEmpty()) ? "NULL" : tbMetros.getText();
+        String cantidad = (tbCantidadProduccion.getText() == null || tbCantidadProduccion.getText().isEmpty()) ? "NULL" : tbCantidadProduccion.getText();
         String autorid = lbHCodigo2.getText();
-        if (autorid == null || autorid.isEmpty()) autorid = "NULL";
-        String autor = lbHNombre2.getText();
-        if (autor == null || autor.isEmpty()) autor = "NULL";
-        
-        
-        
-        String sql = "insert into produccion (material, calibre, altura, rombos, metros, cantidad, autor_id, fecha_registro, dia) values(?,?,?,?,?,?,?,?,?)";
-        LOGGER.log(Level.FINE, "Preparing insert: {0}", sql);
-        try (Connection conn = ConnectionUtil.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, material);
-            ps.setString(2, calibre);
-            ps.setString(3, altura);
-            ps.setString(4, rombos);
-            ps.setString(5, metros);
-            ps.setString(6, cantidad);
-            ps.setString(7, autorid);
-            ps.setString(8, fecha_registro);
-            ps.setString(9, DiatoUpperCase);
 
-            int status = ps.executeUpdate();
-            LOGGER.log(Level.FINE, "RECORD RUNNING POST QUERY, updated={0}", status);
-            if (status == 1) {
-                LOGGER.log(Level.INFO, "RECORD ADDED");
-                cleanProduccion();
-            } else {
-                LOGGER.log(Level.WARNING, "RECORD FAILED to insert, updated={0}", status);
-            }
-        } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "SQL error inserting produccion", e);
+        boolean ok = ProduccionController.insertProduccion(material, calibre, altura, rombos, metros, cantidad, autorid, fecha);
+        if (ok) {
+            LOGGER.log(Level.INFO, "Produccion agregada correctamente");
+            cleanProduccion();
+        } else {
+            LOGGER.log(Level.WARNING, "No se pudo agregar la produccion");
             Alert alert = new Alert(AlertType.ERROR);
             alert.setTitle("Error al guardar");
             alert.setHeaderText("No se pudo guardar la producción");
-            alert.setContentText(e.getMessage());
-            Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-            stage.getIcons().add(new Image("icons/IconBlanco.png"));
+            alert.setContentText("Verifique los datos e intente de nuevo.");
             alert.showAndWait();
         }
-    
     }
     
     public void cleanProduccion(){
