@@ -14,7 +14,7 @@ import org.junit.BeforeClass;
  */
 public abstract class BaseDaoSupport {
 
-    private static final Logger LOGGER = Logger.getLogger(BaseDaoTest.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(BaseDaoSupport.class.getName());
 
     /*
      * This static block runs when BaseDaoTest (or any subclass) is first loaded by the JVM —
