@@ -1,6 +1,6 @@
 package services;
 
-import controllers.Materiales;
+import models.Materiales;
 import dao.MaterialesDao;
 import javafx.collections.ObservableList;
 

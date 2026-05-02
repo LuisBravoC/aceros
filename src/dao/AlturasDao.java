@@ -1,7 +1,7 @@
 package dao;
 
 import database.ConnectionUtil;
-import controllers.Alturas;
+import models.Alturas;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import java.sql.Connection;
@@ -33,14 +33,14 @@ public class AlturasDao {
         return list;
     }
 
-    public static controllers.Alturas findById(String id) {
+    public static Alturas findById(String id) {
         String sql = "select * from alturas where id = ?";
         try (Connection con = ConnectionUtil.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setString(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return new controllers.Alturas(rs.getInt("id"), rs.getString("nombre"), rs.getString("altura"));
+                    return new Alturas(rs.getInt("id"), rs.getString("nombre"), rs.getString("altura"));
                 }
             }
         } catch (SQLException ex) {

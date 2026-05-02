@@ -56,6 +56,13 @@ import util.ImageUtils;
 import util.DateUtils;
 import controllers.helpers.ProfileBinder;
 import services.UsuariosService;
+import models.Empleados;
+import models.Materiales;
+import models.Alturas;
+import models.Calibres;
+import models.Rombos;
+import models.Historial;
+import models.ProduccionSemanal;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.collections.FXCollections;
@@ -2061,7 +2068,7 @@ public class DashboardController implements Initializable {
                 indexMaterial = index.getTcCodigoMaterial();
                 String in = Integer.toString(indexMaterial);
                 
-                controllers.Materiales mat = MaterialesService.findById(in);
+                models.Materiales mat = MaterialesService.findById(in);
                 LOGGER.log(Level.FINE, "Index seleccionado {0}", in);
                 try{
                     if(mat != null){
@@ -2180,7 +2187,7 @@ public class DashboardController implements Initializable {
                 indexAltura = index.getTcCodigoAltura();
                 String in = Integer.toString(indexAltura);
                 
-                controllers.Alturas a = AlturasService.findById(in);
+                models.Alturas a = AlturasService.findById(in);
                 LOGGER.log(Level.FINE, "Index seleccionado {0}", in);
                 try{
                     if(a != null){
@@ -2307,7 +2314,7 @@ public class DashboardController implements Initializable {
                 indexCalibre = index.getTcCodigoCalibre();
                 String in = Integer.toString(indexCalibre);
                 
-                controllers.Calibres c = CalibresService.findById(in);
+                models.Calibres c = CalibresService.findById(in);
                 LOGGER.log(Level.FINE, "Index seleccionado {0}", in);
                 try{
                     if(c != null){
@@ -2431,7 +2438,7 @@ public class DashboardController implements Initializable {
                 indexRombo = index.getTcCodigoRombo();
                 String in = Integer.toString(indexRombo);
                 
-                controllers.Rombos r = RombosDao.findById(in);
+                models.Rombos r = RombosDao.findById(in);
                 LOGGER.log(Level.FINE, "Index seleccionado {0}", in);
                 try{
                     if(r != null){

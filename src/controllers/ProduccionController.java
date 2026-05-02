@@ -1,6 +1,7 @@
 package controllers;
 
 import dao.ProduccionDao;
+import models.ProduccionSemanal;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import java.time.LocalDate;

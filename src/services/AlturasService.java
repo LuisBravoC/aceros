@@ -1,6 +1,6 @@
 package services;
 
-import controllers.Alturas;
+import models.Alturas;
 import dao.AlturasDao;
 import javafx.collections.ObservableList;
 

@@ -1,7 +1,7 @@
 package dao;
 
 import database.ConnectionUtil;
-import controllers.Calibres;
+import models.Calibres;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import java.sql.Connection;
@@ -33,14 +33,14 @@ public class CalibresDao {
         return list;
     }
 
-    public static controllers.Calibres findById(String id) {
+    public static Calibres findById(String id) {
         String sql = "select * from calibres where id = ?";
         try (Connection con = ConnectionUtil.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setString(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return new controllers.Calibres(rs.getInt("id"), rs.getString("nombre"), rs.getString("calibre"));
+                    return new Calibres(rs.getInt("id"), rs.getString("nombre"), rs.getString("calibre"));
                 }
             }
         } catch (SQLException ex) {

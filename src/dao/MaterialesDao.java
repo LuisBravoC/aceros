@@ -1,7 +1,7 @@
 package dao;
 
 import database.ConnectionUtil;
-import controllers.Materiales;
+import models.Materiales;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import java.sql.Connection;
@@ -33,14 +33,14 @@ public class MaterialesDao {
         return list;
     }
 
-    public static controllers.Materiales findById(String id) {
+    public static Materiales findById(String id) {
         String sql = "select * from materiales where id = ?";
         try (Connection con = ConnectionUtil.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setString(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return new controllers.Materiales(rs.getInt("id"), rs.getString("nombre"));
+                    return new Materiales(rs.getInt("id"), rs.getString("nombre"));
                 }
             }
         } catch (SQLException ex) {

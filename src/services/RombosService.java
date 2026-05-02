@@ -1,6 +1,6 @@
 package services;
 
-import controllers.Rombos;
+import models.Rombos;
 import dao.RombosDao;
 import javafx.collections.ObservableList;
 

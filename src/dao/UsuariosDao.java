@@ -1,7 +1,7 @@
 package dao;
 
 import database.ConnectionUtil;
-import controllers.Empleados;
+import models.Empleados;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import java.sql.Connection;

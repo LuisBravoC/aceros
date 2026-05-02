@@ -1,6 +1,6 @@
 package services;
 
-import controllers.Historial;
+import models.Historial;
 import dao.HistorialDao;
 import javafx.collections.ObservableList;
 

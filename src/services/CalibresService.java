@@ -1,6 +1,6 @@
 package services;
 
-import controllers.Calibres;
+import models.Calibres;
 import dao.CalibresDao;
 import javafx.collections.ObservableList;
 
