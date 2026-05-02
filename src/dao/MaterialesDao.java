@@ -1,0 +1,99 @@
+package dao;
+
+import config.ConnectionUtil;
+import models.Materiales;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.Arrays;
+import java.util.List;
+
+public class MaterialesDao {
+
+    private static final Logger LOGGER = Logger.getLogger(MaterialesDao.class.getName());
+
+    public static ObservableList<Materiales> getAll() {
+        ObservableList<Materiales> list = FXCollections.observableArrayList();
+        String sql = "select * from materiales";
+        try (Connection con = ConnectionUtil.getConnection();
+             Statement stmt = con.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                list.add(new Materiales(rs.getInt(1), rs.getString("nombre")));
+            }
+        } catch (SQLException ex) {
+            LOGGER.log(Level.SEVERE, null, ex);
+        }
+        return list;
+    }
+
+    public static Materiales findById(String id) {
+        String sql = "select * from materiales where id = ?";
+        try (Connection con = ConnectionUtil.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return new Materiales(rs.getInt("id"), rs.getString("nombre"));
+                }
+            }
+        } catch (SQLException ex) {
+            LOGGER.log(Level.SEVERE, null, ex);
+        }
+        return null;
+    }
+
+    public static boolean insert(String nombre) {
+        String sql = "insert into materiales (nombre) values(?)";
+        List<String> params = Arrays.asList(nombre);
+        try (Connection con = ConnectionUtil.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            int i = 1;
+            for (String p : params) {
+                ps.setString(i++, p != null ? p : "");
+            }
+            int status = ps.executeUpdate();
+            return status == 1;
+        } catch (SQLException ex) {
+            LOGGER.log(Level.SEVERE, null, ex);
+            return false;
+        }
+    }
+
+    public static boolean update(String id, String nombre) {
+        String sql = "update materiales set nombre = ? where id = ?";
+        List<String> params = Arrays.asList(nombre);
+        try (Connection con = ConnectionUtil.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            int i = 1;
+            for (String p : params) {
+                ps.setString(i++, p != null ? p : "");
+            }
+            ps.setString(i++, id);
+            int status = ps.executeUpdate();
+            return status == 1;
+        } catch (SQLException ex) {
+            LOGGER.log(Level.SEVERE, null, ex);
+            return false;
+        }
+    }
+
+    public static boolean delete(String id) {
+        String sql = "delete from materiales where id = ?";
+        try (Connection con = ConnectionUtil.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, id);
+            int status = ps.executeUpdate();
+            return status == 1;
+        } catch (SQLException ex) {
+            LOGGER.log(Level.SEVERE, null, ex);
+            return false;
+        }
+    }
+}

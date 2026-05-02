@@ -1,11 +1,23 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package controllers;
 
-import database.ConnectionUtil;
+import config.ConnectionUtil;
+import dao.UsuariosDao;
+import models.UsuarioDetalle;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import dao.MaterialesDao;
+import services.MaterialesService;
+import dao.AlturasDao;
+import services.AlturasService;
+import dao.CalibresDao;
+import services.CalibresService;
+import services.RombosService;
+import dao.ProduccionDao;
+import dao.HistorialDao;
+import services.ProduccionService;
+import services.HistorialService;
+import dao.LookupDao;
+import services.LookupService;
 import java.awt.Desktop;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -30,9 +42,26 @@ import java.time.format.DateTimeFormatter;
 import java.util.Calendar;
 import java.util.Locale;
 import java.util.ResourceBundle;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Function;
+import java.util.function.Consumer;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import util.ImageUtils;
+import util.DateUtils;
+import controllers.helpers.CatalogoUtils;
+import controllers.helpers.ProfileBinder;
+import services.UsuariosService;
+import models.Empleados;
+import models.Materiales;
+import models.Alturas;
+import models.Calibres;
+import models.Rombos;
+import models.Historial;
+import models.ProduccionSemanal;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.collections.FXCollections;
@@ -70,22 +99,23 @@ import javafx.stage.Stage;
 import javafx.stage.Window;
 import javax.imageio.ImageIO;
 import javax.swing.text.Document;
+import services.ReporteService;
 import net.sf.jasperreports.engine.JRException;
 import net.sf.jasperreports.engine.JasperCompileManager;
 import net.sf.jasperreports.engine.JasperFillManager;
 import net.sf.jasperreports.engine.JasperPrint;
 import net.sf.jasperreports.engine.JasperReport;
-import net.sf.jasperreports.engine.design.JRDesignQuery;
 import net.sf.jasperreports.engine.design.JasperDesign;
 import net.sf.jasperreports.engine.xml.JRXmlLoader;
 import net.sf.jasperreports.view.JasperViewer;
 
 /**
- * FXML Controller class
+ * Controlador FXML del dashboard principal.
  *
  * @author LuisBravo
  */
 public class DashboardController implements Initializable {
+    private static final Logger LOGGER = Logger.getLogger(DashboardController.class.getName());
     
     @FXML
     private Button btnPefil;
@@ -228,7 +258,7 @@ public class DashboardController implements Initializable {
     private Image image;
     private ImageView imageView;
     private FileChooser fileChosser;
-    private File file = new File("D:/sin_perfil.png");
+    private File file = null;
     private FileInputStream fis;
     private final Desktop desktop = Desktop.getDesktop();
     
@@ -588,16 +618,8 @@ public class DashboardController implements Initializable {
     @FXML
     private Button btnEliminarRombo;
     
-    private String usuario = LoginController.getSesion();
+    private String usuario = services.SessionManager.getInstance().getUserId();
     String tipo_empleado;
-    
-    private static Connection con;
-    ResultSet resultSet = null;
-    PreparedStatement pst = null;
-    
-    public DashboardController() throws SQLException {
-        con = ConnectionUtil.getConnection();
-    }
     
     double x = 0, y = 0;
 
@@ -629,16 +651,9 @@ public class DashboardController implements Initializable {
         tvSemanal.prefHeightProperty().bind(Bindings.size(tvSemanal.getItems()).multiply(tvSemanal.getFixedCellSize()).add(48));
     }
 
-    /**
-     * Initializes the controller class.
-     */
-
     @Override
     public void initialize(URL url, ResourceBundle rb) {
         
-        VerificarTipoEmpleado();
-        
-        System.out.println("EL TIPO DE EMPLEADO ES: "+tipo_empleado);
         
         cbPais.setValue("Mexico");
         cbPais.setItems(PaisOpcion);
@@ -657,10 +672,15 @@ public class DashboardController implements Initializable {
         cbContrato.setValue("INDEFINIDO");
         cbContrato.setItems(ContratoOpcion);
         
-        System.out.println("ESTE ES EL ARCHIVO "+file.getAbsolutePath());
-        System.out.println("ESTE ES EL ARCHIVO "+file.getPath());
+        if (file != null) {
+            LOGGER.log(Level.FINE, "ESTE ES EL ARCHIVO {0}", file.getAbsolutePath());
+            LOGGER.log(Level.FINE, "ESTE ES EL ARCHIVO {0}", file.getPath());
+        } else {
+            LOGGER.log(Level.FINE, "No profile file set (file==null)");
+        }
         
         cbHistorialMes.setItems(HistorialOpcion);
+        UpdateMesHistorial();
         
         TableValueEmpleados();
         TableMateriales();
@@ -670,6 +690,7 @@ public class DashboardController implements Initializable {
         TableProduccionS();
         
         UpdateTable();
+        Filtro();
         fillComboBoxPais(); 
         fillComboBoxEstados();
         fillComboBoxCiudades();
@@ -708,135 +729,79 @@ public class DashboardController implements Initializable {
         UpdateCalibres();
         UpdateRombos();
         UpdateProduccionSemanal(); 
-        UpdateHistorial();
-        
-        Filtro();
-        
-        DiasSemana();
-        UpdateMesHistorial();
-        
-        new animatefx.animation.ZoomIn(pnInicio).play();
-            
-        pnProduccion.toFront();
-        
+        VerificarTipoEmpleado();
+        LOGGER.log(Level.INFO, "EL TIPO DE EMPLEADO ES: {0}", tipo_empleado);
         ComprobarPrimerSesion();
-        
-    }
-    
+        UpdateHistorial();
+        }
+
     public void Filtro(){
-        
         FilteredList<Empleados> filteredData = new FilteredList<>(dataList, b -> true);
-        // FILTRO ID
-        filtroIdUsuario.textProperty().addListener((observable, oldValue, newValue) -> {
-			filteredData.setPredicate(empleados -> {
-                                // Si el filtro esta vacio despliega a todas las personas
-								
-				if (newValue == null || newValue.isEmpty()) {
-					return true;
-				}
-                                
-				String lowerCaseFilter = newValue.toLowerCase();
-				
-				if (String.valueOf(empleados.getEmpIdUsuario()).toLowerCase().indexOf(lowerCaseFilter) != -1 ) {
-					return true; // Filter matches first name.
-				}
-				     else  
-				    	 return false; // Does not match.
-			});
-		});
-        // FILTRO NOMBRE
-        filtroNombreUsuario.textProperty().addListener((observable, oldValue, newValue) -> {
-			filteredData.setPredicate(empleados -> {
-                                // Si el filtro esta vacio despliega a todas las personas
-								
-				if (newValue == null || newValue.isEmpty()) {
-					return true;
-				}
-                                
-				String lowerCaseFilter = newValue.toLowerCase();
-				
-				if (String.valueOf(empleados.getEmpNombre()).toLowerCase().indexOf(lowerCaseFilter) != -1 ) {
-					return true; // Filter matches first name.
-				}
-				     else  
-				    	 return false; // Does not match.
-			});
-		});
-        // FILTRO EDAD
-        filtroEdadUsuario.textProperty().addListener((observable, oldValue, newValue) -> {
-			filteredData.setPredicate(empleados -> {
-                                // Si el filtro esta vacio despliega a todas las personas
-								
-				if (newValue == null || newValue.isEmpty()) {
-					return true;
-				}
-                                
-				String lowerCaseFilter = newValue.toLowerCase();
-				
-				if (String.valueOf(empleados.getEmpEdad()).toLowerCase().indexOf(lowerCaseFilter) != -1 ) {
-					return true; // Filter matches first name.
-				}
-				     else  
-				    	 return false; // Does not match.
-			});
-		});
-        // FILTRO SUELDO
-        filtroSueldoUsuario.textProperty().addListener((observable, oldValue, newValue) -> {
-			filteredData.setPredicate(empleados -> {
-                                // Si el filtro esta vacio despliega a todas las personas
-								
-				if (newValue == null || newValue.isEmpty()) {
-					return true;
-				}
-                                
-				String lowerCaseFilter = newValue.toLowerCase();
-				
-				if (String.valueOf(empleados.getEmpSueldo()).toLowerCase().indexOf(lowerCaseFilter) != -1 ) {
-					return true; // Filter matches first name.
-				}
-				     else  
-				    	 return false; // Does not match.
-			});
-		});
-        
-                 // 3. Wrap the FilteredList in a SortedList. 
-		SortedList<Empleados> sortedData = new SortedList<>(filteredData);
-		
-		// 4. Bind the SortedList comparator to the TableView comparator.
-		// 	  Otherwise, sorting the TableView would have no effect.
-		sortedData.comparatorProperty().bind(tableviewEmpleados.comparatorProperty());
-		
-		// 5. Add sorted (and filtered) data to the table.
-		tableviewEmpleados.setItems(sortedData);
-        
+        bindFilter(filteredData, filtroIdUsuario,    e -> e.getEmpIdUsuario());
+        bindFilter(filteredData, filtroNombreUsuario, Empleados::getEmpNombre);
+        bindFilter(filteredData, filtroEdadUsuario,   Empleados::getEmpEdad);
+        bindFilter(filteredData, filtroSueldoUsuario, Empleados::getEmpSueldo);
+        SortedList<Empleados> sortedData = new SortedList<>(filteredData);
+        sortedData.comparatorProperty().bind(tableviewEmpleados.comparatorProperty());
+        tableviewEmpleados.setItems(sortedData);
+    }
+
+    /**
+     * Registra un listener de clic en una TableView que carga el ítem seleccionado
+     * desde la BD y lo pasa al consumidor populate.
+     */
+    private <T> void bindTableSelect(
+            javafx.scene.control.TableView<T> tv,
+            Function<T, Integer> getId,
+            Function<String, T> findById,
+            Consumer<T> populate) {
+        tv.setOnMouseClicked(event -> {
+            int sel = tv.getSelectionModel().getSelectedIndex();
+            if (sel < 0 || sel >= tv.getItems().size()) return;
+            T item = tv.getItems().get(sel);
+            if (item == null) return;
+            String in = Integer.toString(getId.apply(item));
+            T found = findById.apply(in);
+            LOGGER.log(Level.FINE, "Index seleccionado {0}", in);
+            try {
+                if (found != null) populate.accept(found);
+                else LOGGER.log(Level.FINE, "No hay informacion del catalogo");
+            } catch (Exception ex) {
+                LOGGER.log(Level.SEVERE, "Error en handler de tabla", ex);
+            }
+        });
+    }
+
+
+    /** Vincula un filtro de texto a un predicado de FilteredList usando un getter. */
+    private <T> void bindFilter(FilteredList<T> list, javafx.scene.control.TextField tf,
+                                Function<T, Object> getter) {
+        tf.textProperty().addListener((obs, oldVal, newVal) ->
+            list.setPredicate(item -> {
+                if (newVal == null || newVal.isEmpty()) return true;
+                return String.valueOf(getter.apply(item)).toLowerCase()
+                             .contains(newVal.toLowerCase());
+            })
+        );
     }
     
     //PERFIL EMPLEADO
     
     public void VerificarTipoEmpleado(){
-        
-        ResultSet rs = null;
-        PreparedStatement ps = null;        
-        try{
-            ps = con.prepareStatement("SELECT * FROM usuarios Where usuario_id = ?");
-            ps.setString(1,usuario);
-            rs = ps.executeQuery();
-                        
-            if(rs.next()){
-                
-                tipo_empleado = rs.getString("tipo_empleado");
-                
-                if(tipo_empleado.contains("SUPERVISOR")){
+        try {
+            String tipo = UsuariosService.getTipoEmpleado(usuario);
+            if (tipo != null) {
+                tipo_empleado = tipo;
+                if (tipo_empleado.contains("SUPERVISOR")) {
                     DashboardSupervisor();
-                }else if(tipo_empleado.contains("EMPLEADO GENERAL")){
-                    
+                } else if (tipo_empleado.contains("EMPLEADO GENERAL")) {
                     DashboardGeneral();
                 }
-               
-            }else{
-            }   
-        }catch (Exception e){
-            
+            } else {
+                LOGGER.log(Level.FINE, "Tipo de empleado no encontrado para usuario {0}", usuario);
+            }
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error in VerificarTipoEmpleado", e);
         }
         
     }
@@ -904,179 +869,68 @@ public class DashboardController implements Initializable {
     }
     
     public void Perfil(){
-        
-        BusquedaEmpleado busqueda = new BusquedaEmpleado() {};
-        ResultSet rs = null;
-        rs = busqueda.find(usuario);
-        
-        try{
-            if(rs.next()){
-                lbCodigoUsuario.setText(rs.getString("usuario_id"));
-                lbNombreEmpleado.setText(rs.getString("nombre"));
-                lbAPaternoEmpleado.setText(rs.getString("apellido_paterno"));
-                lbAMaternoEmpleado.setText(rs.getString("apellido_materno"));
-                lbCurp.setText(rs.getString("curp"));
-                lbRfc.setText(rs.getString("rfc"));
-                lbNss.setText(rs.getString("nss"));
-                
-                String timestamp = rs.getString("fecha_nacimiento");
-                String año = timestamp.substring(0,4);
-                String dia = timestamp.substring(8,10);
-                String mes = timestamp.substring(5,7);
-                String mesn = "mes";
-                switch (mes){
-                    case "01": mesn = "ENERO"; break;
-                    case "02": mesn = "FEBRERO"; break;
-                    case "03": mesn = "MARZO"; break;
-                    case "04": mesn = "ABRIL"; break;
-                    case "05": mesn = "MAYO"; break;
-                    case "06": mesn = "JUNIO"; break;
-                    case "07": mesn = "JULIO"; break;
-                    case "08": mesn = "AGOSTO"; break;
-                    case "09": mesn = "SEPTIEMBRE"; break;
-                    case "10": mesn = "OCTUBRE"; break;
-                    case "11": mesn = "NOVIEMBRE"; break;
-                    case "12": mesn = "DICIEMBRE"; break;
-                }
-                System.out.println("AÑO "+año);
-                System.out.println("DIA "+dia);
-                System.out.println("MES "+mes);
-                lbHFecha.setText( dia + " DE "+ mesn +" DEL "+ año);
-                
-                lbFechaNacimiento.setText( dia + " DE "+ mesn +" DE "+ año);
-                
-                timestamp = rs.getString("fecha_contratacion");
-                año = timestamp.substring(0,4);
-                dia = timestamp.substring(8,10);
-                mes = timestamp.substring(5,7);
-                mesn = "mes";
-                switch (mes){
-                    case "01": mesn = "ENERO"; break;
-                    case "02": mesn = "FEBRERO"; break;
-                    case "03": mesn = "MARZO"; break;
-                    case "04": mesn = "ABRIL"; break;
-                    case "05": mesn = "MAYO"; break;
-                    case "06": mesn = "JUNIO"; break;
-                    case "07": mesn = "JULIO"; break;
-                    case "08": mesn = "AGOSTO"; break;
-                    case "09": mesn = "SEPTIEMBRE"; break;
-                    case "10": mesn = "OCTUBRE"; break;
-                    case "11": mesn = "NOVIEMBRE"; break;
-                    case "12": mesn = "DICIEMBRE"; break;
-                }
-                System.out.println("AÑO "+año);
-                System.out.println("DIA "+dia);
-                System.out.println("MES "+mes);
-                
-                lbFechaContratacio.setText( dia + " DE "+ mesn +" DE "+ año);
-
-                lbEmailEmpleado.setText(rs.getString("email"));
-                lbGenero.setText(rs.getString("genero"));
-                lbTipoUsuario.setText(rs.getString("tipo_empleado"));
-                lbSueldoEmpleado.setText(rs.getString("sueldo"));
-                lbMetodoPago.setText(rs.getString("metodo_pago"));
-                lbBanco.setText(rs.getString("banco"));
-                lbNCuenta.setText(rs.getString("numero_cuenta"));
-                lbPeriodoPago.setText(rs.getString("periodo_pago"));
-                lbContrato.setText(rs.getString("tipo_contrato"));
-                
-                lbPais.setText(rs.getString("pais"));
-                lbEstado.setText(rs.getString("estado"));
-                lbLocalidad.setText(rs.getString("localidad"));
-                lbColonia.setText(rs.getString("colonia"));
-                lbNExterior.setText(rs.getString("numero_exterior"));
-                
-                lbCiudad.setText(rs.getString("ciudad"));
-                lbCalle.setText(rs.getString("calle"));
-                lbCodigoPostal.setText(rs.getString("codigo_postal"));
-                lbNInterior.setText(rs.getString("numero_interior"));
-            }else{
-            System.out.println("No hay informacion de domicilio ");
-        }   
-        }catch (Exception e){
-            
-        }  
+        UsuarioDetalle u = UsuariosDao.findById(usuario);
+        try {
+            ProfileBinder.bindProfile(u,
+                    lbCodigoUsuario, lbNombreEmpleado, lbAPaternoEmpleado, lbAMaternoEmpleado,
+                    lbCurp, lbRfc, lbNss, lbHFecha, lbFechaNacimiento, lbFechaContratacio,
+                    lbEmailEmpleado, lbGenero, lbTipoUsuario, lbSueldoEmpleado, lbMetodoPago,
+                    lbBanco, lbNCuenta, lbPeriodoPago, lbContrato, lbPais, lbEstado, lbLocalidad,
+                    lbColonia, lbNExterior, lbCiudad, lbCalle, lbCodigoPostal, lbNInterior,
+                    imgPerfil, backup, sinperfil);
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error in Perfil", e);
+        }
     }
     
     public void CambiarContraseña(){
-        
-        ResultSet rs = null;
-        PreparedStatement ps = null;
         String contraseña = tbContraseñaActual.getText();
-        System.out.println("ENTRE A CAMBIAR CONTRASEÑA");
-        
-        try{
-            ps = con.prepareStatement("SELECT * FROM usuarios Where usuario_id = ? and password = ?");
-            ps.setString(1,usuario);
-            ps.setString(2,contraseña);
-            rs = ps.executeQuery();
-                        
-            if(rs.next()){
-                
+        LOGGER.log(Level.FINE, "ENTRE A CAMBIAR CONTRASEÑA");
+        try {
+            if (UsuariosService.verifyPassword(usuario, contraseña)) {
                 UpdateContraseña();
-               
-            }else{
-            Alert alert = new Alert(AlertType.ERROR);
-            alert.setHeaderText("La contraseña actual no es correcta");
-            alert.setContentText("Vuelva a intentarlo de nuevo");
-            Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-            stage.getIcons().add(new Image("icons/IconBlanco.png"));
-            alert.showAndWait();
-        }   
-        }catch (Exception e){
-            
-        }  
+            } else {
+                tbContraseñaActual.clear();
+                showAlert(AlertType.ERROR, null, "La contraseña actual no es correcta", "Vuelva a intentarlo de nuevo");
+            }
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error in CambiarContraseña", e);
+        }
     }
     
     public void UpdateContraseña(){
-        ResultSet rs = null;
-        PreparedStatement ps = null;
         String contraseñanueva = tbContraseñaNueva.getText();
-        System.out.println("CONTRASEÑA NUEVA "+contraseñanueva);
-        try{
-            System.out.println("CASI CAMBIO CONTRASEÑA");
-            ps = con.prepareStatement("update usuarios set password='"+contraseñanueva+"', pimera_sesion='1' where usuario_id='"+usuario+"'");
-            ps.execute();
-            ps.close();
-            
-            System.out.println("SE CAMBIO CONTRASEÑA");
-            Alert alert = new Alert(AlertType.INFORMATION);
-            alert.setTitle("Operacion exitosa");
-            alert.setHeaderText(null);
-            alert.setContentText("Se cambio contraseña de manera exitosa");
-            Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-            stage.getIcons().add(new Image("icons/IconBlanco.png"));
-            alert.showAndWait();
-            pnDashboard.setDisable(false);
-            btnVolverContraseña.setDisable(false);
-            btnVolverContraseña.setVisible(true);
-            Perfil();
-            pnBlanco.toFront();
-            pnPerfil.toFront();
-        }catch (Exception e){
+        LOGGER.log(Level.FINE, "CONTRASEÑA NUEVA {0}", contraseñanueva);
+        try {
+            boolean changed = UsuariosService.changePassword(usuario, contraseñanueva);
+            if (changed) {
+                LOGGER.log(Level.INFO, "SE CAMBIO CONTRASEÑA");
+                tbContraseñaActual.clear(); tbContraseñaNueva.clear(); tbContraseñaRepetir.clear();
+                showAlert(AlertType.INFORMATION, "Operacion exitosa", null, "Se cambio contraseña de manera exitosa");
+                pnDashboard.setDisable(false);
+                btnVolverContraseña.setDisable(false);
+                btnVolverContraseña.setVisible(true);
+                Perfil();
+                pnBlanco.toFront();
+                pnPerfil.toFront();
+            } else {
+                LOGGER.log(Level.WARNING, "No se pudo cambiar la contraseña para usuario {0}", usuario);
+            }
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error in UpdateContraseña", e);
         }
-        
     }
     
     public void ComprobarPrimerSesion(){
-    
-        ResultSet rs = null;
-        PreparedStatement ps = null;  
-        String primera = "0";
-        try{
-            ps = con.prepareStatement("SELECT * FROM usuarios Where usuario_id = ? and pimera_sesion = ?");
-            ps.setString(1,usuario);
-            ps.setString(2,primera);
-            rs = ps.executeQuery();
-                        
-            if(rs.next()){
+        try {
+            if (UsuariosService.isFirstSession(usuario)) {
                 CambiarContraseñaPrimera();
-            System.out.println("USUARIO NO HA CAMBIO CONTRASEÑA");  
-            }else{
-            System.out.println("USUARIO YA CAMBIO CONTRASEÑA");
-        }   
-        }catch (Exception e){
-            
+                LOGGER.log(Level.FINE, "USUARIO NO HA CAMBIO CONTRASEÑA");
+            } else {
+                LOGGER.log(Level.FINE, "USUARIO YA CAMBIO CONTRASEÑA");
+            }
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error in ComprobarPrimerSesion", e);
         }
         
     }
@@ -1093,21 +947,21 @@ public class DashboardController implements Initializable {
     //FIN PERFIL EMPLEADO
 
     //ELIMNAR EMPLEADO
-    
+
     public void EliminarEmpleado(){
+        String id = Integer.toString(indexEmpleado);
         String sql = "delete from usuarios where usuario_id = ?";
-        String in = Integer.toString(indexEmpleado);
-        try{
-            pst = con.prepareStatement(sql);
-            pst.setString(1, in);
-            pst.execute();
+        try (Connection conn = ConnectionUtil.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, id);
+            ps.executeUpdate();
             UpdateTable();
-        } catch (Exception e){
-            
+        } catch (SQLException ex) {
+            LOGGER.log(Level.SEVERE, "Error al eliminar empleado id=" + id, ex);
+            showAlert(AlertType.ERROR, "Error al eliminar", null, "No se pudo eliminar el empleado: " + ex.getMessage());
         }
-        
     }
-    
+
     //ELIMINAR EMPLEADO
     
     //ACTUALIZAR TABLA EMPLEADOS
@@ -1118,26 +972,17 @@ public class DashboardController implements Initializable {
         empEdad.setCellValueFactory(new PropertyValueFactory<>("empEdad"));               
         empSueldo.setCellValueFactory(new PropertyValueFactory<>("empSueldo"));       
         
-        listM = ConnectionUtil.getDataUsers();
-        tableviewEmpleados.setItems(listM);        
+        listM = UsuariosDao.getAll();
+        dataList.setAll(listM);
     }
     //ACTUALIZAR TABLA EMPLEADOS
     public void CodigoUsuario(){
-        Connection con;
-        try {
-            
-            con = ConnectionUtil.getConnection();      
-            ResultSet rs = con.createStatement().executeQuery("select * from usuarios");
-           
-            while (rs.next()){
-                dataList.add(new Empleados(rs.getInt(1),rs.getString("nombre")+" "+rs.getString("apellido_paterno")+" "+rs.getString("apellido_materno"),rs.getString("edad"),rs.getString("sueldo")));
-                int id = rs.getInt(1)+1;
-                String l_id = Integer.toString(id);
-                tbCodigoUsuarioAgregar.setText(l_id);
-            }
-            
-        } catch (SQLException ex) {
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
+        dataList.setAll(UsuariosDao.getAll());
+        if (!dataList.isEmpty()) {
+            int nextId = dataList.stream()
+                    .mapToInt(e -> e.getEmpIdUsuario())
+                    .max().orElse(0) + 1;
+            tbCodigoUsuarioAgregar.setText(String.valueOf(nextId));
         }
     }
 
@@ -1148,803 +993,323 @@ public class DashboardController implements Initializable {
         tableviewEmpleados.setOnMouseClicked(new EventHandler<MouseEvent>(){
             @Override
             public void handle(MouseEvent event) {
-                Empleados index = tableviewEmpleados.getItems().get(tableviewEmpleados.getSelectionModel().getSelectedIndex());
-                
-                if(tableviewEmpleados.isFocused()){
-                    if(tipo_empleado.contains("GERENTE")){
-                    btnEliminarEmpleado.setVisible(true);
-                    btnEditarEmpleado.setDisable(false);
-                }else if(tipo_empleado.contains("SUPERVISOR")){
-                    btnEditarEmpleado.setDisable(false);
-                }
-                }else{
+                int selIdx = tableviewEmpleados.getSelectionModel().getSelectedIndex();
+                if (selIdx < 0) {
+                    // Clic en encabezado de columna o área vacía — no hay fila seleccionada
                     btnEliminarEmpleado.setVisible(false);
+                    btnEliminarEmpleado.setDisable(true);
                     btnEditarEmpleado.setDisable(true);
+                    return;
                 }
-                
-                indexEmpleado = index.getEmpIdUsuario();     
-                String in = Integer.toString(indexEmpleado);
-                
-                BusquedaEmpleado busqueda = new BusquedaEmpleado() {};
-                ResultSet rs = null;
-                rs = busqueda.find(in);
-                System.out.println("Index seleccionado "+in);
-                
-                try{
-                    if(rs.next()){
-                        lbHDomicilio.setText(rs.getString("tipo_empleado"));
-                        String timestamp = rs.getString("create_time");
-                        String año = timestamp.substring(0,4);
-                        String dia = timestamp.substring(8,10);
-                        String mes = timestamp.substring(5,7);
-                        String mesn = "mes";
-                        switch (mes){
-                            case "1": mesn = "ENERO"; break;
-                            case "2": mesn = "FEBRERO"; break;
-                            case "3": mesn = "MARZO"; break;
-                            case "4": mesn = "ABRIL"; break;
-                            case "5": mesn = "MAYO"; break;
-                            case "6": mesn = "JUNIO"; break;
-                            case "7": mesn = "JULIO"; break;
-                            case "8": mesn = "AGOSTO"; break;
-                            case "9": mesn = "SEPTIEMBRE"; break;
-                            case "10": mesn = "OCTUBRE"; break;
-                            case "11": mesn = "NOVIEMBRE"; break;
-                            case "12": mesn = "DICIEMBRE"; break;
-                        }
-                        System.out.println("AÑO "+año);
-                        System.out.println("DIA "+dia);
-                        System.out.println("MES "+mes);
-                        lbHFecha.setText( dia + " DE "+ mesn +" DEL "+ año);
-                        
-                        InputStream is = rs.getBinaryStream("imagen");
-                        OutputStream os = new FileOutputStream( new File("photo.png"));
-                        byte[] content = new byte[1024];
-                        int size = 0;
-                        while((size = is.read(content)) != -1){
-                            os.write(content, 0, size);
-                        }
-                        if(is!=null){
-                        image = new Image("file:photo.png");
-                        imgPerfil.setImage(image);
-                        }else{
-                        imgPerfil.setImage(backup);
-                        }
-                        os.close();
-                        is.close();
-                    }else{
-                     imgPerfil.setImage(sinperfil);
-                     System.out.println("No hay informacion de domicilio ");
-                }   
-                }catch (Exception e){
 
+                Empleados index = tableviewEmpleados.getItems().get(selIdx);
+
+                // Habilitar botón PERFIL al seleccionar una fila
+                btnEditarEmpleado.setDisable(false);
+
+                // Mostrar y habilitar eliminar solo para usuarios con rol GERENTE
+                if (tipo_empleado != null && tipo_empleado.contains("GERENTE")) {
+                    btnEliminarEmpleado.setVisible(true);
+                    btnEliminarEmpleado.setDisable(false);
+                } else {
+                    btnEliminarEmpleado.setVisible(false);
+                    btnEliminarEmpleado.setDisable(true);
                 }
-                
+
+                indexEmpleado = index.getEmpIdUsuario();
+                String in = Integer.toString(indexEmpleado);
+
+                UsuarioDetalle u = UsuariosDao.findById(in);
+                LOGGER.log(Level.FINE, "Index seleccionado {0}", in);
+                try {
+                    if (u != null) {
+                        lbHDomicilio.setText(u.getTipoEmpleado());
+                        String timestamp = u.getCreateTime();
+                        if (timestamp != null && timestamp.length() >= 10) {
+                            lbHFecha.setText(DateUtils.formatLongDate(timestamp, true));
+                        }
+                        imgPerfil.setImage(ImageUtils.fromBytesOrDefault(u.getImagen(), backup));
+                    } else {
+                        imgPerfil.setImage(sinperfil);
+                        LOGGER.log(Level.FINE, "No hay informacion de domicilio");
+                    }
+                } catch (Exception e) {
+                    LOGGER.log(Level.SEVERE, "Error in TableValueEmpleados handler", e);
+                }
+
                 lbHCodigo.setText(String.valueOf(indexEmpleado));
                 lbHNombre.setText(index.getEmpNombre());
             }
     });
     }
     
-    public class BusquedaEmpleado{
-        ResultSet rs = null;
-        PreparedStatement ps = null;
-        public ResultSet find (String s){
-            try{
-                ps = con.prepareStatement("select * from usuarios where usuario_id = ?");
-                ps.setString(1,s);
-                rs = ps.executeQuery();
-            } catch (Exception e){
-                
-            }
-            return rs;
-        }       
-        
-    }
-    
-    // COMBO BOX FILLS
+    // CARGAR COMBO BOXES
     public void fillComboBoxGenero(){
-        try{
-            String query = "select genero from genero";
-            pst = con.prepareStatement(query);
-            ResultSet rs = pst.executeQuery();
-            while(rs.next()){
-                GeneroOpcion.add(rs.getString("genero"));
-            }
-            cbGenero.setValue(cbGenero.getValue());
-            pst.close();
-            rs.close();
-        }catch (SQLException ex){
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        
+        GeneroOpcion.clear();
+        GeneroOpcion.addAll(LookupService.getGeneros());
+        cbGenero.setValue(cbGenero.getValue());
     }
     
     public void fillComboBoxTipoUsuario(){
-        try{
-            String query = "select puesto from tipo_usuario";
-            pst = con.prepareStatement(query);
-            ResultSet rs = pst.executeQuery();
-            while(rs.next()){
-                TipoUsuarioOpcion.add(rs.getString("puesto"));
-            }
-            cbTipoUsuario.setValue(cbTipoUsuario.getValue());
-            pst.close();
-            rs.close();
-        }catch (SQLException ex){
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        
+        TipoUsuarioOpcion.clear();
+        TipoUsuarioOpcion.addAll(LookupService.getTipoUsuario());
+        cbTipoUsuario.setValue(cbTipoUsuario.getValue());
     }
     
     public void fillComboBoxPago(){
-        try{
-            String query = "select metodo from tipo_pago";
-            pst = con.prepareStatement(query);
-            ResultSet rs = pst.executeQuery();
-            while(rs.next()){
-                PagoOpcion.add(rs.getString("metodo"));
-            }
-            cbMetodoPago.setValue(cbMetodoPago.getValue());
-            pst.close();
-            rs.close();
-        }catch (SQLException ex){
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        
+        PagoOpcion.clear();
+        PagoOpcion.addAll(LookupService.getMetodosPago());
+        cbMetodoPago.setValue(cbMetodoPago.getValue());
     }
     
     public void fillComboBoxBanco(){
-        try{
-            String query = "select nombre from bancos";
-            pst = con.prepareStatement(query);
-            ResultSet rs = pst.executeQuery();
-            while(rs.next()){
-                BancoOpcion.add(rs.getString("nombre"));
-            }
-            cbBanco.setValue(cbBanco.getValue());
-            pst.close();
-            rs.close();
-        }catch (SQLException ex){
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        
+        BancoOpcion.clear();
+        BancoOpcion.addAll(LookupService.getBancos());
+        cbBanco.setValue(cbBanco.getValue());
     }
     
     public void fillComboBoxPeriodoPago(){
-        try{
-            String query = "select periodo from periodicidad_pago";
-            pst = con.prepareStatement(query);
-            ResultSet rs = pst.executeQuery();
-            while(rs.next()){
-                PeriodoPagoOpcion.add(rs.getString("periodo"));
-            }
-            cbPeriodoPago.setValue(cbPeriodoPago.getValue());
-            pst.close();
-            rs.close();
-        }catch (SQLException ex){
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        
+        PeriodoPagoOpcion.clear();
+        PeriodoPagoOpcion.addAll(LookupService.getPeriodosPago());
+        cbPeriodoPago.setValue(cbPeriodoPago.getValue());
     }
     
     public void fillComboBoxContrato(){
-        try{
-            String query = "select contrato from tipo_contratos";
-            pst = con.prepareStatement(query);
-            ResultSet rs = pst.executeQuery();
-            while(rs.next()){
-                ContratoOpcion.add(rs.getString("contrato"));
-            }
-            cbContrato.setValue(cbContrato.getValue());
-            pst.close();
-            rs.close();
-        }catch (SQLException ex){
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        
+        ContratoOpcion.clear();
+        ContratoOpcion.addAll(LookupService.getContratos());
+        cbContrato.setValue(cbContrato.getValue());
     }
     
     public void fillComboBoxPais(){
-        try{
-            String query = "select name from paises";
-            pst = con.prepareStatement(query);
-            ResultSet rs = pst.executeQuery();
-            while(rs.next()){
-                PaisOpcion.add(rs.getString("name"));
-            }
-            cbPais.setValue(cbPais.getValue());
-            pst.close();
-            rs.close();
-        }catch (SQLException ex){
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        
+        PaisOpcion.clear();
+        PaisOpcion.addAll(LookupService.getPaises());
+        cbPais.setValue(cbPais.getValue());
     }
     
     public void fillComboBoxEstados(){
-        
-        ResultSet rs = null;
-        PreparedStatement ps = null;
         String pais = cbPais.getValue();
         EstadoOpcion.clear();
-
-        BusquedaPais busqueda = new BusquedaPais() {};
-        rs = busqueda.find(pais);
-        try{
-            
-            if(rs.next()){
-                String pais_s = rs.getString("id");
-                System.out.println("Pais seleccionado "+pais_s);
-            ps = con.prepareStatement("select * from estados where country_id = ?");
-            ps.setString(1,pais_s);
-            rs = ps.executeQuery();
-            while(rs.next()){
-                EstadoOpcion.add(rs.getString("name"));
-            }
-            cbEstado.setValue(cbEstado.getValue());
-            pst.close();
-            rs.close();
-        }
-        }catch (SQLException ex){
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        
+        if (pais == null) return;
+        EstadoOpcion.addAll(LookupService.getEstadosByCountryName(pais));
+        cbEstado.setValue(cbEstado.getValue());
     }
     
-    public class BusquedaPais{
-        ResultSet rs = null;
-        PreparedStatement ps = null;
-
-        public ResultSet find (String s){
-            try{
-                ps = con.prepareStatement("select * from paises where name = ?");
-                ps.setString(1,s);
-                rs = ps.executeQuery();
-            } catch (Exception e){
-                
-            }
-            return rs;
-        }       
-    }
+    
     
         public void fillComboBoxCiudades(){
-        
-        ResultSet rs = null;
-        PreparedStatement ps = null;
-        String estado = cbEstado.getValue();
-        CiudadOpcion.clear();
-
-        BusquedaEstado busqueda = new BusquedaEstado() {};
-        rs = busqueda.find(estado);
-        try{
-            
-            if(rs.next()){
-                String estado_s = rs.getString("id");
-                System.out.println("Estado seleccionado "+estado_s);
-            ps = con.prepareStatement("select * from ciudades where state_id = ?");
-            ps.setString(1,estado_s);
-            rs = ps.executeQuery();
-            while(rs.next()){
-                CiudadOpcion.add(rs.getString("name"));
-
-            }
-            cbEstado.setValue(cbEstado.getValue());
-            pst.close();
-            rs.close();
+            String estado = cbEstado.getValue();
+            CiudadOpcion.clear();
+            if (estado == null) return;
+            CiudadOpcion.addAll(LookupService.getCiudadesByStateName(estado));
+            cbCiudad.setValue(cbCiudad.getValue());
         }
-        }catch (SQLException ex){
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        
-    }
     
-    public class BusquedaEstado{
-        ResultSet rs = null;
-        PreparedStatement ps = null;
-
-        public ResultSet find (String s){
-            try{
-                ps = con.prepareStatement("select * from estados where name = ?");
-                ps.setString(1,s);
-                rs = ps.executeQuery();
-            } catch (Exception e){
-                
-            }
-            return rs;
-        }       
-    }
-    // COMBO BOX FILLS
+    
+    // FIN CARGAR COMBO BOXES
     
     // AGREGAR EMPLEADO
     public void AgregarEmpleado(){
-        
-        int edad; LocalDate fecha, fecha_con;
-        if(tbFechaNacimiento.getValue() == null){
-            edad = 0; fecha = LocalDate.now();
-        }else { 
-        fecha = tbFechaNacimiento.getValue();
-        LocalDate date = LocalDate.now();
-        edad = Period.between(tbFechaNacimiento.getValue(), date).getYears();   
-        }
-        
-        if(tbFechaContratacion.getValue() == null){
-            fecha_con = LocalDate.now();
-        }else { 
-        fecha_con = tbFechaContratacion.getValue();
-        }
-        String fecha_nacimiento = fecha.toString();
-        String fecha_contratacion = fecha_con.toString();
-        
-        String nombre = tbNombreEmpleado.getText();         if (tbNombreEmpleado.getText().isEmpty()){nombre = "NULL";}
-        String apellido_p = tbAPaternoEmpleado.getText();   if (tbAPaternoEmpleado.getText().isEmpty()){apellido_p = "NULL";}
-        String apellido_m = tbAMaternoEmpleado.getText();   if (tbAMaternoEmpleado.getText().isEmpty()){apellido_m = "NULL";}
-        String curp = tbCurp.getText();                     if (tbCurp.getText().isEmpty()){curp = "NULL";}
-        String rfc = tbRfc.getText();                       if (tbRfc.getText().isEmpty()){rfc = "NULL";}
-        String nss = tbNss.getText();                       if (tbNss.getText().isEmpty()){nss = "NULL";}
-        String email = tbEmailEmpleado.getText();           if (tbEmailEmpleado.getText().isEmpty()){email = "NULL";}
-        String genero = cbGenero.getValue();                if (cbGenero.getValue() == null){genero = "NULL";}
-        String sueldo = tbSueldoEmpleado.getText();         if (tbSueldoEmpleado.getText().isEmpty()){sueldo = "0";}
-        String metodo_pago = cbMetodoPago.getValue();       if (cbMetodoPago.getValue() == null){metodo_pago = "NULL";}
-        String banco = cbBanco.getValue();                  if (cbBanco.getValue() == null){banco = "NULL";}
-        String numero_cuenta = tbNCuenta.getText();         if (tbNCuenta.getText().isEmpty()){numero_cuenta = "NULL";}
-        String periodo_pago = cbPeriodoPago.getValue();     if (cbPeriodoPago.getValue() == null){periodo_pago = "NULL";}
-        String tipo_contrato = cbContrato.getValue();       if (cbContrato.getValue() == null){tipo_contrato = "NULL";}
-        String pais = cbPais.getValue();                    if (cbPais.getValue() == null){pais = "NULL";}
-        String estado = cbEstado.getValue();                if (cbEstado.getValue() == null){estado = "NULL";}
-        String localidad = tbLocalidad.getText();           if (tbLocalidad.getText().isEmpty()){localidad = "NULL";}
-        String colonia = tbColonia.getText();               if (tbColonia.getText().isEmpty()){colonia = "NULL";}
-        String numero_exterior = tbNExterior.getText();     if (tbNExterior.getText().isEmpty()){numero_exterior = "NULL";}
-        String ciudad = cbCiudad.getValue();                if (cbCiudad.getValue() == null){ciudad = "NULL";}
-        String calle = tbCalle.getText();                   if (tbCalle.getText().isEmpty()){calle = "NULL";}
-        String codigo_postal = tbCodigoPostal.getText();    if (tbCodigoPostal.getText().isEmpty()){codigo_postal = "NULL";}
-        String numero_interior = tbNInterior.getText();     if (tbNInterior.getText().isEmpty()){numero_interior = "NULL";}
-        String tipo_emp = cbTipoUsuario.getValue();         if (cbTipoUsuario.getValue().isEmpty()){tipo_emp = "NULL";}
-        String edad_emp = String.valueOf(edad);
-        String password = tbCodigoUsuarioAgregar.getText();
-        
-        System.out.println("RECORD RUNNING!!!");
-        try{
-        System.out.println("RECORD RUNNING INSIDE!!!");
-        pst = con.prepareStatement("insert into usuarios (nombre, apellido_paterno, apellido_materno, curp, rfc, nss, edad, fecha_nacimiento, fecha_contratacion, "
-                + "email, genero, password, sueldo, metodo_pago, banco, numero_cuenta, periodo_pago, tipo_contrato, pais, estado, localidad, colonia, numero_exterior, ciudad, "
-                + "calle, codigo_postal, numero_interior, tipo_empleado) "
-                + "values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
-        System.out.println("RECORD RUNNING AFTER");
-        
-        pst.setString(1, nombre);
-        pst.setString(2, apellido_p);
-        pst.setString(3, apellido_m);
-        pst.setString(4, curp);
-        pst.setString(5, rfc);
-        pst.setString(6, nss);
-        pst.setString(7, edad_emp);
-        pst.setString(8, fecha_nacimiento);
-        pst.setString(9, fecha_contratacion);
-        pst.setString(10, email);
-        pst.setString(11, genero);
-        pst.setString(12, password);
-        pst.setString(13, sueldo);
-        pst.setString(14, metodo_pago);
-        pst.setString(15, banco);
-        pst.setString(16, numero_cuenta);
-        pst.setString(17, periodo_pago);
-        pst.setString(18, tipo_contrato);
-        pst.setString(19, pais);
-        pst.setString(20, estado);
-        pst.setString(21, localidad);
-        pst.setString(22, colonia);
-        pst.setString(23, numero_exterior);
-        pst.setString(24, ciudad);
-        pst.setString(25, calle);
-        pst.setString(26, codigo_postal);
-        pst.setString(27, numero_interior);
-        pst.setString(28, tipo_emp);
-        
-        int status = pst.executeUpdate();
-        System.out.println("RECORD RUNNING POST QUERY");
-        if (status==1){
-            System.out.println("RECORD ADDED!!!");
-            LimpiarPerfil();
-            UpdateTable();
-            int id = Integer.parseInt(tbCodigoUsuarioAgregar.getText())+1;
-            tbCodigoUsuarioAgregar.setText(String.valueOf(id));
-        }else{
-            System.out.println("RECORD FAILED!!!");
-        }
-            
-        }catch (SQLException e){
-            
-        }
-        
+        addEmpleadoInternal(false);
     }
-    
+
     public void AgregarEmpleadoConImagen(){
-        
-        int edad; LocalDate fecha, fecha_con;
-        if(tbFechaNacimiento.getValue() == null){
-            edad = 0; fecha = LocalDate.now();
-        }else { 
-        fecha = tbFechaNacimiento.getValue();
-        LocalDate date = LocalDate.now();
-        edad = Period.between(tbFechaNacimiento.getValue(), date).getYears();   
+        addEmpleadoInternal(true);
+    }
+
+    private void addEmpleadoInternal(boolean withImage){
+        LOGGER.log(Level.FINE, "RECORD RUNNING!!!");
+        try {
+            UsuarioDetalle u = buildUsuarioDetalleFromForm();
+            String password = tbCodigoUsuarioAgregar.getText();
+            boolean ok = UsuariosService.saveUsuario(u, password, withImage, file);
+            if (ok) {
+                LOGGER.log(Level.INFO, "RECORD ADDED");
+                LimpiarPerfil();
+                UpdateTable();
+                int id = Integer.parseInt(tbCodigoUsuarioAgregar.getText()) + 1;
+                tbCodigoUsuarioAgregar.setText(String.valueOf(id));
+            } else {
+                LOGGER.log(Level.WARNING, "RECORD FAILED");
+            }
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error in addEmpleadoInternal", e);
         }
-        
-        if(tbFechaContratacion.getValue() == null){
-            fecha_con = LocalDate.now();
-        }else { 
-        fecha_con = tbFechaContratacion.getValue();
-        }
-        String fecha_nacimiento = fecha.toString();
-        String fecha_contratacion = fecha_con.toString();
-        
-        String nombre = tbNombreEmpleado.getText();         if (tbNombreEmpleado.getText().isEmpty()){nombre = "NULL";}
-        String apellido_p = tbAPaternoEmpleado.getText();   if (tbAPaternoEmpleado.getText().isEmpty()){apellido_p = "NULL";}
-        String apellido_m = tbAMaternoEmpleado.getText();   if (tbAMaternoEmpleado.getText().isEmpty()){apellido_m = "NULL";}
-        String curp = tbCurp.getText();                     if (tbCurp.getText().isEmpty()){curp = "NULL";}
-        String rfc = tbRfc.getText();                       if (tbRfc.getText().isEmpty()){rfc = "NULL";}
-        String nss = tbNss.getText();                       if (tbNss.getText().isEmpty()){nss = "NULL";}
-        String email = tbEmailEmpleado.getText();           if (tbEmailEmpleado.getText().isEmpty()){email = "NULL";}
-        String genero = cbGenero.getValue();                if (cbGenero.getValue() == null){genero = "NULL";}
-        String sueldo = tbSueldoEmpleado.getText();         if (tbSueldoEmpleado.getText().isEmpty()){sueldo = "0";}
-        String metodo_pago = cbMetodoPago.getValue();       if (cbMetodoPago.getValue() == null){metodo_pago = "NULL";}
-        String banco = cbBanco.getValue();                  if (cbBanco.getValue() == null){banco = "NULL";}
-        String numero_cuenta = tbNCuenta.getText();         if (tbNCuenta.getText().isEmpty()){numero_cuenta = "NULL";}
-        String periodo_pago = cbPeriodoPago.getValue();     if (cbPeriodoPago.getValue() == null){periodo_pago = "NULL";}
-        String tipo_contrato = cbContrato.getValue();       if (cbContrato.getValue() == null){tipo_contrato = "NULL";}
-        String pais = cbPais.getValue();                    if (cbPais.getValue() == null){pais = "NULL";}
-        String estado = cbEstado.getValue();                if (cbEstado.getValue() == null){estado = "NULL";}
-        String localidad = tbLocalidad.getText();           if (tbLocalidad.getText().isEmpty()){localidad = "NULL";}
-        String colonia = tbColonia.getText();               if (tbColonia.getText().isEmpty()){colonia = "NULL";}
-        String numero_exterior = tbNExterior.getText();     if (tbNExterior.getText().isEmpty()){numero_exterior = "NULL";}
-        String ciudad = cbCiudad.getValue();                if (cbCiudad.getValue() == null){ciudad = "NULL";}
-        String calle = tbCalle.getText();                   if (tbCalle.getText().isEmpty()){calle = "NULL";}
-        String codigo_postal = tbCodigoPostal.getText();    if (tbCodigoPostal.getText().isEmpty()){codigo_postal = "NULL";}
-        String numero_interior = tbNInterior.getText();     if (tbNInterior.getText().isEmpty()){numero_interior = "NULL";}
-        String tipo_emp = cbTipoUsuario.getValue();         if (cbTipoUsuario.getValue().isEmpty()){tipo_emp = "NULL";}
-        String edad_emp = String.valueOf(edad);
-        String password = tbCodigoUsuarioAgregar.getText();
-        
-        System.out.println("RECORD RUNNING!!!");
-        try{
-        System.out.println("RECORD RUNNING INSIDE!!!");
-        pst = con.prepareStatement("insert into usuarios (nombre, apellido_paterno, apellido_materno, curp, rfc, nss, edad, fecha_nacimiento, fecha_contratacion, "
-                + "email, genero, password, sueldo, metodo_pago, banco, numero_cuenta, periodo_pago, tipo_contrato, pais, estado, localidad, colonia, numero_exterior, ciudad, "
-                + "calle, codigo_postal, numero_interior, tipo_empleado, imagen) "
-                + "values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
-        System.out.println("RECORD RUNNING AFTER");
-        
-        pst.setString(1, nombre);
-        pst.setString(2, apellido_p);
-        pst.setString(3, apellido_m);
-        pst.setString(4, curp);
-        pst.setString(5, rfc);
-        pst.setString(6, nss);
-        pst.setString(7, edad_emp);
-        pst.setString(8, fecha_nacimiento);
-        pst.setString(9, fecha_contratacion);
-        pst.setString(10, email);
-        pst.setString(11, genero);
-        pst.setString(12, password);
-        pst.setString(13, sueldo);
-        pst.setString(14, metodo_pago);
-        pst.setString(15, banco);
-        pst.setString(16, numero_cuenta);
-        pst.setString(17, periodo_pago);
-        pst.setString(18, tipo_contrato);
-        pst.setString(19, pais);
-        pst.setString(20, estado);
-        pst.setString(21, localidad);
-        pst.setString(22, colonia);
-        pst.setString(23, numero_exterior);
-        pst.setString(24, ciudad);
-        pst.setString(25, calle);
-        pst.setString(26, codigo_postal);
-        pst.setString(27, numero_interior);
-        pst.setString(28, tipo_emp);
-     
-        System.out.println("UPLOADING IMAGEN "+file);
-        fis = new FileInputStream(file);
-        pst.setBinaryStream(29, fis, file.length());
-        System.out.println("IMAGEN UPLOADED!!!!");
-        
-        int status = pst.executeUpdate();
-        System.out.println("RECORD RUNNING POST QUERY");
-        if (status==1){
-            System.out.println("RECORD ADDED!!!");
-            LimpiarPerfil();
-            UpdateTable();
-            int id = Integer.parseInt(tbCodigoUsuarioAgregar.getText())+1;
-            tbCodigoUsuarioAgregar.setText(String.valueOf(id));
-        }else{
-            System.out.println("RECORD FAILED!!!");
-        }
-            
-        }catch (SQLException e){
-            
-        } catch (FileNotFoundException ex) {
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        
     }
     // AGREGAR EMPLEADO
     
-    // MODIFICAR EMPLEADO
+    // MODIFICAR EMPLEADO (wrappers)
     public void ModificarEmpleado(){
-        
-        Empleados index = tableviewEmpleados.getItems().get(tableviewEmpleados.getSelectionModel().getSelectedIndex());
-        indexEmpleado = index.getEmpIdUsuario();     
-        String in = Integer.toString(indexEmpleado);
-        
-        int edad; LocalDate fecha, fecha_con;
-        if(tbFechaNacimiento.getValue() == null){
-            edad = 0; fecha = LocalDate.now();
-        }else { 
-        fecha = tbFechaNacimiento.getValue();
-        LocalDate date = LocalDate.now();
-        edad = Period.between(tbFechaNacimiento.getValue(), date).getYears();   
-        }
-        
-        if(tbFechaContratacion.getValue() == null){
-            fecha_con = LocalDate.now();
-        }else { 
-        fecha_con = tbFechaContratacion.getValue();
-        }
-        String fecha_nacimiento = fecha.toString();
-        String fecha_contratacion = fecha_con.toString();
-        
-        String nombre = tbNombreEmpleado.getText();         if (tbNombreEmpleado.getText().isEmpty()){nombre = "NULL";}
-        String apellido_p = tbAPaternoEmpleado.getText();   if (tbAPaternoEmpleado.getText().isEmpty()){apellido_p = "NULL";}
-        String apellido_m = tbAMaternoEmpleado.getText();   if (tbAMaternoEmpleado.getText().isEmpty()){apellido_m = "NULL";}
-        String curp = tbCurp.getText();                     if (tbCurp.getText().isEmpty()){curp = "NULL";}
-        String rfc = tbRfc.getText();                       if (tbRfc.getText().isEmpty()){rfc = "NULL";}
-        String nss = tbNss.getText();                       if (tbNss.getText().isEmpty()){nss = "NULL";}
-        String email = tbEmailEmpleado.getText();           if (tbEmailEmpleado.getText().isEmpty()){email = "NULL";}
-        String genero = cbGenero.getValue();                if (cbGenero.getValue() == null){genero = "NULL";}
-        String sueldo = tbSueldoEmpleado.getText();         if (tbSueldoEmpleado.getText().isEmpty()){sueldo = "0";}
-        String metodo_pago = cbMetodoPago.getValue();       if (cbMetodoPago.getValue() == null){metodo_pago = "NULL";}
-        String banco = cbBanco.getValue();                  if (cbBanco.getValue() == null){banco = "NULL";}
-        String numero_cuenta = tbNCuenta.getText();         if (tbNCuenta.getText().isEmpty()){numero_cuenta = "NULL";}
-        String periodo_pago = cbPeriodoPago.getValue();     if (cbPeriodoPago.getValue() == null){periodo_pago = "NULL";}
-        String tipo_contrato = cbContrato.getValue();       if (cbContrato.getValue() == null){tipo_contrato = "NULL";}
-        String pais = cbPais.getValue();                    if (cbPais.getValue() == null){pais = "NULL";}
-        String estado = cbEstado.getValue();                if (cbEstado.getValue() == null){estado = "NULL";}
-        String localidad = tbLocalidad.getText();           if (tbLocalidad.getText().isEmpty()){localidad = "NULL";}
-        String colonia = tbColonia.getText();               if (tbColonia.getText().isEmpty()){colonia = "NULL";}
-        String numero_exterior = tbNExterior.getText();     if (tbNExterior.getText().isEmpty()){numero_exterior = "NULL";}
-        String ciudad = cbCiudad.getValue();                if (cbCiudad.getValue() == null){ciudad = "NULL";}
-        String calle = tbCalle.getText();                   if (tbCalle.getText().isEmpty()){calle = "NULL";}
-        String codigo_postal = tbCodigoPostal.getText();    if (tbCodigoPostal.getText().isEmpty()){codigo_postal = "NULL";}
-        String numero_interior = tbNInterior.getText();     if (tbNInterior.getText().isEmpty()){numero_interior = "NULL";}
-        String tipo_emp = cbTipoUsuario.getValue();         if (cbTipoUsuario.getValue().isEmpty()){tipo_emp = "NULL";}
-        String edad_emp = String.valueOf(edad);
-        
-        System.out.println("RECORD RUNNING!!!");
-        try{
-        System.out.println("RECORD RUNNING INSIDE!!!");
-        pst = con.prepareStatement("update usuarios set nombre=?, apellido_paterno=?, apellido_materno=?, curp=?, rfc=?, nss=?, edad=?, fecha_nacimiento=?, "
-                + "fecha_contratacion=?, email=?, genero=?, sueldo=?, metodo_pago=?, banco=?, numero_cuenta=?, periodo_pago=?, tipo_contrato=?,"
-                + " pais=?, estado=?, localidad=?, colonia=?, numero_exterior=?, ciudad=?, calle=?, codigo_postal=?, numero_interior=?, tipo_empleado=? where usuario_id='"+in+"' ");
-        System.out.println("RECORD RUNNING AFTER");
-        
-        pst.setString(1, nombre);
-        pst.setString(2, apellido_p);
-        pst.setString(3, apellido_m);
-        pst.setString(4, curp);
-        pst.setString(5, rfc);
-        pst.setString(6, nss);
-        pst.setString(7, edad_emp);
-        pst.setString(8, fecha_nacimiento);
-        pst.setString(9, fecha_contratacion);
-        pst.setString(10, email);
-        pst.setString(11, genero);
-        pst.setString(12, sueldo);
-        pst.setString(13, metodo_pago);
-        pst.setString(14, banco);
-        pst.setString(15, numero_cuenta);
-        pst.setString(16, periodo_pago);
-        pst.setString(17, tipo_contrato);
-        pst.setString(18, pais);
-        pst.setString(19, estado);
-        pst.setString(20, localidad);
-        pst.setString(21, colonia);
-        pst.setString(22, numero_exterior);
-        pst.setString(23, ciudad);
-        pst.setString(24, calle);
-        pst.setString(25, codigo_postal);
-        pst.setString(26, numero_interior);
-        pst.setString(27, tipo_emp);
-        int status = pst.executeUpdate();
-        System.out.println("RECORD RUNNING POST QUERY");
-        if (status==1){
-            System.out.println("RECORD ADDED!!!");
-            LimpiarPerfil();
-            UpdateTable();
-            int id = Integer.parseInt(tbCodigoUsuarioAgregar.getText())+1;
-            tbCodigoUsuarioAgregar.setText(String.valueOf(id));
-        }else{
-            System.out.println("RECORD FAILED!!!");
-        }
-            
-        }catch (SQLException e){
-            
-        }
-        
+        modifyEmpleadoInternal(false);
     }
-    
+
     public void ModificarEmpleadoConImagen(){
-        
-        Empleados index = tableviewEmpleados.getItems().get(tableviewEmpleados.getSelectionModel().getSelectedIndex());
-        indexEmpleado = index.getEmpIdUsuario();     
-        String in = Integer.toString(indexEmpleado);
-        
-        int edad; LocalDate fecha, fecha_con;
-        if(tbFechaNacimiento.getValue() == null){
-            edad = 0; fecha = LocalDate.now();
-        }else { 
-        fecha = tbFechaNacimiento.getValue();
-        LocalDate date = LocalDate.now();
-        edad = Period.between(tbFechaNacimiento.getValue(), date).getYears();   
-        }
-        
-        if(tbFechaContratacion.getValue() == null){
-            fecha_con = LocalDate.now();
-        }else { 
-        fecha_con = tbFechaContratacion.getValue();
-        }
-        String fecha_nacimiento = fecha.toString();
-        String fecha_contratacion = fecha_con.toString();
-        
-        String nombre = tbNombreEmpleado.getText();         if (tbNombreEmpleado.getText().isEmpty()){nombre = "NULL";}
-        String apellido_p = tbAPaternoEmpleado.getText();   if (tbAPaternoEmpleado.getText().isEmpty()){apellido_p = "NULL";}
-        String apellido_m = tbAMaternoEmpleado.getText();   if (tbAMaternoEmpleado.getText().isEmpty()){apellido_m = "NULL";}
-        String curp = tbCurp.getText();                     if (tbCurp.getText().isEmpty()){curp = "NULL";}
-        String rfc = tbRfc.getText();                       if (tbRfc.getText().isEmpty()){rfc = "NULL";}
-        String nss = tbNss.getText();                       if (tbNss.getText().isEmpty()){nss = "NULL";}
-        String email = tbEmailEmpleado.getText();           if (tbEmailEmpleado.getText().isEmpty()){email = "NULL";}
-        String genero = cbGenero.getValue();                if (cbGenero.getValue() == null){genero = "NULL";}
-        String sueldo = tbSueldoEmpleado.getText();         if (tbSueldoEmpleado.getText().isEmpty()){sueldo = "0";}
-        String metodo_pago = cbMetodoPago.getValue();       if (cbMetodoPago.getValue() == null){metodo_pago = "NULL";}
-        String banco = cbBanco.getValue();                  if (cbBanco.getValue() == null){banco = "NULL";}
-        String numero_cuenta = tbNCuenta.getText();         if (tbNCuenta.getText().isEmpty()){numero_cuenta = "NULL";}
-        String periodo_pago = cbPeriodoPago.getValue();     if (cbPeriodoPago.getValue() == null){periodo_pago = "NULL";}
-        String tipo_contrato = cbContrato.getValue();       if (cbContrato.getValue() == null){tipo_contrato = "NULL";}
-        String pais = cbPais.getValue();                    if (cbPais.getValue() == null){pais = "NULL";}
-        String estado = cbEstado.getValue();                if (cbEstado.getValue() == null){estado = "NULL";}
-        String localidad = tbLocalidad.getText();           if (tbLocalidad.getText().isEmpty()){localidad = "NULL";}
-        String colonia = tbColonia.getText();               if (tbColonia.getText().isEmpty()){colonia = "NULL";}
-        String numero_exterior = tbNExterior.getText();     if (tbNExterior.getText().isEmpty()){numero_exterior = "NULL";}
-        String ciudad = cbCiudad.getValue();                if (cbCiudad.getValue() == null){ciudad = "NULL";}
-        String calle = tbCalle.getText();                   if (tbCalle.getText().isEmpty()){calle = "NULL";}
-        String codigo_postal = tbCodigoPostal.getText();    if (tbCodigoPostal.getText().isEmpty()){codigo_postal = "NULL";}
-        String numero_interior = tbNInterior.getText();     if (tbNInterior.getText().isEmpty()){numero_interior = "NULL";}
-        String tipo_emp = cbTipoUsuario.getValue();         if (cbTipoUsuario.getValue().isEmpty()){tipo_emp = "NULL";}
-        String edad_emp = String.valueOf(edad);
-        
-        System.out.println("RECORD RUNNING!!!");
-        try{
-        System.out.println("RECORD RUNNING INSIDE!!!");
-        pst = con.prepareStatement("update usuarios set nombre=?, apellido_paterno=?, apellido_materno=?, curp=?, rfc=?, nss=?, edad=?, fecha_nacimiento=?, "
-                + "fecha_contratacion=?, email=?, genero=?, sueldo=?, metodo_pago=?, banco=?, numero_cuenta=?, periodo_pago=?, tipo_contrato=?,"
-                + " pais=?, estado=?, localidad=?, colonia=?, numero_exterior=?, ciudad=?, calle=?, codigo_postal=?, numero_interior=?, tipo_empleado=?, imagen=? where usuario_id='"+in+"' ");
-        System.out.println("RECORD RUNNING AFTER");
-        
-        pst.setString(1, nombre);
-        pst.setString(2, apellido_p);
-        pst.setString(3, apellido_m);
-        pst.setString(4, curp);
-        pst.setString(5, rfc);
-        pst.setString(6, nss);
-        pst.setString(7, edad_emp);
-        pst.setString(8, fecha_nacimiento);
-        pst.setString(9, fecha_contratacion);
-        pst.setString(10, email);
-        pst.setString(11, genero);
-        pst.setString(12, sueldo);
-        pst.setString(13, metodo_pago);
-        pst.setString(14, banco);
-        pst.setString(15, numero_cuenta);
-        pst.setString(16, periodo_pago);
-        pst.setString(17, tipo_contrato);
-        pst.setString(18, pais);
-        pst.setString(19, estado);
-        pst.setString(20, localidad);
-        pst.setString(21, colonia);
-        pst.setString(22, numero_exterior);
-        pst.setString(23, ciudad);
-        pst.setString(24, calle);
-        pst.setString(25, codigo_postal);
-        pst.setString(26, numero_interior);
-        pst.setString(27, tipo_emp);
-        
-        System.out.println("UPLOADING IMAGEN "+file);
-        fis = new FileInputStream(file);
-        pst.setBinaryStream(28, fis, file.length());
-        System.out.println("IMAGEN UPLOADED!!!!");
-        
-        int status = pst.executeUpdate();
-        System.out.println("RECORD RUNNING POST QUERY");
-        if (status==1){
-            System.out.println("RECORD ADDED!!!");
-            LimpiarPerfil();
-            UpdateTable();
-            int id = Integer.parseInt(tbCodigoUsuarioAgregar.getText())+1;
-            tbCodigoUsuarioAgregar.setText(String.valueOf(id));
-        }else{
-            System.out.println("RECORD FAILED!!!");
-        }
-            
-        }catch (SQLException e){
-            
-        } catch (FileNotFoundException ex) {
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        
+        modifyEmpleadoInternal(true);
     }
+
+    private void modifyEmpleadoInternal(boolean withImage){
+        Empleados selectedRow = null;
+        try {
+            selectedRow = tableviewEmpleados.getItems().get(tableviewEmpleados.getSelectionModel().getSelectedIndex());
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "No hay fila seleccionada para modificar", e);
+            return;
+        }
+        if (selectedRow == null) return;
+        indexEmpleado = selectedRow.getEmpIdUsuario();
+        String in = Integer.toString(indexEmpleado);
+
+        LOGGER.log(Level.FINE, "RECORD RUNNING (modify)!!!");
+        try {
+            UsuarioDetalle u = buildUsuarioDetalleFromForm();
+            u.setUsuarioId(in);
+            boolean ok = UsuariosService.saveUsuario(u, null, withImage, file);
+            if (ok) {
+                LOGGER.log(Level.INFO, "RECORD UPDATED");
+                LimpiarPerfil();
+                UpdateTable();
+                int id = Integer.parseInt(tbCodigoUsuarioAgregar.getText()) + 1;
+                tbCodigoUsuarioAgregar.setText(String.valueOf(id));
+            } else {
+                LOGGER.log(Level.WARNING, "RECORD FAILED");
+            }
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error in modifyEmpleadoInternal", e);
+        }
+    }
+
+    /** Retorna el texto recortado, o {@code defaultVal} si está vacío o es nulo. */
+    private String safeText(TextField tf, String defaultVal) {
+        if (tf == null) return defaultVal;
+        String t = tf.getText();
+        if (t == null || t.trim().isEmpty()) return defaultVal;
+        return t.trim();
+    }
+
+    /** Retorna el valor seleccionado, o {@code defaultVal} si está vacío o es nulo. */
+    private String safeCombo(ComboBox<String> cb, String defaultVal) {
+        if (cb == null) return defaultVal;
+        String v = cb.getValue();
+        if (v == null || v.trim().isEmpty()) return defaultVal;
+        return v;
+    }
+
+    /**
+     * Convierte un valor de la BD a cadena vacía cuando es nulo o
+     * es la cadena literal "NULL" (datos heredados del formato anterior).
+     */
+    private static String orEmpty(String val) {
+        if (val == null || val.equals("NULL")) return "";
+        return val;
+    }
+
+    /**
+     * Lee todos los campos del formulario de empleado y construye un UsuarioDetalle (sin userId).
+     * Tanto la ruta de agregar como la de modificar usan este método para evitar duplicación.
+     */
+    private UsuarioDetalle buildUsuarioDetalleFromForm() {
+        LocalDate fecha    = tbFechaNacimiento.getValue()  != null ? tbFechaNacimiento.getValue()  : LocalDate.now();
+        LocalDate fechaCon = tbFechaContratacion.getValue() != null ? tbFechaContratacion.getValue() : LocalDate.now();
+        UsuarioDetalle u = new UsuarioDetalle();
+        // Campos obligatorios (NOT NULL en BD) — cadena vacía como valor por defecto
+        u.setNombre(safeText(tbNombreEmpleado, ""));
+        u.setApellidoPaterno(safeText(tbAPaternoEmpleado, ""));
+        u.setApellidoMaterno(safeText(tbAMaternoEmpleado, ""));
+        // Campos opcionales — null por defecto para que la BD almacene NULL
+        u.setCurp(safeText(tbCurp, null));
+        u.setRfc(safeText(tbRfc, null));
+        u.setNss(safeText(tbNss, null));
+        u.setFechaNacimiento(fecha != null ? fecha.toString() : null);
+        u.setFechaContratacion(fechaCon != null ? fechaCon.toString() : null);
+        u.setEmail(safeText(tbEmailEmpleado, null));
+        u.setGenero(safeCombo(cbGenero, null));
+        u.setSueldo(safeText(tbSueldoEmpleado, null));
+        u.setMetodoPago(safeCombo(cbMetodoPago, null));
+        u.setBanco(safeCombo(cbBanco, null));
+        u.setNumeroCuenta(safeText(tbNCuenta, null));
+        u.setPeriodoPago(safeCombo(cbPeriodoPago, null));
+        u.setTipoContrato(safeCombo(cbContrato, null));
+        u.setPais(safeCombo(cbPais, null));
+        u.setEstado(safeCombo(cbEstado, null));
+        u.setLocalidad(safeText(tbLocalidad, null));
+        u.setColonia(safeText(tbColonia, null));
+        u.setNumeroExterior(safeText(tbNExterior, null));
+        u.setCiudad(safeCombo(cbCiudad, null));
+        u.setCalle(safeText(tbCalle, null));
+        u.setCodigoPostal(safeText(tbCodigoPostal, null));
+        u.setNumeroInterior(safeText(tbNInterior, null));
+        u.setTipoEmpleado(safeCombo(cbTipoUsuario, null));
+        return u;
+    }
+
+    /**
+     * Rellena todos los campos del formulario de empleado a partir de un UsuarioDetalle.
+     * Utilizado por PerfilEmpleado() y PerfilEmpleadoProduccion().
+     */
+    private void populateFormFromUsuario(UsuarioDetalle u) {
+        try {
+            if (u == null) {
+                LOGGER.log(Level.FINE, "No hay informacion del empleado");
+                return;
+            }
+            tbCodigoUsuarioAgregar.setText(orEmpty(u.getUsuarioId()));
+            tbNombreEmpleado.setText(orEmpty(u.getNombre()));
+            tbAPaternoEmpleado.setText(orEmpty(u.getApellidoPaterno()));
+            tbAMaternoEmpleado.setText(orEmpty(u.getApellidoMaterno()));
+            tbCurp.setText(orEmpty(u.getCurp()));
+            tbRfc.setText(orEmpty(u.getRfc()));
+            tbNss.setText(orEmpty(u.getNss()));
+            String fn = u.getFechaNacimiento();
+            if (fn != null && !fn.isEmpty() && !fn.equals("NULL")) {
+                try { tbFechaNacimiento.setValue(LocalDate.parse(fn)); } catch (Exception ignored) {}
+            } else {
+                tbFechaNacimiento.setValue(null);
+            }
+            String fc = u.getFechaContratacion();
+            if (fc != null && !fc.isEmpty() && !fc.equals("NULL")) {
+                try { tbFechaContratacion.setValue(LocalDate.parse(fc)); } catch (Exception ignored) {}
+            } else {
+                tbFechaContratacion.setValue(null);
+            }
+            tbEmailEmpleado.setText(orEmpty(u.getEmail()));
+            cbGenero.setValue("NULL".equals(u.getGenero()) ? null : u.getGenero());
+            cbTipoUsuario.setValue("NULL".equals(u.getTipoEmpleado()) ? null : u.getTipoEmpleado());
+            tbSueldoEmpleado.setText(orEmpty(u.getSueldo()));
+            cbMetodoPago.setValue("NULL".equals(u.getMetodoPago()) ? null : u.getMetodoPago());
+            cbBanco.setValue("NULL".equals(u.getBanco()) ? null : u.getBanco());
+            tbNCuenta.setText(orEmpty(u.getNumeroCuenta()));
+            cbPeriodoPago.setValue("NULL".equals(u.getPeriodoPago()) ? null : u.getPeriodoPago());
+            cbContrato.setValue("NULL".equals(u.getTipoContrato()) ? null : u.getTipoContrato());
+            cbPais.setValue("NULL".equals(u.getPais()) ? null : u.getPais());
+            cbEstado.setValue("NULL".equals(u.getEstado()) ? null : u.getEstado());
+            tbLocalidad.setText(orEmpty(u.getLocalidad()));
+            tbColonia.setText(orEmpty(u.getColonia()));
+            tbNExterior.setText(orEmpty(u.getNumeroExterior()));
+            cbCiudad.setValue("NULL".equals(u.getCiudad()) ? null : u.getCiudad());
+            tbCalle.setText(orEmpty(u.getCalle()));
+            tbCodigoPostal.setText(orEmpty(u.getCodigoPostal()));
+            tbNInterior.setText(orEmpty(u.getNumeroInterior()));
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error in populateFormFromUsuario", e);
+        }
+    }
+
     // MODIFICAR EMPLEADO
     
     public void PerfilEmpleado(){
-        
         btnModificarEmpleado.toFront();
         btnVolverEmpleados.toFront();
         Empleados index = tableviewEmpleados.getItems().get(tableviewEmpleados.getSelectionModel().getSelectedIndex());
-        indexEmpleado = index.getEmpIdUsuario();     
+        indexEmpleado = index.getEmpIdUsuario();
         String in = Integer.toString(indexEmpleado);
-        BusquedaEmpleado busqueda = new BusquedaEmpleado() {};
-        ResultSet rs = null;
-        rs = busqueda.find(in);
-        System.out.println("Index seleccionado "+in);
-        
-        try{
-            if(rs.next()){
-                tbCodigoUsuarioAgregar.setText(rs.getString("usuario_id"));
-                tbNombreEmpleado.setText(rs.getString("nombre"));
-                tbAPaternoEmpleado.setText(rs.getString("apellido_paterno"));
-                tbAMaternoEmpleado.setText(rs.getString("apellido_materno"));
-                tbCurp.setText(rs.getString("curp"));
-                tbRfc.setText(rs.getString("rfc"));
-                tbNss.setText(rs.getString("nss"));
-                
-                String fecha_nacimiento = rs.getString("fecha_nacimiento");  
-                LocalDate localDate = LocalDate.parse(fecha_nacimiento);
-                tbFechaNacimiento.setValue(localDate);
-                
-                String fecha_contratacion = rs.getString("fecha_contratacion");  
-                localDate = LocalDate.parse(fecha_contratacion);
-                tbFechaContratacion.setValue(localDate);
-
-                tbEmailEmpleado.setText(rs.getString("email"));
-                cbGenero.setValue(rs.getString("genero"));
-                cbTipoUsuario.setValue(rs.getString("tipo_empleado"));
-                tbSueldoEmpleado.setText(rs.getString("sueldo"));
-                cbMetodoPago.setValue(rs.getString("metodo_pago"));
-                cbBanco.setValue(rs.getString("banco"));
-                tbNCuenta.setText(rs.getString("numero_cuenta"));
-                cbPeriodoPago.setValue(rs.getString("periodo_pago"));
-                cbContrato.setValue(rs.getString("tipo_contrato"));
-                
-                cbPais.setValue(rs.getString("pais"));
-                cbEstado.setValue(rs.getString("estado"));
-                tbLocalidad.setText(rs.getString("localidad"));
-                tbColonia.setText(rs.getString("colonia"));
-                tbNExterior.setText(rs.getString("numero_exterior"));
-                
-                cbCiudad.setValue(rs.getString("ciudad"));
-                tbCalle.setText(rs.getString("calle"));
-                tbCodigoPostal.setText(rs.getString("codigo_postal"));
-                tbNInterior.setText(rs.getString("numero_interior"));
-            }else{
-            System.out.println("No hay informacion de domicilio ");
-        }   
-        }catch (Exception e){
-            
-        }  
+        UsuarioDetalle u = UsuariosDao.findById(in);
+        LOGGER.log(Level.FINE, "Index seleccionado {0}", in);
+        populateFormFromUsuario(u);
     }
     
     public void updateImagenPerfil(){
-        System.out.println("CONSEGUI FUERA"+image);
+        LOGGER.log(Level.FINE, "CONSEGUI FUERA {0}", image);
         btnImagenPerfil.setImage(image);
-        System.out.println("TERMINE FUERA"+btnImagenPerfil.getImage()); 
+        LOGGER.log(Level.FINE, "TERMINE FUERA {0}", btnImagenPerfil.getImage());
     }
     
     public void LimpiarPerfil(){
@@ -1953,7 +1318,7 @@ public class DashboardController implements Initializable {
         cbMetodoPago.setValue("EFECTIVO"); cbBanco.setValue(null); tbNCuenta.clear(); cbPeriodoPago.setValue("QUINCENAL"); cbContrato.setValue("INDEFINIDO"); 
         cbPais.setValue("Mexico"); cbEstado.setValue("Sinaloa"); tbLocalidad.clear(); tbColonia.clear(); tbNExterior.clear(); cbCiudad.setValue("Culiacan"); 
         tbCalle.clear(); tbCodigoPostal.clear(); tbNInterior.clear(); btnImagenPerfil.setImage(backup); btnSubirImagen.setText("SUBIR IMAGEN"); 
-        lbPath.setText(null); file=null; tbCodigoPostal.clear(); tbNInterior.clear(); file = new File("D:/sin_perfil.png");
+        lbPath.setText(null); file=null; tbCodigoPostal.clear(); tbNInterior.clear();
     }
     
     @FXML
@@ -1966,8 +1331,8 @@ public class DashboardController implements Initializable {
         cbPais.setValue(cbPais.getValue());
         cbEstado.setValue(cbEstado.getValue());
         fillComboBoxEstados();
-        System.out.println("PAIS SELECCIONADO "+cbPais.getValue());
-        System.out.println("PAIS SELECCIONADO "+cbEstado.getValue());
+        LOGGER.log(Level.FINE, "PAIS SELECCIONADO {0}", cbPais.getValue());
+        LOGGER.log(Level.FINE, "PAIS SELECCIONADO {0}", cbEstado.getValue());
         
     }   
     @FXML
@@ -1975,174 +1340,112 @@ public class DashboardController implements Initializable {
         cbPais.setValue(cbPais.getValue());
         cbEstado.setValue(cbEstado.getValue());
         fillComboBoxCiudades();
-        System.out.println("PAIS SELECCIONADO "+cbPais.getValue());
-        System.out.println("PAIS SELECCIONADO "+cbEstado.getValue());
+        LOGGER.log(Level.FINE, "PAIS SELECCIONADO {0}", cbPais.getValue());
+        LOGGER.log(Level.FINE, "PAIS SELECCIONADO {0}", cbEstado.getValue());
         
     }
 
     @FXML
     void updateMetodo(ActionEvent event) {
-        
-        if (cbMetodoPago.getSelectionModel().isSelected(1)){  
-            cbBanco.setDisable(false);
-            tbNCuenta.setDisable(false);
-            System.out.println("FALSE!!! "+cbMetodoPago.getValue());
-        }else{
-            cbBanco.setDisable(true);
-            tbNCuenta.setDisable(true);
+        String metodo = cbMetodoPago.getValue();
+        boolean requiereBanco = metodo != null && !"EFECTIVO".equals(metodo);
+        cbBanco.setDisable(!requiereBanco);
+        tbNCuenta.setDisable(!requiereBanco);
+        if (!requiereBanco) {
             cbBanco.setValue(null);
             tbNCuenta.clear();
-            System.out.println("TRUE!!! "+cbMetodoPago.getValue());
         }
-        System.out.println("FUERAAA "+cbMetodoPago.getValue());
+        LOGGER.log(Level.FINE, "Metodo pago seleccionado: {0}, requiere banco: {1}", new Object[]{metodo, requiereBanco});
     }
     // FIN PANTALLA EMPLEADOS
     
     // PANTALLA PRODUCCION
     
-    public class BusquedaProduccion{
-        ResultSet rs = null;
-        PreparedStatement ps = null;
-        public ResultSet find (String s){
-            try{
-                ps = con.prepareStatement("select * from produccion where id = ?");
-                ps.setString(1,s);
-                rs = ps.executeQuery();
-            } catch (Exception e){
-                
-            }
-            return rs;
-        }       
-        
-    }
+    
     
     String indexProduccionS;
     public void TableProduccionS(){
-        
         tvHistorial.setOnMouseClicked(new EventHandler<MouseEvent>(){
             public void handle(MouseEvent event) {
-                Historial index = tvHistorial.getItems().get(tvHistorial.getSelectionModel().getSelectedIndex());
+                Historial index = tvHistorial.getSelectionModel().getSelectedItem();
+                if (index == null) return;
                 indexProduccionS = index.getTcCodigoHistorial();
-                String in = indexProduccionS;
-                
-                BusquedaProduccion busqueda = new BusquedaProduccion() {};
-                ResultSet rs = null;
-                rs = busqueda.find(in);
-                System.out.println("Index seleccionado "+in);
-                
-                String date; LocalDate LocalDate = null;
-                try{
-                    if(rs.next()){
-                        cbMaterialEditar.setValue(rs.getString("material"));
-                        cbCalibreEditar.setValue(rs.getString("calibre"));
-                        cbAlturaEditar.setValue(rs.getString("altura"));
-                        cbRomboEditar.setValue(rs.getString("rombos"));
-                        tbMetrosEditar.setText(rs.getString("metros"));
-                        tbCantidadProduccionEditar.setText(rs.getString("cantidad"));
-                        date = rs.getString("fecha_registro");
-                        LocalDate = LocalDate.parse(date);    
-                        tbFechaRegistroEditar.setValue(LocalDate);
-                                            
-                        
-                    }else{
-                     System.out.println("No hay informacion de domicilio ");
-                }   
-                }catch (Exception e){
+                String id = indexProduccionS;
+                LOGGER.log(Level.FINE, "Historial fila seleccionada id={0}", id);
+                try {
+                    // Rellenar los campos de edición con los valores de la fila seleccionada
+                    cbMaterialEditar.setValue(index.getTcMaterialHistorial());
+                    cbCalibreEditar.setValue(index.getTcCalibreHistorial());
+                    cbAlturaEditar.setValue(index.getTcAlturaHistorial());
+                    cbRomboEditar.setValue(index.getTcRomboHistorial());
+                    tbMetrosEditar.setText(index.getTcMetrosHistorial());
+                    tbCantidadProduccionEditar.setText(index.getTcCantidadHistorial());
 
-                }
-                
-            }
-        }
-        );
-        
-        tvSemanal.setOnMouseClicked(new EventHandler<MouseEvent>(){
-            public void handle(MouseEvent event) {
-                ProduccionSemanal index = tvSemanal.getItems().get(tvSemanal.getSelectionModel().getSelectedIndex());
-                indexProduccionS = index.getTcCodigoS();
-                String in = indexProduccionS;
-                
-                BusquedaProduccion busqueda = new BusquedaProduccion() {};
-                ResultSet rs = null;
-                rs = busqueda.find(in);
-                System.out.println("Index seleccionado "+in);
-                
-                String date; LocalDate LocalDate = null;
-                try{
-                    if(rs.next()){
-                        cbMaterialEditar.setValue(rs.getString("material"));
-                        cbCalibreEditar.setValue(rs.getString("calibre"));
-                        cbAlturaEditar.setValue(rs.getString("altura"));
-                        cbRomboEditar.setValue(rs.getString("rombos"));
-                        tbMetrosEditar.setText(rs.getString("metros"));
-                        tbCantidadProduccionEditar.setText(rs.getString("cantidad"));
-                        date = rs.getString("fecha_registro");
-                        LocalDate = LocalDate.parse(date);    
-                        tbFechaRegistroEditar.setValue(LocalDate);
-                                            
-                        
-                    }else{
-                     System.out.println("No hay informacion de domicilio ");
-                }   
-                }catch (Exception e){
+                    // Intentar parsear la fecha (se espera ISO yyyy-MM-dd)
+                    String fechaStr = index.getTcDiaHistorial();
+                    if (fechaStr != null && !fechaStr.trim().isEmpty()) {
+                        try {
+                            LocalDate fecha = LocalDate.parse(fechaStr);
+                            tbFechaRegistroEditar.setValue(fecha);
+                        } catch (Exception pe) {
+                            LOGGER.log(Level.FINE, "No se pudo parsear fecha para edición: {0}", fechaStr);
+                            tbFechaRegistroEditar.setValue(null);
+                        }
+                    } else {
+                        tbFechaRegistroEditar.setValue(null);
+                    }
 
+                    // Actualizar perfil mostrado en la sección Producción/Historial usando el id de empleado actual
+                    String usuarioId = tbCodigoHistorial.getText();
+                    if (usuarioId != null && !usuarioId.trim().isEmpty()) {
+                        try {
+                            UsuarioDetalle u = UsuariosDao.findById(usuarioId);
+                            if (u != null) {
+                                lbHDomicilio.setText(u.getTipoEmpleado());
+                                String timestamp = u.getCreateTime();
+                                if (timestamp != null && timestamp.length() >= 10) {
+                                    lbHFecha.setText(DateUtils.formatLongDate(timestamp, true));
+                                }
+                                imgPerfil.setImage(ImageUtils.fromBytesOrDefault(u.getImagen(), sinperfil));
+                            } else {
+                                imgPerfil.setImage(sinperfil);
+                            }
+                        } catch (Exception e) {
+                            LOGGER.log(Level.SEVERE, "Error al cargar perfil en selección de Historial", e);
+                        }
+                    }
+                } catch (Exception e) {
+                    LOGGER.log(Level.SEVERE, "Error in Historial table click handler", e);
                 }
-                
+
             }
-        }
-        );
-        
+        });
+
     }
     
     public void ModificarProduccion(){
-        
-        LocalDate fecha, day;
-        if(tbFechaRegistroEditar.getValue() == null){
-            fecha = LocalDate.now();
-            day = LocalDate.now();
-        }else { 
-        fecha = tbFechaRegistroEditar.getValue();
-        day = tbFechaRegistroEditar.getValue();
-        }
-        String fecha_registro = fecha.toString();
-        DateTimeFormatter format = DateTimeFormatter.ofPattern("EEEE", Locale.getDefault());
-        String dia = day.format(format);
-        String DiatoUpperCase = dia.toUpperCase();
-        
+        LocalDate fecha = tbFechaRegistroEditar.getValue() != null ? tbFechaRegistroEditar.getValue() : LocalDate.now();
         String id = indexProduccionS;
-        String material = cbMaterialEditar.getValue();      if (cbMaterialEditar.getValue() == null){material = "NULL";}
-        String calibre = cbCalibreEditar.getValue();        if (cbCalibreEditar.getValue() == null ){calibre = "NULL";}
-        String altura = cbAlturaEditar.getValue();          if (cbAlturaEditar.getValue() == null ){altura = "NULL";}
-        String rombo = cbRomboEditar.getValue();            if (cbRomboEditar.getValue() == null ){rombo = "NULL";}
-        String metros = tbMetrosEditar.getText();           if (tbMetrosEditar.getText().isEmpty()){metros = "NULL";}
-        String cantidad = tbCantidadProduccionEditar.getText(); if (tbCantidadProduccionEditar.getText().isEmpty()){cantidad = "NULL";}
-        
-        try{
-        System.out.println("RECORD RUNNING INSIDE!!!");
-        pst = con.prepareStatement("update produccion set material= ?, calibre=?, altura=?, rombos=?, metros=?, cantidad=?,fecha_registro=?, dia=? where id='"+id+"'");
-        pst.setString(1, material);
-        pst.setString(2, calibre);
-        pst.setString(3, altura);
-        pst.setString(4, rombo);
-        pst.setString(5, metros);
-        pst.setString(6, cantidad);
-        pst.setString(7, fecha_registro);
-        pst.setString(8, DiatoUpperCase);
-        pst.execute();
-        System.out.println("RECORD RUNNING AFTER"); 
-        int status = pst.executeUpdate();
-        System.out.println("RECORD RUNNING POST QUERY");
-        if (status==1){
-            System.out.println("RECORD ADDED!!!");
+        String material = cbMaterialEditar.getValue();
+        String calibre = cbCalibreEditar.getValue();
+        String altura = cbAlturaEditar.getValue();
+        String rombo = cbRomboEditar.getValue();
+        String metros = tbMetrosEditar.getText().isEmpty() ? "NULL" : tbMetrosEditar.getText();
+        String cantidad = tbCantidadProduccionEditar.getText().isEmpty() ? "NULL" : tbCantidadProduccionEditar.getText();
+
+        if (id == null || id.trim().isEmpty()) {
+            LOGGER.log(Level.WARNING, "No hay registro seleccionado para modificar produccion (id nulo)");
+            return;
+        }
+
+        boolean ok = ProduccionService.updateProduccion(id, material, calibre, altura, rombo, metros, cantidad, fecha);
+        if (ok) {
+            LOGGER.log(Level.INFO, "Produccion modificada correctamente id={0}", id);
             UpdateProduccionSemanal();
             UpdateHistorial();
-        }else{
-            System.out.println("RECORD FAILED!!!");
+        } else {
+            LOGGER.log(Level.WARNING, "No se pudo modificar la produccion id={0}", id);
         }
-        pst.close();    
-        }catch (SQLException e){
-            
-        }
-    
     }
     
     public void FechaActualProduccion(){
@@ -2151,135 +1454,60 @@ public class DashboardController implements Initializable {
     }
     
     public void fillComboBoxMaterial(){
-        try{
-            String query = "select nombre from materiales";
-            pst = con.prepareStatement(query);
-            ResultSet rs = pst.executeQuery();
-            while(rs.next()){
-                MaterialOpcion.add(rs.getString("nombre"));
-                EditarMaterialOpcion.add(rs.getString("nombre"));
-            }
-            cbMaterial.setValue(cbMaterial.getValue());
-            cbMaterialEditar.setValue(cbMaterialEditar.getValue());
-            pst.close();
-            rs.close();
-        }catch (SQLException ex){
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        
+        refreshComboBoxPair(MaterialOpcion, EditarMaterialOpcion,
+                cbMaterial, cbMaterialEditar, LookupService::getMateriales);
     }
-    
+
     public void fillComboBoxAltura(){
-        try{
-            String query = "select altura from alturas";
-            pst = con.prepareStatement(query);
-            ResultSet rs = pst.executeQuery();
-            while(rs.next()){
-                AlturaOpcion.add(rs.getString("altura"));
-                EditarAlturaOpcion.add(rs.getString("altura"));
-            }
-            cbAltura.setValue(cbAltura.getValue());
-            cbAlturaEditar.setValue(cbAlturaEditar.getValue());
-            pst.close();
-            rs.close();
-        }catch (SQLException ex){
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        
+        refreshComboBoxPair(AlturaOpcion, EditarAlturaOpcion,
+                cbAltura, cbAlturaEditar, LookupService::getAlturas);
     }
-    
+
     public void fillComboBoxCalibre(){
-        try{
-            String query = "select calibre from calibres";
-            pst = con.prepareStatement(query);
-            ResultSet rs = pst.executeQuery();
-            while(rs.next()){
-                CalibreOpcion.add(rs.getString("calibre"));
-                EditarCalibreOpcion.add(rs.getString("calibre"));
-            }
-            cbCalibre.setValue(cbCalibre.getValue());
-            cbCalibreEditar.setValue(cbCalibreEditar.getValue());
-            pst.close();
-            rs.close();
-        }catch (SQLException ex){
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        
+        refreshComboBoxPair(CalibreOpcion, EditarCalibreOpcion,
+                cbCalibre, cbCalibreEditar, LookupService::getCalibres);
     }
-    
+
     public void fillComboBoxRombo(){
-        try{
-            String query = "select rombo from rombos";
-            pst = con.prepareStatement(query);
-            ResultSet rs = pst.executeQuery();
-            while(rs.next()){
-                RomboOpcion.add(rs.getString("rombo"));
-                EditarRomboOpcion.add(rs.getString("rombo"));
-            }
-            cbRombo.setValue(cbRombo.getValue());
-            cbRomboEditar.setValue(cbRomboEditar.getValue());
-            pst.close();
-            rs.close();
-        }catch (SQLException ex){
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        
+        refreshComboBoxPair(RomboOpcion, EditarRomboOpcion,
+                cbRombo, cbRomboEditar, LookupService::getRombos);
+    }
+
+    /** Recarga un par de ObservableLists preservando los valores actuales de los ComboBox. */
+    private void refreshComboBoxPair(
+            ObservableList<String> a, ObservableList<String> b,
+            javafx.scene.control.ComboBox<String> cbA,
+            javafx.scene.control.ComboBox<String> cbB,
+            Supplier<ObservableList<String>> supplier) {
+        ObservableList<String> list = supplier.get();
+        a.clear(); b.clear();
+        a.addAll(list); b.addAll(list);
+        cbA.setValue(cbA.getValue());
+        cbB.setValue(cbB.getValue());
     }
     public void AgregarProduccion(){
-        
-        LocalDate fecha, day;
-        if(tbFechaRegistro.getValue() == null){
-            fecha = LocalDate.now();
-            day = LocalDate.now();
-        }else { 
-        fecha = tbFechaRegistro.getValue();
-        day = tbFechaRegistro.getValue();
-        }
-        String fecha_registro = fecha.toString();
-        DateTimeFormatter format = DateTimeFormatter.ofPattern("EEEE", Locale.getDefault());
-        String dia = day.format(format);
-        String DiatoUpperCase = dia.toUpperCase();
-        
-        String material = cbMaterial.getValue();         if (cbMaterial.getValue().isEmpty()){material = "NULL";}
-        String calibre = cbCalibre.getValue();           if (cbCalibre.getValue().isEmpty()){calibre = "NULL";}
-        String altura = cbAltura.getValue();             if (cbAltura.getValue().isEmpty()){altura = "NULL";}
-        String rombos = cbRombo.getValue();              if (cbRombo.getValue().isEmpty()){rombos = "NULL";}
-        String metros = tbMetros.getText();              if (tbMetros.getText().isEmpty()){metros = "NULL";}
-        String cantidad = tbCantidadProduccion.getText();if (tbCantidadProduccion.getText().isEmpty()){cantidad = "NULL";}
-        String autorid = lbHCodigo2.getText();           if (lbHCodigo2.getText().isEmpty()){autorid = "NULL";}
-        String autor = lbHNombre2.getText();             if (lbHNombre2.getText().isEmpty()){autor = "NULL";}
-        
-        
-        
-        try{
-        System.out.println("RECORD RUNNING INSIDE!!!");
-        pst = con.prepareStatement("insert into produccion (material, calibre, altura, rombos, metros, cantidad, autor_id, autor, fecha_registro, dia) "
-                + "values(?,?,?,?,?,?,?,?,?,?)");
-        System.out.println("RECORD RUNNING AFTER");
-        
-        pst.setString(1, material);
-        pst.setString(2, calibre);
-        pst.setString(3, altura);
-        pst.setString(4, rombos);
-        pst.setString(5, metros);
-        pst.setString(6, cantidad);
-        pst.setString(7, autorid);
-        pst.setString(8, autor);
-        pst.setString(9, fecha_registro);
-        pst.setString(10, DiatoUpperCase);
-        int status = pst.executeUpdate();
-        System.out.println("RECORD RUNNING POST QUERY");
-        if (status==1){
-            System.out.println("RECORD ADDED!!!");
+        LOGGER.log(Level.FINE, "AgregarProduccion button pressed");
+        LocalDate fecha = tbFechaRegistro.getValue() != null ? tbFechaRegistro.getValue() : LocalDate.now();
+        String material = cbMaterial.getValue();
+        String calibre = cbCalibre.getValue();
+        String altura = cbAltura.getValue();
+        String rombos = cbRombo.getValue();
+        String metros = (tbMetros.getText() == null || tbMetros.getText().isEmpty()) ? "NULL" : tbMetros.getText();
+        String cantidad = (tbCantidadProduccion.getText() == null || tbCantidadProduccion.getText().isEmpty()) ? "NULL" : tbCantidadProduccion.getText();
+        String autorid = lbHCodigo2.getText();
+
+        boolean ok = ProduccionService.insertProduccion(material, calibre, altura, rombos, metros, cantidad, autorid, fecha);
+        if (ok) {
+            LOGGER.log(Level.INFO, "Produccion agregada correctamente");
             cleanProduccion();
-        }else{
-            System.out.println("RECORD FAILED!!!");
+        } else {
+            LOGGER.log(Level.WARNING, "No se pudo agregar la produccion");
+            Alert alert = new Alert(AlertType.ERROR);
+            alert.setTitle("Error al guardar");
+            alert.setHeaderText("No se pudo guardar la producción");
+            alert.setContentText("Verifique los datos e intente de nuevo.");
+            alert.showAndWait();
         }
-            
-        }catch (SQLException e){
-            
-        }
-    
     }
     
     public void cleanProduccion(){
@@ -2293,200 +1521,50 @@ public class DashboardController implements Initializable {
     }
     
     public void BuscarEmpleadoProduccion(){
-                
-                String in = tbCodigoProduccion.getText();
-                
-                BusquedaEmpleado busqueda = new BusquedaEmpleado() {};
-                ResultSet rs = null;
-                rs = busqueda.find(in);
-                System.out.println("Index seleccionado "+in);
-                
-                try{
-                    if(rs.next()){
-                        btnEditarEmpleado2.setDisable(false);
-                        lbHCodigo2.setText(rs.getString("usuario_id"));
-                        lbHNombre2.setText(rs.getString("nombre")+" "+rs.getString("apellido_paterno")+" "+rs.getString("apellido_materno"));
-                        lbHDomicilio2.setText(rs.getString("tipo_empleado"));
-                        String timestamp = rs.getString("create_time");
-                        String año = timestamp.substring(0,4);
-                        String dia = timestamp.substring(8,10);
-                        String mes = timestamp.substring(5,7);
-                        String mesn = "mes";
-                        switch (mes){
-                            case "1": mesn = "ENERO"; break;
-                            case "2": mesn = "FEBRERO"; break;
-                            case "3": mesn = "MARZO"; break;
-                            case "4": mesn = "ABRIL"; break;
-                            case "5": mesn = "MAYO"; break;
-                            case "6": mesn = "JUNIO"; break;
-                            case "7": mesn = "JULIO"; break;
-                            case "8": mesn = "AGOSTO"; break;
-                            case "9": mesn = "SEPTIEMBRE"; break;
-                            case "10": mesn = "OCTUBRE"; break;
-                            case "11": mesn = "NOVIEMBRE"; break;
-                            case "12": mesn = "DICIEMBRE"; break;
-                        }
-                        System.out.println("AÑO "+año);
-                        System.out.println("DIA "+dia);
-                        System.out.println("MES "+mes);
-                        lbHFecha2.setText( dia + " DE "+ mesn +" DEL "+ año);
-                        
-                        InputStream is = rs.getBinaryStream("imagen");
-                        OutputStream os = new FileOutputStream( new File("photo.png"));
-                        byte[] content = new byte[1024];
-                        int size = 0;
-                        while((size = is.read(content)) != -1){
-                            os.write(content, 0, size);
-                        }
-                        if(is!=null){
-                        image = new Image("file:photo.png");
-                        imgPerfilProduccion.setImage(image);
-                        }else{
-                        imgPerfilProduccion.setImage(backup);
-                        }
-                        os.close();
-                        is.close();
-                    }else{
-                     Alert alert = new Alert(AlertType.ERROR);
-                     Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-                     stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                     alert.setTitle("No hay coincidencias");
-                     alert.setHeaderText("No se encontro empleado");
-                     alert.showAndWait();
-                     imgPerfil.setImage(sinperfil);
-                     System.out.println("No hay informacion de domicilio ");
-                }   
-                }catch (Exception e){
-
-                }
-
+        buscarYMostrarEmpleadoProduccion(tbCodigoProduccion.getText());
     }
     
     public void BuscarEmpleadoConBotonProduccion(){
-                
-                String in = lbHCodigo.getText();
-                
-                BusquedaEmpleado busqueda = new BusquedaEmpleado() {};
-                ResultSet rs = null;
-                rs = busqueda.find(in);
-                System.out.println("Index seleccionado "+in);
-                
-                try{
-                    if(rs.next()){
-                        btnEditarEmpleado2.setDisable(false);
-                        tbCodigoProduccion.setText(rs.getString("usuario_id"));
-                        lbHCodigo2.setText(rs.getString("usuario_id"));
-                        lbHNombre2.setText(rs.getString("nombre")+" "+rs.getString("apellido_paterno")+" "+rs.getString("apellido_materno"));
-                        lbHDomicilio2.setText(rs.getString("tipo_empleado"));
-                        String timestamp = rs.getString("create_time");
-                        String año = timestamp.substring(0,4);
-                        String dia = timestamp.substring(8,10);
-                        String mes = timestamp.substring(5,7);
-                        String mesn = "mes";
-                        switch (mes){
-                            case "1": mesn = "ENERO"; break;
-                            case "2": mesn = "FEBRERO"; break;
-                            case "3": mesn = "MARZO"; break;
-                            case "4": mesn = "ABRIL"; break;
-                            case "5": mesn = "MAYO"; break;
-                            case "6": mesn = "JUNIO"; break;
-                            case "7": mesn = "JULIO"; break;
-                            case "8": mesn = "AGOSTO"; break;
-                            case "9": mesn = "SEPTIEMBRE"; break;
-                            case "10": mesn = "OCTUBRE"; break;
-                            case "11": mesn = "NOVIEMBRE"; break;
-                            case "12": mesn = "DICIEMBRE"; break;
-                        }
-                        System.out.println("AÑO "+año);
-                        System.out.println("DIA "+dia);
-                        System.out.println("MES "+mes);
-                        lbHFecha2.setText( dia + " DE "+ mesn +" DEL "+ año);
-                        
-                        InputStream is = rs.getBinaryStream("imagen");
-                        OutputStream os = new FileOutputStream( new File("photo.png"));
-                        byte[] content = new byte[1024];
-                        int size = 0;
-                        while((size = is.read(content)) != -1){
-                            os.write(content, 0, size);
-                        }
-                        if(is!=null){
-                        image = new Image("file:photo.png");
-                        imgPerfilProduccion.setImage(image);
-                        }else{
-                        imgPerfilProduccion.setImage(backup);
-                        }
-                        os.close();
-                        is.close();
-                    }else{
-                     Alert alert = new Alert(AlertType.ERROR);
-                     Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-                     stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                     alert.setTitle("No hay coincidencias");
-                     alert.setHeaderText("No se encontro empleado");
-                     alert.showAndWait();
-                     imgPerfil.setImage(sinperfil);
-                     System.out.println("No hay informacion de domicilio ");
-                }   
-                }catch (Exception e){
-
-                }
-
+        String id = lbHCodigo.getText();
+        tbCodigoProduccion.setText(id);
+        buscarYMostrarEmpleadoProduccion(id);
     }
     
+    /**
+     * Busca un empleado por id y rellena las etiquetas de perfil en la pantalla de producción.
+     * Muestra una alerta de error si no se encuentra.
+     */
+    private void buscarYMostrarEmpleadoProduccion(String in) {
+        UsuarioDetalle u = UsuariosDao.findById(in);
+        LOGGER.log(Level.FINE, "Index seleccionado {0}", in);
+        try {
+            if (u != null) {
+                btnEditarEmpleado2.setDisable(false);
+                lbHCodigo2.setText(u.getUsuarioId());
+                lbHNombre2.setText(u.getNombre() + " " + u.getApellidoPaterno() + " " + u.getApellidoMaterno());
+                lbHDomicilio2.setText(u.getTipoEmpleado());
+                String timestamp = u.getCreateTime();
+                if (timestamp != null && timestamp.length() >= 10) {
+                    lbHFecha2.setText(DateUtils.formatLongDate(timestamp, true));
+                }
+                imgPerfilProduccion.setImage(ImageUtils.fromBytesOrDefault(u.getImagen(), backup));
+            } else {
+                showAlert(AlertType.ERROR, "No hay coincidencias", "No se encontro empleado", null);
+                imgPerfil.setImage(sinperfil);
+                LOGGER.log(Level.FINE, "No hay informacion de domicilio");
+            }
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error en buscarYMostrarEmpleadoProduccion", e);
+        }
+    }
+
     public void PerfilEmpleadoProduccion(){
-        
         btnModificarEmpleado.toFront();
         btnVolverHistorial.toFront();
         String in = lbHCodigo2.getText();
-        BusquedaEmpleado busqueda = new BusquedaEmpleado() {};
-        ResultSet rs = null;
-        rs = busqueda.find(in);
-        System.out.println("Index seleccionado "+in);
-        
-        try{
-            if(rs.next()){
-                tbCodigoUsuarioAgregar.setText(rs.getString("usuario_id"));
-                tbNombreEmpleado.setText(rs.getString("nombre"));
-                tbAPaternoEmpleado.setText(rs.getString("apellido_paterno"));
-                tbAMaternoEmpleado.setText(rs.getString("apellido_materno"));
-                tbCurp.setText(rs.getString("curp"));
-                tbRfc.setText(rs.getString("rfc"));
-                tbNss.setText(rs.getString("nss"));
-                
-                String fecha_nacimiento = rs.getString("fecha_nacimiento");  
-                LocalDate localDate = LocalDate.parse(fecha_nacimiento);
-                tbFechaNacimiento.setValue(localDate);
-                
-                String fecha_contratacion = rs.getString("fecha_contratacion");  
-                localDate = LocalDate.parse(fecha_contratacion);
-                tbFechaContratacion.setValue(localDate);
-
-                tbEmailEmpleado.setText(rs.getString("email"));
-                cbGenero.setValue(rs.getString("genero"));
-                cbTipoUsuario.setValue(rs.getString("tipo_empleado"));
-                tbSueldoEmpleado.setText(rs.getString("sueldo"));
-                cbMetodoPago.setValue(rs.getString("metodo_pago"));
-                cbBanco.setValue(rs.getString("banco"));
-                tbNCuenta.setText(rs.getString("numero_cuenta"));
-                cbPeriodoPago.setValue(rs.getString("periodo_pago"));
-                cbContrato.setValue(rs.getString("tipo_contrato"));
-                
-                cbPais.setValue(rs.getString("pais"));
-                cbEstado.setValue(rs.getString("estado"));
-                tbLocalidad.setText(rs.getString("localidad"));
-                tbColonia.setText(rs.getString("colonia"));
-                tbNExterior.setText(rs.getString("numero_exterior"));
-                
-                cbCiudad.setValue(rs.getString("ciudad"));
-                tbCalle.setText(rs.getString("calle"));
-                tbCodigoPostal.setText(rs.getString("codigo_postal"));
-                tbNInterior.setText(rs.getString("numero_interior"));
-            }else{
-            System.out.println("No hay informacion de domicilio ");
-        }   
-        }catch (Exception e){
-            
-        }  
+        UsuarioDetalle u = UsuariosDao.findById(in);
+        LOGGER.log(Level.FINE, "Index seleccionado {0}", in);
+        populateFormFromUsuario(u);
     }
     
     public void UpdateProduccionSemanal(){
@@ -2500,50 +1578,28 @@ public class DashboardController implements Initializable {
         tcMetrosS.setCellValueFactory(new PropertyValueFactory<>("tcMetrosS")); 
         tcCantidadS.setCellValueFactory(new PropertyValueFactory<>("tcCantidadS"));
         
-        listSemanal = ConnectionUtil.getProduccionSemana(autor);
+        listSemanal = ProduccionService.getProduccionSemana(autor);
         tvSemanal.setItems(listSemanal);        
     }
     
     // FIN PANTALLA PRODUCCION
     // PANTALLA HISTORIAL
     
-    public void ImprimirReporte(){        
-        
-        PreparedStatement ps = null;
-        
-        LocalDate fechaDe, fechaA;
-        fechaDe = tbFechaDe.getValue();        
-        fechaA = tbFechaA.getValue();
-
+    public void ImprimirReporte(){
         String autor = tbCodigoHistorial.getText();
-        String de = fechaDe.toString();
-        String a = fechaA.toString();
-        
+        LocalDate fechaDe = tbFechaDe.getValue();
+        LocalDate fechaA  = tbFechaA.getValue();
+        String de = fechaDe != null ? fechaDe.toString() : "";
+        String a  = fechaA  != null ? fechaA.toString()  : "";
         try {
-            JasperDesign jdesign = JRXmlLoader.load("D:\\Documentos\\Luis Bravo\\Semestre 4\\Ingenieria de Software II\\App\\aceros-y-trefilados\\src\\controllers\\report.jrxml");
-           
-            String Query;
-            
-            Query = "select * from produccion where autor_id = '"+autor+"' and (fecha_registro BETWEEN '"+de+"' AND '"+a+"') order by fecha_registro";
-            
-            System.out.println(Query);
-            
-            JRDesignQuery updateQuery = new JRDesignQuery();
-            
-            updateQuery.setText(Query);
-            
-            jdesign.setQuery(updateQuery);
-            
-            JasperReport jreport = JasperCompileManager.compileReport(jdesign);
-            
-            JasperPrint jprint = JasperFillManager.fillReport(jreport, null, con);
-            
-            JasperViewer.viewReport(jprint, false);
-            
-        } catch (JRException ex) {
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
+            ReporteService.imprimirHistorial(autor, de, a);
+        } catch (IllegalStateException ex) {
+            LOGGER.log(Level.SEVERE, "Plantilla de reporte no encontrada", ex);
+            showAlert(AlertType.ERROR, "Plantilla no encontrada", "Falta report.jrxml", ex.getMessage());
+        } catch (Exception ex) {
+            LOGGER.log(Level.SEVERE, "Error al generar reporte", ex);
+            showAlert(AlertType.ERROR, "Error al generar reporte", "Error al compilar/llenar el reporte", ex.getMessage());
         }
-        
     }
     
     public void UpdateFechaHistorial(){        
@@ -2558,143 +1614,35 @@ public class DashboardController implements Initializable {
         });
     }
     
-    public void UpdateMesHistorial(){     
-        
-        int año;
-        String sAño;
+    public void UpdateMesHistorial(){
+        // Map de nombre de mes (en español) → Month del API de Java
+        final java.util.Map<String, Month> MESES = new java.util.LinkedHashMap<>();
+        MESES.put("ENERO",      Month.JANUARY);
+        MESES.put("FEBRERO",    Month.FEBRUARY);
+        MESES.put("MARZO",      Month.MARCH);
+        MESES.put("ABRIL",      Month.APRIL);
+        MESES.put("MAYO",       Month.MAY);
+        MESES.put("JUNIO",      Month.JUNE);
+        MESES.put("JULIO",      Month.JULY);
+        MESES.put("AGOSTO",     Month.AUGUST);
+        MESES.put("SEPTIEMBRE", Month.SEPTEMBER);
+        MESES.put("OCTUBRE",    Month.OCTOBER);
+        MESES.put("NOVIEMBRE",  Month.NOVEMBER);
+        MESES.put("DICIEMBRE",  Month.DECEMBER);
 
-        año = tbFechaDe.getValue().getYear();
-        sAño = Integer.toString(año);
-
-        
-        cbHistorialMes.valueProperty().addListener((newValue) -> {
-            
-            LocalDate date1, date2;
-            String nuevaFecha1, nuevaFecha2;
-            Month month;
-            
-            if(cbHistorialMes.getValue() == "ENERO"){  
-                month = Month.JANUARY;
-                nuevaFecha1 = sAño+"-01-"+"01";
-                nuevaFecha2 = sAño+"-01-"+month.length(true);
-                date1 = LocalDate.parse(nuevaFecha1);
-                date2 = LocalDate.parse(nuevaFecha2);
-                tbFechaDe.setValue(date1);
-                tbFechaA.setValue(date2);
-            }
-            
-            if(cbHistorialMes.getValue() == "FEBRERO"){  
-                month = Month.FEBRUARY;
-                nuevaFecha1 = sAño+"-02-"+"01";
-                nuevaFecha2 = sAño+"-02-"+month.length(true);
-                date1 = LocalDate.parse(nuevaFecha1);
-                date2 = LocalDate.parse(nuevaFecha2);
-                tbFechaDe.setValue(date1);
-                tbFechaA.setValue(date2);
-            }
-            
-            if(cbHistorialMes.getValue() == "MARZO"){  
-                month = Month.MARCH;
-                nuevaFecha1 = sAño+"-03-"+"01";
-                nuevaFecha2 = sAño+"-03-"+month.length(true);
-                date1 = LocalDate.parse(nuevaFecha1);
-                date2 = LocalDate.parse(nuevaFecha2);
-                tbFechaDe.setValue(date1);
-                tbFechaA.setValue(date2);
-            }
-            
-            if(cbHistorialMes.getValue() == "ABRIL"){  
-                month = Month.APRIL;
-                nuevaFecha1 = sAño+"-04-"+"01";
-                nuevaFecha2 = sAño+"-04-"+month.length(true);
-                date1 = LocalDate.parse(nuevaFecha1);
-                date2 = LocalDate.parse(nuevaFecha2);
-                tbFechaDe.setValue(date1);
-                tbFechaA.setValue(date2);
-            }
-            
-            if(cbHistorialMes.getValue() == "MAYO"){  
-                month = Month.MAY;
-                nuevaFecha1 = sAño+"-05-"+"01";
-                nuevaFecha2 = sAño+"-05-"+month.length(true);
-                date1 = LocalDate.parse(nuevaFecha1);
-                date2 = LocalDate.parse(nuevaFecha2);
-                tbFechaDe.setValue(date1);
-                tbFechaA.setValue(date2);
-            }
-            
-            if(cbHistorialMes.getValue() == "JUNIO"){  
-                month = Month.JUNE;
-                nuevaFecha1 = sAño+"-06-"+"01";
-                nuevaFecha2 = sAño+"-06-"+month.length(true);
-                date1 = LocalDate.parse(nuevaFecha1);
-                date2 = LocalDate.parse(nuevaFecha2);
-                tbFechaDe.setValue(date1);
-                tbFechaA.setValue(date2);
-            }
-            
-            if(cbHistorialMes.getValue() == "JULIO"){  
-                month = Month.JULY;
-                nuevaFecha1 = sAño+"-07-"+"01";
-                nuevaFecha2 = sAño+"-07-"+month.length(true);
-                date1 = LocalDate.parse(nuevaFecha1);
-                date2 = LocalDate.parse(nuevaFecha2);
-                tbFechaDe.setValue(date1);
-                tbFechaA.setValue(date2);
-            }
-            
-            if(cbHistorialMes.getValue() == "AGOSTO"){  
-                month = Month.AUGUST;
-                nuevaFecha1 = sAño+"-08-"+"01";
-                nuevaFecha2 = sAño+"-08-"+month.length(true);
-                date1 = LocalDate.parse(nuevaFecha1);
-                date2 = LocalDate.parse(nuevaFecha2);
-                tbFechaDe.setValue(date1);
-                tbFechaA.setValue(date2);
-            }
-            
-            if(cbHistorialMes.getValue() == "SEPTIEMBRE"){  
-                month = Month.SEPTEMBER;
-                nuevaFecha1 = sAño+"-09-"+"01";
-                nuevaFecha2 = sAño+"-09-"+month.length(true);
-                date1 = LocalDate.parse(nuevaFecha1);
-                date2 = LocalDate.parse(nuevaFecha2);
-                tbFechaDe.setValue(date1);
-                tbFechaA.setValue(date2);
-            }
-            
-            if(cbHistorialMes.getValue() == "OCTUBRE"){  
-                month = Month.OCTOBER;
-                nuevaFecha1 = sAño+"-10-"+"01";
-                nuevaFecha2 = sAño+"-10-"+month.length(true);
-                date1 = LocalDate.parse(nuevaFecha1);
-                date2 = LocalDate.parse(nuevaFecha2);
-                tbFechaDe.setValue(date1);
-                tbFechaA.setValue(date2);
-            }
-            
-            if(cbHistorialMes.getValue() == "NOVIEMBRE"){  
-                month = Month.NOVEMBER;
-                nuevaFecha1 = sAño+"-11-"+"01";
-                nuevaFecha2 = sAño+"-11-"+month.length(true);
-                date1 = LocalDate.parse(nuevaFecha1);
-                date2 = LocalDate.parse(nuevaFecha2);
-                tbFechaDe.setValue(date1);
-                tbFechaA.setValue(date2);
-            }
-            
-            if(cbHistorialMes.getValue() == "DICIEMBRE"){  
-                month = Month.DECEMBER;
-                nuevaFecha1 = sAño+"-12-"+"01";
-                nuevaFecha2 = sAño+"-12-"+month.length(true);
-                date1 = LocalDate.parse(nuevaFecha1);
-                date2 = LocalDate.parse(nuevaFecha2);
-                tbFechaDe.setValue(date1);
-                tbFechaA.setValue(date2);
-            }
+        cbHistorialMes.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal == null) return;
+            Month month = MESES.get(newVal);  // .equals() implícito — corrige bug de ==
+            if (month == null) return;
+            int anio = tbFechaDe.getValue() != null
+                    ? tbFechaDe.getValue().getYear()
+                    : LocalDate.now().getYear();
+            LocalDate primero = LocalDate.of(anio, month, 1);
+            LocalDate ultimo  = primero.withDayOfMonth(month.length(primero.isLeapYear()));
+            tbFechaDe.setValue(primero);
+            tbFechaA.setValue(ultimo);
             UpdateHistorial();
         });
-        
     }
     
     public void UpdateHistorial(){
@@ -2716,7 +1664,7 @@ public class DashboardController implements Initializable {
         tcMetrosHistorial.setCellValueFactory(new PropertyValueFactory<>("tcMetrosHistorial")); 
         tcCantidadHistorial.setCellValueFactory(new PropertyValueFactory<>("tcCantidadHistorial"));
         
-        listHistorial = ConnectionUtil.getHistorial(autor, de, a);
+        listHistorial = HistorialService.getHistorial(autor, de, a);
         tvHistorial.setItems(listHistorial);      
     }
     
@@ -2724,44 +1672,22 @@ public class DashboardController implements Initializable {
                 
                 String in = tbCodigoHistorial.getText();
                 
-                BusquedaEmpleado busqueda = new BusquedaEmpleado() {};
-                ResultSet rs = null;
-                rs = busqueda.find(in);
-                System.out.println("Index seleccionado "+in);
-                
+                UsuarioDetalle u = UsuariosDao.findById(in);
+                LOGGER.log(Level.FINE, "Index seleccionado {0}", in);
                 try{
-                    if(rs.next()){
-                        lbHCodigoHistorial.setText(rs.getString("usuario_id"));
-                        lbHNombreHistorial.setText(rs.getString("nombre"));
-                        lbHApellidoHistorial.setText(rs.getString("apellido_paterno")+" "+rs.getString("apellido_materno"));
-                        lbHDomicilioHistorial.setText(rs.getString("tipo_empleado"));                        
-                        InputStream is = rs.getBinaryStream("imagen");
-                        OutputStream os = new FileOutputStream( new File("photo.png"));
-                        byte[] content = new byte[1024];
-                        int size = 0;
-                        while((size = is.read(content)) != -1){
-                            os.write(content, 0, size);
-                        }
-                        if(is!=null){
-                        image = new Image("file:photo.png");
-                        imgPerfilHistorial.setImage(image);
-                        }else{
-                        imgPerfilHistorial.setImage(backup);
-                        }
-                        os.close();
-                        is.close();
-                    }else{
-                     Alert alert = new Alert(AlertType.ERROR);
-                     Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-                     stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                     alert.setTitle("No hay coincidencias");
-                     alert.setHeaderText("No se encontro empleado");
-                     alert.showAndWait();
-                     imgPerfilHistorial.setImage(sinperfil);
-                     System.out.println("No hay informacion de domicilio ");
-                }   
-                }catch (Exception e){
-
+                    if(u != null){
+                        lbHCodigoHistorial.setText(u.getUsuarioId());
+                        lbHNombreHistorial.setText(u.getNombre());
+                        lbHApellidoHistorial.setText(u.getApellidoPaterno()+" "+u.getApellidoMaterno());
+                        lbHDomicilioHistorial.setText(u.getTipoEmpleado());
+                        imgPerfilHistorial.setImage(ImageUtils.fromBytesOrDefault(u.getImagen(), backup));
+                    } else {
+                        showAlert(AlertType.ERROR, "No hay coincidencias", "No se encontro empleado", null);
+                        imgPerfilHistorial.setImage(sinperfil);
+                        LOGGER.log(Level.FINE, "No hay informacion de domicilio");
+                    }
+                } catch (Exception e) {
+                    LOGGER.log(Level.SEVERE, "Error in BuscarEmpleadoHistorial", e);
                 }
 
     }
@@ -2769,1407 +1695,562 @@ public class DashboardController implements Initializable {
     // FIN PANTALLA HISTORIAL
     // PANTALLA MATERIALES
        
-    public class BusquedaMaterial{
-        ResultSet rs = null;
-        PreparedStatement ps = null;
-        public ResultSet find (String s){
-            try{
-                ps = con.prepareStatement("select * from materiales where id = ?");
-                ps.setString(1,s);
-                rs = ps.executeQuery();
-            } catch (Exception e){
-                
-            }
-            return rs;
-        }       
-        
-    }
+    
     
     int indexMaterial;
     public void TableMateriales(){
-        
-        tvMateriales.setOnMouseClicked(new EventHandler<MouseEvent>(){
-            public void handle(MouseEvent event) {
-                Materiales index = tvMateriales.getItems().get(tvMateriales.getSelectionModel().getSelectedIndex());
-                indexMaterial = index.getTcCodigoMaterial();
-                String in = Integer.toString(indexMaterial);
-                
-                BusquedaMaterial busqueda = new BusquedaMaterial() {};
-                ResultSet rs = null;
-                rs = busqueda.find(in);
-                System.out.println("Index seleccionado "+in);
-                
-                try{
-                    if(rs.next()){
-                        tbCodigoMaterialEditar.setText(rs.getString("id"));
-                        tbNombreMaterialEditar.setText(rs.getString("nombre"));
-                    }else{
-                     System.out.println("No hay informacion de domicilio ");
-                }   
-                }catch (Exception e){
-
-                }
-                
-            }
-        }
-        );
-        
+        bindTableSelect(tvMateriales, Materiales::getTcCodigoMaterial, MaterialesService::findById,
+            mat -> {
+                indexMaterial = mat.getTcCodigoMaterial();
+                tbCodigoMaterialEditar.setText(String.valueOf(mat.getTcCodigoMaterial()));
+                tbNombreMaterialEditar.setText(mat.getTcNombreMaterial());
+            });
     }
     
     public void EliminarMaterial(){
-        String sql = "delete from materiales where id = ?";
-        String in = Integer.toString(indexMaterial);
-        try{
-            pst = con.prepareStatement(sql);
-            pst.setString(1, in);
-            pst.execute();
-            UpdateMateriales();
-            CodigoMaterial();
-            cbMaterial.getItems().clear();
-            fillComboBoxMaterial();
-        } catch (Exception e){
-            
-        }
-        
+        String id = Integer.toString(indexMaterial);
+        boolean ok = MaterialesService.delete(id);
+        if (ok) { UpdateMateriales(); CodigoMaterial(); cbMaterial.getItems().clear(); fillComboBoxMaterial(); }
+        else LOGGER.log(Level.WARNING, "No se pudo eliminar material id={0}", id);
     }
     
-    public void CodigoMaterial(){
-        Connection con;
-        try {
-            
-            con = ConnectionUtil.getConnection();      
-            ResultSet rs = con.createStatement().executeQuery("select id from materiales");
-           
-            if(rs.next()){
-              while (rs.next()){
-                int id = rs.getInt(1)+1;
-                String l_id = Integer.toString(id);
-                tbCodigoMaterial.setText(l_id);
-            }  
-            }else{
-                tbCodigoMaterial.setText("1");
-            }
-            
-            
-        } catch (SQLException ex) {
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
-        }
-    }
+    public void CodigoMaterial() { CatalogoUtils.cargarSiguienteId("materiales", tbCodigoMaterial); }
     
     public void UpdateMateriales(){
         tcCodigoMaterial.setCellValueFactory(new PropertyValueFactory<>("tcCodigoMaterial"));       
         tcNombreMaterial.setCellValueFactory(new PropertyValueFactory<>("tcNombreMaterial"));       
         
-        listMaterial = ConnectionUtil.getMateriales();
+        listMaterial = MaterialesService.getAll();
         tvMateriales.setItems(listMaterial);        
     }
     
     public void AgregarMaterial(){
-        
-        //String codigo = tbCodigoMaterial.getText();     if (tbCodigoMaterial.getText().isEmpty()){codigo = "NULL";}
-        String nombre = tbNombreMaterial.getText();     if (tbNombreMaterial.getText().isEmpty()){nombre = "NULL";}
-        
-        try{
-        System.out.println("RECORD RUNNING INSIDE!!!");
-        pst = con.prepareStatement("insert into materiales (nombre) "
-                + "values(?)");
-        System.out.println("RECORD RUNNING AFTER");
-        
-        pst.setString(1, nombre);      
-        int status = pst.executeUpdate();
-        System.out.println("RECORD RUNNING POST QUERY");
-        if (status==1){
-            System.out.println("RECORD ADDED!!!");
-            tbNombreMaterial.clear();
-            UpdateMateriales();
-            CodigoMaterial();
-            cbMaterial.getItems().clear();
-            fillComboBoxMaterial();
-        }else{
-            System.out.println("RECORD FAILED!!!");
-        }
-            
-        }catch (SQLException e){
-            
-        }
-    
+        CatalogoUtils.agregarCatalogo(MaterialesService::insert, tbNombreMaterial,
+                () -> { UpdateMateriales(); CodigoMaterial(); cbMaterial.getItems().clear(); fillComboBoxMaterial(); });
     }
     
     public void ModificarMaterial(){
-        
-        String id = tbCodigoMaterialEditar.getText();     if (tbCodigoMaterialEditar.getText().isEmpty()){id = "NULL";}
-        String nombre = tbNombreMaterialEditar.getText(); if (tbNombreMaterialEditar.getText().isEmpty()){nombre = "NULL";}
-        
-        try{
-        System.out.println("RECORD RUNNING INSIDE!!!");
-        pst = con.prepareStatement("update materiales set nombre= ? where id='"+id+"'");
-        pst.setString(1, nombre);  
-        pst.execute();
-        System.out.println("RECORD RUNNING AFTER"); 
-        int status = pst.executeUpdate();
-        System.out.println("RECORD RUNNING POST QUERY");
-        if (status==1){
-            System.out.println("RECORD ADDED!!!");
-            UpdateMateriales();
-            CodigoMaterial();
-            cbMaterial.getItems().clear();
-            fillComboBoxMaterial();
-        }else{
-            System.out.println("RECORD FAILED!!!");
-        }
-        pst.close();    
-        }catch (SQLException e){
-            
-        }
-    
+        CatalogoUtils.modificarCatalogo(MaterialesService::update, tbCodigoMaterialEditar, tbNombreMaterialEditar,
+                () -> { UpdateMateriales(); CodigoMaterial(); cbMaterial.getItems().clear(); fillComboBoxMaterial(); });
     }
     
     
-    public class BusquedaAltura{
-        ResultSet rs = null;
-        PreparedStatement ps = null;
-        public ResultSet find (String s){
-            try{
-                ps = con.prepareStatement("select * from alturas where id = ?");
-                ps.setString(1,s);
-                rs = ps.executeQuery();
-            } catch (Exception e){
-                
-            }
-            return rs;
-        }       
-        
-    }
+    
     
     int indexAltura;
     public void TableAltura(){
-        
-        tvAlturas.setOnMouseClicked(new EventHandler<MouseEvent>(){
-            public void handle(MouseEvent event) {
-                Alturas index = tvAlturas.getItems().get(tvAlturas.getSelectionModel().getSelectedIndex());
-                indexAltura = index.getTcCodigoAltura();
-                String in = Integer.toString(indexAltura);
-                
-                BusquedaAltura busqueda = new BusquedaAltura() {};
-                ResultSet rs = null;
-                rs = busqueda.find(in);
-                System.out.println("Index seleccionado "+in);
-                
-                try{
-                    if(rs.next()){
-                        tbCodigoMaterialEditar2.setText(rs.getString("id"));
-                        tbNombreMaterialEditar2.setText(rs.getString("nombre"));
-                        tbMedidaMaterialEditar.setText(rs.getString("altura"));
-                    }else{
-                     System.out.println("No hay informacion de domicilio ");
-                }   
-                }catch (Exception e){
-
-                }
-                
-            }
-        }
-        );
-        
+        bindTableSelect(tvAlturas, Alturas::getTcCodigoAltura, AlturasService::findById,
+            a -> {
+                indexAltura = a.getTcCodigoAltura();
+                tbCodigoMaterialEditar2.setText(String.valueOf(a.getTcCodigoAltura()));
+                tbNombreMaterialEditar2.setText(a.getTcNombreAltura());
+                tbMedidaMaterialEditar.setText(a.getTcAltura());
+            });
     }
     
     public void EliminarAltura(){
-        String sql = "delete from alturas where id = ?";
         String in = Integer.toString(indexAltura);
         try{
-            pst = con.prepareStatement(sql);
-            pst.setString(1, in);
-            pst.execute();
-            UpdateAlturas();
-            CodigoAltura();
-            cbAltura.getItems().clear();
-            fillComboBoxAltura();
+            boolean ok = AlturasService.delete(in);
+            if (ok) {
+                UpdateAlturas();
+                CodigoAltura();
+                cbAltura.getItems().clear();
+                fillComboBoxAltura();
+            } else {
+                LOGGER.log(Level.WARNING, "DELETE FAILED for altura id={0}", in);
+            }
         } catch (Exception e){
-            
+            LOGGER.log(Level.SEVERE, "Error deleting altura", e);
         }
         
     }
     
-    public void CodigoAltura(){
-        Connection con;
-        try {
-            
-            con = ConnectionUtil.getConnection();      
-            ResultSet rs = con.createStatement().executeQuery("select id from alturas");
-           
-            if(rs.next()){
-              while (rs.next()){
-                int id = rs.getInt(1)+1;
-                String l_id = Integer.toString(id);
-                tbCodigoAltura.setText(l_id);
-            }  
-            }else{
-                tbCodigoAltura.setText("1");
-            }
-            
-        } catch (SQLException ex) {
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
-        }
-    }
+    public void CodigoAltura() { CatalogoUtils.cargarSiguienteId("alturas", tbCodigoAltura); }
     
     public void UpdateAlturas(){
         tcCodigoAltura.setCellValueFactory(new PropertyValueFactory<>("tcCodigoAltura"));       
         tcNombreAltura.setCellValueFactory(new PropertyValueFactory<>("tcNombreAltura"));
         tcAltura.setCellValueFactory(new PropertyValueFactory<>("tcAltura"));   
         
-        listAlturas = ConnectionUtil.getAlturas();
+        listAlturas = AlturasService.getAll();
         tvAlturas.setItems(listAlturas);        
     }
     
     public void AgregarAltura(){
-        
-        String nombre = tbNombreAltura.getText();        if (tbNombreAltura.getText().isEmpty()){nombre = "NULL";}
-        String altura = tbAltura.getText();              if (tbAltura.getText().isEmpty()){altura = "NULL";}
-        
-        try{
-        System.out.println("RECORD RUNNING INSIDE!!!");
-        pst = con.prepareStatement("insert into alturas (nombre, altura) "
-                + "values(?,?)");
-        System.out.println("RECORD RUNNING AFTER");
-        
-        pst.setString(1, nombre);
-        pst.setString(2, altura);
-        int status = pst.executeUpdate();
-        System.out.println("RECORD RUNNING POST QUERY");
-        if (status==1){
-            System.out.println("RECORD ADDED!!!");
-            tbNombreAltura.clear();
-            tbAltura.clear();
-            UpdateAlturas();
-            CodigoAltura();
-            cbAltura.getItems().clear();
-            fillComboBoxAltura();
-            int id = Integer.parseInt(tbCodigoAltura.getText())+1;
-            tbCodigoAltura.setText(String.valueOf(id));
-        }else{
-            System.out.println("RECORD FAILED!!!");
-        }
-            
-        }catch (SQLException e){
-            
-        }
-    
+        CatalogoUtils.agregarCatalogo(AlturasService::insert, tbNombreAltura, tbAltura,
+                () -> { UpdateAlturas(); CodigoAltura(); cbAltura.getItems().clear(); fillComboBoxAltura(); });
     }
     
     public void ModificarAltura(){
-        
-        String id = tbCodigoMaterialEditar2.getText();     if (tbCodigoMaterialEditar2.getText().isEmpty()){id = "NULL";}
-        String nombre = tbNombreMaterialEditar2.getText(); if (tbNombreMaterialEditar2.getText().isEmpty()){nombre = "NULL";}
-        String medida = tbMedidaMaterialEditar.getText();  if (tbMedidaMaterialEditar.getText().isEmpty()){medida = "NULL";}
-        
-        try{
-        System.out.println("RECORD RUNNING INSIDE!!!");
-        pst = con.prepareStatement("update alturas set nombre= ?, altura=? where id='"+id+"'");
-        pst.setString(1, nombre);  
-        pst.setString(2, medida);
-        pst.execute();
-        System.out.println("RECORD RUNNING AFTER"); 
-        int status = pst.executeUpdate();
-        System.out.println("RECORD RUNNING POST QUERY");
-        if (status==1){
-            System.out.println("RECORD ADDED!!!");
-            UpdateAlturas();
-            CodigoAltura();
-            cbAltura.getItems().clear();
-            fillComboBoxAltura();
-        }else{
-            System.out.println("RECORD FAILED!!!");
-        }
-        pst.close();    
-        }catch (SQLException e){
-            
-        }
-    
+        CatalogoUtils.modificarCatalogo(AlturasService::update,
+                tbCodigoMaterialEditar2, tbNombreMaterialEditar2, tbMedidaMaterialEditar,
+                () -> { UpdateAlturas(); CodigoAltura(); cbAltura.getItems().clear(); fillComboBoxAltura(); });
     }
     
-    public class BusquedaCalibre{
-        ResultSet rs = null;
-        PreparedStatement ps = null;
-        public ResultSet find (String s){
-            try{
-                ps = con.prepareStatement("select * from calibres where id = ?");
-                ps.setString(1,s);
-                rs = ps.executeQuery();
-            } catch (Exception e){
-                
-            }
-            return rs;
-        }       
-        
-    }
+    
     
     int indexCalibre;
     public void TableCalibre(){
-        
-        tvCalibres.setOnMouseClicked(new EventHandler<MouseEvent>(){
-            public void handle(MouseEvent event) {
-                Calibres index = tvCalibres.getItems().get(tvCalibres.getSelectionModel().getSelectedIndex());
-                indexCalibre = index.getTcCodigoCalibre();
-                String in = Integer.toString(indexCalibre);
-                
-                BusquedaCalibre busqueda = new BusquedaCalibre() {};
-                ResultSet rs = null;
-                rs = busqueda.find(in);
-                System.out.println("Index seleccionado "+in);
-                
-                try{
-                    if(rs.next()){
-                        tbCodigoMaterialEditar2.setText(rs.getString("id"));
-                        tbNombreMaterialEditar2.setText(rs.getString("nombre"));
-                        tbMedidaMaterialEditar.setText(rs.getString("calibre"));
-                    }else{
-                     System.out.println("No hay informacion de domicilio ");
-                }   
-                }catch (Exception e){
-
-                }
-                
-            }
-        }
-        );
-        
+        bindTableSelect(tvCalibres, Calibres::getTcCodigoCalibre, CalibresService::findById,
+            c -> {
+                indexCalibre = c.getTcCodigoCalibre();
+                tbCodigoMaterialEditar2.setText(String.valueOf(c.getTcCodigoCalibre()));
+                tbNombreMaterialEditar2.setText(c.getTcNombreCalibre());
+                tbMedidaMaterialEditar.setText(c.getTcCalibre());
+            });
     }
     
     public void EliminarCalibre(){
-        String sql = "delete from calibres where id = ?";
-        String in = Integer.toString(indexCalibre);
-        try{
-            pst = con.prepareStatement(sql);
-            pst.setString(1, in);
-            pst.execute();
-            UpdateCalibres();
-            CodigoCalibres();
-            cbCalibre.getItems().clear();
-            fillComboBoxCalibre();
-        } catch (Exception e){
-            
-        }
-        
+        String id = Integer.toString(indexCalibre);
+        boolean ok = CalibresService.delete(id);
+        if (ok) { UpdateCalibres(); CodigoCalibres(); cbCalibre.getItems().clear(); fillComboBoxCalibre(); }
+        else LOGGER.log(Level.WARNING, "No se pudo eliminar calibre id={0}", id);
     }
     
-    public void CodigoCalibres(){
-        Connection con;
-        try {
-            
-            con = ConnectionUtil.getConnection();      
-            ResultSet rs = con.createStatement().executeQuery("select id from calibres");
-           
-            if(rs.next()){
-              while (rs.next()){
-                int id = rs.getInt(1)+1;
-                String l_id = Integer.toString(id);
-                tbCodigoCalibre.setText(l_id);
-            }  
-            }else{
-                tbCodigoCalibre.setText("1");
-            }
-            
-        } catch (SQLException ex) {
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
-        }
-    }
+    public void CodigoCalibres() { CatalogoUtils.cargarSiguienteId("calibres", tbCodigoCalibre); }
     
     public void UpdateCalibres(){
         tcCodigoCalibre.setCellValueFactory(new PropertyValueFactory<>("tcCodigoCalibre"));       
         tcNombreCalibre.setCellValueFactory(new PropertyValueFactory<>("tcNombreCalibre"));
         tcCalibre.setCellValueFactory(new PropertyValueFactory<>("tcCalibre"));   
         
-        listCalibre = ConnectionUtil.getCalibres();
+        listCalibre = CalibresService.getAll();
         tvCalibres.setItems(listCalibre);        
     }
     
     public void AgregarCalibre(){
-        
-        String nombre = tbNombreCalibre.getText();        if (tbNombreCalibre.getText().isEmpty()){nombre = "NULL";}
-        String calibre = tbCalibre.getText();             if (tbCalibre.getText().isEmpty()){calibre = "NULL";}
-        
-        try{
-        System.out.println("RECORD RUNNING INSIDE!!!");
-        pst = con.prepareStatement("insert into calibres (nombre, calibre) "
-                + "values(?,?)");
-        System.out.println("RECORD RUNNING AFTER");
-        
-        pst.setString(1, nombre);
-        pst.setString(2, calibre);
-        int status = pst.executeUpdate();
-        System.out.println("RECORD RUNNING POST QUERY");
-        if (status==1){
-            System.out.println("RECORD ADDED!!!");
-            tbNombreCalibre.clear();
-            tbCalibre.clear();
-            UpdateCalibres();
-            CodigoCalibres();
-            cbCalibre.getItems().clear();
-            fillComboBoxCalibre();
-            int id = Integer.parseInt(tbCodigoCalibre.getText())+1;
-            tbCodigoCalibre.setText(String.valueOf(id));
-        }else{
-            System.out.println("RECORD FAILED!!!");
-        }
-            
-        }catch (SQLException e){
-            
-        }
-    
+        CatalogoUtils.agregarCatalogo(CalibresService::insert, tbNombreCalibre, tbCalibre,
+                () -> { UpdateCalibres(); CodigoCalibres(); cbCalibre.getItems().clear(); fillComboBoxCalibre(); });
     }
     
     public void ModificarCalibre(){
-        
-        String id = tbCodigoMaterialEditar2.getText();     if (tbCodigoMaterialEditar2.getText().isEmpty()){id = "NULL";}
-        String nombre = tbNombreMaterialEditar2.getText(); if (tbNombreMaterialEditar2.getText().isEmpty()){nombre = "NULL";}
-        String medida = tbMedidaMaterialEditar.getText();  if (tbMedidaMaterialEditar.getText().isEmpty()){medida = "NULL";}
-        
-        try{
-        System.out.println("RECORD RUNNING INSIDE!!!");
-        pst = con.prepareStatement("update calibres set nombre= ?, calibre=? where id='"+id+"'");
-        pst.setString(1, nombre);  
-        pst.setString(2, medida);
-        pst.execute();
-        System.out.println("RECORD RUNNING AFTER"); 
-        int status = pst.executeUpdate();
-        System.out.println("RECORD RUNNING POST QUERY");
-        if (status==1){
-            System.out.println("RECORD ADDED!!!");
-            UpdateCalibres();
-            CodigoCalibres();
-            cbCalibre.getItems().clear();
-            fillComboBoxCalibre();
-        }else{
-            System.out.println("RECORD FAILED!!!");
-        }
-        pst.close();    
-        }catch (SQLException e){
-            
-        }
-    
+        CatalogoUtils.modificarCatalogo(CalibresService::update,
+                tbCodigoMaterialEditar2, tbNombreMaterialEditar2, tbMedidaMaterialEditar,
+                () -> { UpdateCalibres(); CodigoCalibres(); cbCalibre.getItems().clear(); fillComboBoxCalibre(); });
     }
     
-    public class BusquedaRombos{
-        ResultSet rs = null;
-        PreparedStatement ps = null;
-        public ResultSet find (String s){
-            try{
-                ps = con.prepareStatement("select * from rombos where id = ?");
-                ps.setString(1,s);
-                rs = ps.executeQuery();
-            } catch (Exception e){
-                
-            }
-            return rs;
-        }       
-        
-    }
+    
     
     int indexRombo;
     public void TableRombos(){
-        
-        tvRombos.setOnMouseClicked(new EventHandler<MouseEvent>(){
-            public void handle(MouseEvent event) {
-                Rombos index = tvRombos.getItems().get(tvRombos.getSelectionModel().getSelectedIndex());
-                indexRombo = index.getTcCodigoRombo();
-                String in = Integer.toString(indexRombo);
-                
-                BusquedaRombos busqueda = new BusquedaRombos() {};
-                ResultSet rs = null;
-                rs = busqueda.find(in);
-                System.out.println("Index seleccionado "+in);
-                
-                try{
-                    if(rs.next()){
-                        tbCodigoMaterialEditar2.setText(rs.getString("id"));
-                        tbNombreMaterialEditar2.setText(rs.getString("nombre"));
-                        tbMedidaMaterialEditar.setText(rs.getString("rombo"));
-                    }else{
-                     System.out.println("No hay informacion de domicilio ");
-                }   
-                }catch (Exception e){
-
-                }
-                
-            }
-        }
-        );
-        
+        bindTableSelect(tvRombos, Rombos::getTcCodigoRombo, RombosService::findById,
+            r -> {
+                indexRombo = r.getTcCodigoRombo();
+                tbCodigoMaterialEditar2.setText(String.valueOf(r.getTcCodigoRombo()));
+                tbNombreMaterialEditar2.setText(r.getTcNombreRombo());
+                tbMedidaMaterialEditar.setText(r.getTcRombo());
+            });
     }
 
-    public void TableValueRombo(){
-
-        tvRombos.setOnMouseClicked(new EventHandler<MouseEvent>(){
-            @Override
-            public void handle(MouseEvent event) {
-                Rombos index = tvRombos.getItems().get(tvRombos.getSelectionModel().getSelectedIndex());
-                
-                indexRombo = index.getTcCodigoRombo();     
-
-            }
-    });
-    }
-    
     public void EliminarRombo(){
-        String sql = "delete from rombos where id = ?";
         String in = Integer.toString(indexRombo);
         try{
-            pst = con.prepareStatement(sql);
-            pst.setString(1, in);
-            pst.execute();
-            UpdateRombos();
-            CodigoRombos();
-            cbRombo.getItems().clear();
-            fillComboBoxRombo();
-            cbRombo.setItems(RomboOpcion);
+            boolean ok = RombosService.delete(in);
+            if (ok) {
+                UpdateRombos();
+                CodigoRombos();
+                cbRombo.getItems().clear();
+                fillComboBoxRombo();
+                cbRombo.setItems(RomboOpcion);
+            } else {
+                LOGGER.log(Level.WARNING, "DELETE FAILED for rombo id={0}", in);
+            }
         } catch (Exception e){
-            
+            LOGGER.log(Level.SEVERE, "Error deleting rombo", e);
         }
         
     }
     
-    public void CodigoRombos(){
-        Connection con;
-        try {
-            
-            con = ConnectionUtil.getConnection();      
-            ResultSet rs = con.createStatement().executeQuery("select id from rombos");
-           
-            if(rs.next()){
-              while (rs.next()){
-                int id = rs.getInt(1)+1;
-                String l_id = Integer.toString(id);
-                tbCodigoRombo.setText(l_id);
-            }  
-            }else{
-                tbCodigoRombo.setText("1");
-            }
-            
-        } catch (SQLException ex) {
-            Logger.getLogger(DashboardController.class.getName()).log(Level.SEVERE, null, ex);
-        }
-    }   
+    public void CodigoRombos() { CatalogoUtils.cargarSiguienteId("rombos", tbCodigoRombo); }   
     
     public void UpdateRombos(){
         tcCodigoRombo.setCellValueFactory(new PropertyValueFactory<>("tcCodigoRombo"));       
         tcNombreRombo.setCellValueFactory(new PropertyValueFactory<>("tcNombreRombo"));
         tcRombo.setCellValueFactory(new PropertyValueFactory<>("tcRombo"));   
         
-        listRombo = ConnectionUtil.getRombos();
+        listRombo = RombosService.getAll();
         tvRombos.setItems(listRombo);        
     }
     
     public void AgregarRombos(){
-        
-        String nombre = tbNombreRombo.getText();        if (tbNombreRombo.getText().isEmpty()){nombre = "NULL";}
-        String rombo = tbRombo.getText();               if (tbRombo.getText().isEmpty()){rombo = "NULL";}
-        
-        try{
-        System.out.println("RECORD RUNNING INSIDE!!!");
-        pst = con.prepareStatement("insert into rombos (nombre, rombo) "
-                + "values(?,?)");
-        System.out.println("RECORD RUNNING AFTER");
-        
-        pst.setString(1, nombre);
-        pst.setString(2, rombo);
-        int status = pst.executeUpdate();
-        System.out.println("RECORD RUNNING POST QUERY");
-        if (status==1){
-            System.out.println("RECORD ADDED!!!");
-            tbNombreRombo.clear();
-            tbRombo.clear();
-            UpdateRombos();
-            CodigoRombos();
-            cbRombo.getItems().clear();
-            fillComboBoxRombo();
-            int id = Integer.parseInt(tbCodigoRombo.getText())+1;
-            tbCodigoRombo.setText(String.valueOf(id));
-        }else{
-            System.out.println("RECORD FAILED!!!");
-        }
-            
-        }catch (SQLException e){
-            
-        }
-    
+        CatalogoUtils.agregarCatalogo(RombosService::insert, tbNombreRombo, tbRombo,
+                () -> { UpdateRombos(); CodigoRombos(); cbRombo.getItems().clear(); fillComboBoxRombo(); });
     }
     
     public void ModificarRombos(){
-        
-        String id = tbCodigoMaterialEditar2.getText();     if (tbCodigoMaterialEditar2.getText().isEmpty()){id = "NULL";}
-        String nombre = tbNombreMaterialEditar2.getText(); if (tbNombreMaterialEditar2.getText().isEmpty()){nombre = "NULL";}
-        String medida = tbMedidaMaterialEditar.getText();  if (tbMedidaMaterialEditar.getText().isEmpty()){medida = "NULL";}
-        
-        try{
-        System.out.println("RECORD RUNNING INSIDE!!!");
-        pst = con.prepareStatement("update rombos set nombre= ?, rombo=? where id='"+id+"'");
-        pst.setString(1, nombre);  
-        pst.setString(2, medida);
-        pst.execute();
-        System.out.println("RECORD RUNNING AFTER"); 
-        int status = pst.executeUpdate();
-        System.out.println("RECORD RUNNING POST QUERY");
-        if (status==1){
-            System.out.println("RECORD ADDED!!!");
-            UpdateRombos();
-            CodigoRombos();
-            cbRombo.getItems().clear();
-            fillComboBoxRombo();
-        }else{
-            System.out.println("RECORD FAILED!!!");
-        }
-        pst.close();    
-        }catch (SQLException e){
-            
-        }
-    
+        CatalogoUtils.modificarCatalogo(RombosService::update,
+                tbCodigoMaterialEditar2, tbNombreMaterialEditar2, tbMedidaMaterialEditar,
+                () -> { UpdateRombos(); CodigoRombos(); cbRombo.getItems().clear(); fillComboBoxRombo(); });
     }
     
-    public void clearCambiarMaterial(){
-        
+    public void clearCambiarMaterial() {
         tbCodigoMaterialEditar2.clear();
         tbNombreMaterialEditar2.clear();
         tbMedidaMaterialEditar.clear();
-        
     }
 
-    // CONTROLLADOR DE PANTALLAS EN DASHBOARD
-    @FXML
-    private void handleClicks(ActionEvent actionEvent) throws IOException{
-        
-        if(actionEvent.getSource() == btnPefil){
-            
-            new animatefx.animation.BounceIn(lbTitulo).play();
-            
-            lbTitulo.setText("PERFIL");
-            
-            //new animatefx.animation.ZoomIn(pnPerfil).play();
-            Perfil();
-            pnBlanco.toFront();
-            pnPerfil.toFront();
-            
-        }
-                
-        if(actionEvent.getSource() == btnInicio){
-            
-            new animatefx.animation.BounceIn(lbTitulo).play();
-            
-            lbTitulo.setText("INICIO");
-            
-            //new animatefx.animation.ZoomIn(pnInicio).play();
-            
-            pnBlanco.toFront();
-            pnInicio.toFront();
-            
-        }
-        if(actionEvent.getSource() == btnEmpleados){
-            
-            new animatefx.animation.BounceIn(lbTitulo).play();
-            
-            lbTitulo.setText("EMPLEADOS");
+    // ── UTILIDADES UI ─────────────────────────────────────────────────────────
 
-            //new animatefx.animation.ZoomIn(pnEmpleados).play();
-            
-            pnBlanco.toFront();
-            pnEmpleados.toFront();
-            
-        }
-        if(actionEvent.getSource() == btnProduccion){
-            
-            new animatefx.animation.BounceIn(lbTitulo).play();
-            
-            lbTitulo.setText("PRODUCCION");
+    /** Anima la etiqueta de título y trae pnBlanco y el panel destino al frente. */
+    private void navigate(String title, Pane target) {
+        new animatefx.animation.BounceIn(lbTitulo).play();
+        lbTitulo.setText(title);
+        pnBlanco.toFront();
+        target.toFront();
+    }
 
-            //new animatefx.animation.ZoomIn(pnProduccion).play();
-            
-            pnBlanco.toFront();
-            pnProduccion.toFront();
-            
-        }
-        if(actionEvent.getSource() == btnMateriales){
-            
-            new animatefx.animation.BounceIn(lbTitulo).play();
-            
-            lbTitulo.setText("MATERIALES");
+    private void showAlert(AlertType type, String title, String header, String content) {
+        Alert alert = new Alert(type);
+        if (title   != null) alert.setTitle(title);
+        if (header  != null) alert.setHeaderText(header);
+        if (content != null) alert.setContentText(content);
+        Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
+        stage.getIcons().add(new Image("icons/IconBlanco.png"));
+        alert.showAndWait();
+    }
 
-            //new animatefx.animation.ZoomIn(pnMateriales).play();
-            
-            pnBlanco.toFront();
-            pnMateriales.toFront();
-            
-        }
-        if(actionEvent.getSource() == btnExit){
-            
-            Alert alert = new Alert(AlertType.CONFIRMATION, "Desea cerrar sesión?", ButtonType.YES, ButtonType.CANCEL);
-            Button yesButton = (Button) alert.getDialogPane().lookupButton( ButtonType.YES );
-            yesButton.setDefaultButton( false );
-            Button noButton = (Button) alert.getDialogPane().lookupButton( ButtonType.CANCEL );
-            noButton.setDefaultButton( true );
-            alert.showAndWait();
-            
-            if (alert.getResult() == ButtonType.YES) {
-                
-            System.out.println( "Cerro sesión" );
-            
+    /** Muestra confirmación SÍ/CANCELAR (CANCELAR es el botón por defecto) y ejecuta accion si se elige SÍ. */
+    private void confirmarYEjecutar(String mensaje, Runnable accion) {
+        Alert alert = new Alert(AlertType.CONFIRMATION, mensaje, ButtonType.YES, ButtonType.CANCEL);
+        ((Button) alert.getDialogPane().lookupButton(ButtonType.YES)).setDefaultButton(false);
+        ((Button) alert.getDialogPane().lookupButton(ButtonType.CANCEL)).setDefaultButton(true);
+        Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
+        stage.getIcons().add(new Image("icons/IconBlanco.png"));
+        alert.showAndWait();
+        if (alert.getResult() == ButtonType.YES) accion.run();
+    }
+
+    // ── NAVEGACIÓN ────────────────────────────────────────────────────────────
+
+    private void onNavPerfil()     { navigate("PERFIL",     pnPerfil);     Perfil(); }
+    private void onNavInicio()     { navigate("INICIO",     pnInicio); }
+    private void onNavEmpleados()  { navigate("EMPLEADOS",  pnEmpleados); }
+    private void onNavProduccion() { navigate("PRODUCCION", pnProduccion); }
+    private void onNavMateriales() { navigate("MATERIALES", pnMateriales); }
+
+    private void onNavExit(ActionEvent actionEvent) throws IOException {
+        Alert alert = new Alert(AlertType.CONFIRMATION, "Desea cerrar sesion?", ButtonType.YES, ButtonType.CANCEL);
+        ((Button) alert.getDialogPane().lookupButton(ButtonType.YES)).setDefaultButton(false);
+        ((Button) alert.getDialogPane().lookupButton(ButtonType.CANCEL)).setDefaultButton(true);
+        alert.showAndWait();
+        if (alert.getResult() == ButtonType.YES) {
+            LOGGER.log(Level.INFO, "Cerro sesion");
+            Node node = (Node) actionEvent.getSource();
+            Stage stage = (Stage) node.getScene().getWindow();
             Parent root = FXMLLoader.load(getClass().getResource("/aceros/Login.fxml"));
-        
-            Node node = (Node) actionEvent.getSource();
-
-            Stage stage = (Stage) node.getScene().getWindow();
-        
             Scene scene = new Scene(root);
-
             scene.setFill(Color.TRANSPARENT);
-        
             stage.setScene(scene);
-        
             new animatefx.animation.ZoomIn(root).play();
-        
             stage.show();
-                
-            }
-            
         }
-        
-        // FIN DE CONTROLLADOR DE PANTALLAS EN DASHBOARD
-        
-        //PANTALLA PERFIL
-        
-        if(actionEvent.getSource() == btnPefil){
-            
-            new animatefx.animation.BounceIn(lbTitulo).play();
-            
-            lbTitulo.setText("PERFIL");
-            
-            //new animatefx.animation.ZoomIn(pnPerfil).play();
-            Perfil();
-            pnBlanco.toFront();
-            pnPerfil.toFront();
-            
-        }
-        
-        if(actionEvent.getSource() == btncambiarContraseña){
-            
-            new animatefx.animation.BounceIn(lbTitulo).play();
-            
-            lbTitulo.setText("CAMBIAR CONTRASEÑA");
-            pnDashboard.setDisable(true);
-            pnBlanco.toFront();
-            pnCambiarContraseña.toFront();
-            
-        }
-        
-        if(actionEvent.getSource() == btnVolverContraseña){
-            
-            new animatefx.animation.BounceIn(lbTitulo).play();
-            
-            lbTitulo.setText("PEFIL");
-            pnDashboard.setDisable(false);
-            
-            Perfil();
-            pnBlanco.toFront();
-            pnPerfil.toFront();
-            
-        }
-        
-        if(actionEvent.getSource() == btnGuardarContraseña){
-            
-            String nueva,repetir;
-            nueva = tbContraseñaNueva.getText();
-            repetir = tbContraseñaRepetir.getText();
-            System.out.println("NUEVA "+nueva);
-            System.out.println("REPETIR "+repetir);
-            
-            if(tbContraseñaActual.getText().isEmpty()){
-                Alert alert = new Alert(AlertType.ERROR);
-                alert.setHeaderText("No se ingreso contraseña actual");
-                alert.setContentText("La contraseña actual debe ser ingresada");
-                Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-                stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                alert.showAndWait();
-            }else if(tbContraseñaNueva.getText().isEmpty() || tbContraseñaRepetir.getText().isEmpty()){
-                Alert alert = new Alert(AlertType.ERROR);
-                alert.setHeaderText("Las contraseñas nuevas no coinciden");
-                alert.setContentText("Vuelva a intentarlo de nuevo");
-                Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-                stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                tbContraseñaActual.clear();
-                tbContraseñaNueva.clear();
-                tbContraseñaRepetir.clear();
-                alert.showAndWait();
-            }else if(tbContraseñaNueva.getText().equals(tbContraseñaRepetir.getText())){
-                CambiarContraseña();
-            }
-            
-        }
-        
-        //FIN PANTALLA PERFIL
-        
-        // PANTALLA EMPLEADOS
-        
-        if(actionEvent.getSource() == btnNuevoEmpleado){
-            
-            Alert alert = new Alert(AlertType.CONFIRMATION, "Desea agregar nuevo empleado?", ButtonType.YES, ButtonType.CANCEL);
-            Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-            stage.getIcons().add(new Image("icons/IconBlanco.png"));
-            alert.showAndWait();
-            
-            if (alert.getResult() == ButtonType.YES) {
-            
-            btnGuardarEmpleado.toFront();
-            
-            new animatefx.animation.BounceIn(lbTitulo).play();
-            
-            lbTitulo.setText("Agregar nuevo empleado");
-            
-            pnBlanco.toFront();
-            pnAgregarEmpleados.toFront();
-                
-            }
-            
-        }
-        
-                
-        if(actionEvent.getSource() == btnEditarEmpleado){
-           PerfilEmpleado();
-            new animatefx.animation.BounceIn(lbTitulo).play();
-            
-            lbTitulo.setText("Editar empleado");
+    }
 
-            pnBlanco.toFront();
-            pnAgregarEmpleados.toFront();
-            
-        } 
-        
-        if(actionEvent.getSource() == btnVolverEmpleados){
-            
-            Alert alert = new Alert(AlertType.CONFIRMATION, "Desea volver a la pantalla anterior?", ButtonType.YES, ButtonType.CANCEL);
-            Button yesButton = (Button) alert.getDialogPane().lookupButton( ButtonType.YES );
-            yesButton.setDefaultButton( false );
-            Button noButton = (Button) alert.getDialogPane().lookupButton( ButtonType.CANCEL );
-            noButton.setDefaultButton( true );
-            Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-            stage.getIcons().add(new Image("icons/IconBlanco.png"));
-            alert.showAndWait();
-            
-            if (alert.getResult() == ButtonType.YES) {
-            
-            new animatefx.animation.BounceIn(lbTitulo).play();
-            
-            lbTitulo.setText("EMPLEADOS");
-            
+    // ── PERFIL ────────────────────────────────────────────────────────────────
+
+    private void onBtnCambiarPassword() {
+        pnDashboard.setDisable(true);
+        navigate("CAMBIAR CONTRASENA", pnCambiarContraseña);
+    }
+
+    private void onBtnVolverPassword() {
+        pnDashboard.setDisable(false);
+        Perfil();
+        navigate("PERFIL", pnPerfil);
+    }
+
+    private void onBtnGuardarPassword() {
+        if (tbContraseñaActual.getText().isEmpty()) {
+            showAlert(AlertType.ERROR, null, "No se ingreso contrasena actual", "La contrasena actual debe ser ingresada");
+        } else if (tbContraseñaNueva.getText().isEmpty() || tbContraseñaRepetir.getText().isEmpty()) {
+            tbContraseñaActual.clear(); tbContraseñaNueva.clear(); tbContraseñaRepetir.clear();
+            showAlert(AlertType.ERROR, null, "Uno o mas campos vacios", "Ingrese la contrasena nueva dos veces");
+        } else if (tbContraseñaNueva.getText().equals(tbContraseñaRepetir.getText())) {
+            CambiarContraseña();
+        } else {
+            tbContraseñaNueva.clear(); tbContraseñaRepetir.clear();
+            showAlert(AlertType.ERROR, null, "Las contrasenas nuevas no coinciden", "Vuelva a intentarlo de nuevo");
+        }
+    }
+
+    // ── EMPLEADOS ─────────────────────────────────────────────────────────────
+
+    private void onBtnNuevoEmpleado() {
+        confirmarYEjecutar("Desea agregar nuevo empleado?", () -> {
             LimpiarPerfil();
-            
-            pnBlanco.toFront();
-            pnEmpleados.toFront();
-            
-            }            
-        }
-        
-        if(actionEvent.getSource() == btnGuardarEmpleado){
-            
-            Alert alert = new Alert(AlertType.CONFIRMATION, "Desea guardar empleado?", ButtonType.YES, ButtonType.CANCEL);
-            Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-            stage.getIcons().add(new Image("icons/IconBlanco.png"));
-            alert.showAndWait();
-            
-            if (alert.getResult() == ButtonType.YES) {
-                System.out.println("CON IMAGEN");
-                AgregarEmpleadoConImagen();
-                
-                /*if(file != null){
-                    
-                }else{
-                    System.out.println("SIN IMAGEN");
-                    AgregarEmpleado();
-                }
-                */
-                
-                
-                new animatefx.animation.BounceIn(lbTitulo).play();
-                lbTitulo.setText("EMPLEADOS");
-                pnBlanco.toFront();
-                pnEmpleados.toFront();
-            }
-            
-        }
-        
-        if(actionEvent.getSource() == btnModificarEmpleado){
-            
-            Alert alert = new Alert(AlertType.CONFIRMATION, "Desea guardar cambios del empleado?", ButtonType.YES, ButtonType.CANCEL);
-            Button yesButton = (Button) alert.getDialogPane().lookupButton( ButtonType.YES );
-            yesButton.setDefaultButton( false );
-            Button noButton = (Button) alert.getDialogPane().lookupButton( ButtonType.CANCEL );
-            noButton.setDefaultButton( true );
-            Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-            stage.getIcons().add(new Image("icons/IconBlanco.png"));
-            alert.showAndWait();
-            
-            if (alert.getResult() == ButtonType.YES) {
-                ModificarEmpleadoConImagen();
-                
-                /*
-                if(file == null){
-                    ModificarEmpleado();
-                }else{
-                   
-                }
-                */
-                
-                new animatefx.animation.BounceIn(lbTitulo).play();
-                lbTitulo.setText("EMPLEADOS");
-                pnBlanco.toFront();
-                pnEmpleados.toFront();
-            }
-            
-        }
+            CodigoUsuario();
+            if (tableviewEmpleados != null) tableviewEmpleados.getSelectionModel().clearSelection();
+            btnGuardarEmpleado.toFront();
+            navigate("Agregar nuevo empleado", pnAgregarEmpleados);
+        });
+    }
 
-        if(actionEvent.getSource() == btnEliminarEmpleado){
-            
-            Alert alert = new Alert(AlertType.CONFIRMATION, "Desea eliminar empleado?", ButtonType.YES, ButtonType.CANCEL);
-            Button yesButton = (Button) alert.getDialogPane().lookupButton( ButtonType.YES );
-            yesButton.setDefaultButton( false );
-            Button noButton = (Button) alert.getDialogPane().lookupButton( ButtonType.CANCEL );
-            noButton.setDefaultButton( true );
-            Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-            stage.getIcons().add(new Image("icons/IconBlanco.png"));
-            alert.showAndWait();
-            
-            if (alert.getResult() == ButtonType.YES) {
-                EliminarEmpleado();
-            }
-            
+    private void onBtnEditarEmpleado() {
+        PerfilEmpleado();
+        navigate("Editar empleado", pnAgregarEmpleados);
+    }
+
+    private void onBtnVolverEmpleados() {
+        confirmarYEjecutar("Desea volver a la pantalla anterior?", () -> {
+            LimpiarPerfil();
+            navigate("EMPLEADOS", pnEmpleados);
+        });
+    }
+
+    private void onBtnGuardarEmpleado() {
+        confirmarYEjecutar("Desea guardar empleado?", () -> {
+            LOGGER.log(Level.FINE, "CON IMAGEN");
+            AgregarEmpleadoConImagen();
+            navigate("EMPLEADOS", pnEmpleados);
+        });
+    }
+
+    private void onBtnModificarEmpleado() {
+        confirmarYEjecutar("Desea guardar cambios del empleado?", () -> {
+            ModificarEmpleadoConImagen();
+            navigate("EMPLEADOS", pnEmpleados);
+        });
+    }
+
+    private void onBtnEliminarEmpleado() {
+        confirmarYEjecutar("Desea eliminar empleado?", this::EliminarEmpleado);
+    }
+
+    private void onBtnProduccionEmpleado() {
+        BuscarEmpleadoConBotonProduccion();
+        UpdateProduccionSemanal();
+        navigate("PRODUCCION", pnProduccion);
+    }
+
+    private void onBtnSubirImagen(ActionEvent actionEvent) {
+        Node node = (Node) actionEvent.getSource();
+        Stage stage = (Stage) node.getScene().getWindow();
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Subir imagen de perfil");
+        fileChooser.getExtensionFilters().addAll(new ExtensionFilter("Imagenes", "*.png", " *.jpg"));
+        file = fileChooser.showOpenDialog(stage);
+        if (file != null) {
+            lbPath.setText(file.getAbsolutePath());
+            image = new Image(file.toURI().toString());
+            LOGGER.log(Level.FINE, "ESTE ES EL ARCHIVO {0}", file.getAbsolutePath());
+            LOGGER.log(Level.FINE, "ESTE ES EL ARCHIVO {0}", file.getPath());
+            LOGGER.log(Level.FINE, "CONSEGUI DENTRO {0}", image);
+            btnSubirImagen.setText(null);
+            btnImagenPerfil.setImage(image);
+            LOGGER.log(Level.FINE, "TERMINE DENTRO {0}", btnImagenPerfil.getImage());
+            updateImagenPerfil();
+        } else {
+            file = null;
         }
-        
-        if(actionEvent.getSource() == btnActualizarEmpleado){
-            
-            UpdateTable();
-            
-        }
-        
-        if(actionEvent.getSource() == btnProduccionEmpleado){
-            BuscarEmpleadoConBotonProduccion();
+    }
+
+    // ── PRODUCCION ────────────────────────────────────────────────────────────
+
+    private void onBtnBuscarEmpleadoProduccion() {
+        if (tbCodigoProduccion.getText().isEmpty()) {
+            showAlert(AlertType.ERROR, "Codigo de usuario vacio", "Llenar los datos correctamente", null);
+            tbCodigoProduccion.clear();
+        } else {
+            BuscarEmpleadoProduccion();
             UpdateProduccionSemanal();
-            new animatefx.animation.BounceIn(lbTitulo).play();
-            
-            lbTitulo.setText("PRODUCCION");
-            
-            pnBlanco.toFront();
-            pnProduccion.toFront();
-            
         }
-        
-        if(actionEvent.getSource() == btnSubirImagen){
-            
-            Node node = (Node) actionEvent.getSource();
-            Stage stage = (Stage) node.getScene().getWindow();
-            FileChooser fileChooser = new FileChooser();
-            fileChooser.setTitle("Subir imagen de perfil");
-            fileChooser.getExtensionFilters().addAll(new ExtensionFilter("Imagenes", "*.png", " *.jpg"));
-            file = fileChooser.showOpenDialog(stage);
-            
-            if(file !=null){
-                lbPath.setText(file.getAbsolutePath());
-                image = new Image(file.toURI().toString());
-                System.out.println("ESTE ES EL ARCHIVO "+file.getAbsolutePath());
-                System.out.println("ESTE ES EL ARCHIVO "+file.getPath());
-                System.out.println("CONSEGUI DENTRO"+image);
-                btnSubirImagen.setText(null);
-                btnImagenPerfil.setImage(image);
-                System.out.println("TERMINE DENTRO"+btnImagenPerfil.getImage()); 
-                updateImagenPerfil();
-            }else{
-                file = new File("sin_perfil.png");
-            }
-            
-        }
-        
-        // FIN DE PANTALLA EMPLEADOS
-        
-        // PANTALLA PRODUCCION
-        
-        if(actionEvent.getSource() == btnBuscarEmpleado){
-            
-            if(tbCodigoProduccion.getText().isEmpty()){
-                Alert error = new Alert(AlertType.ERROR);
-                    error.setTitle("Codigo de usuario vacio");
-                    error.setHeaderText("Llenar los datos correctamente");
-                    Stage stage = (Stage) error.getDialogPane().getScene().getWindow();
-                    stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                    error.showAndWait();
-                    tbCodigoProduccion.clear();           
-            }else{
-                BuscarEmpleadoProduccion();
-                UpdateProduccionSemanal();
-            }
-            
-        }
-        
-        if(actionEvent.getSource() == btnEditarEmpleado2){
-           PerfilEmpleadoProduccion();
-            new animatefx.animation.BounceIn(lbTitulo).play();
-            
-            lbTitulo.setText("Editar empleado");
+    }
 
-            pnBlanco.toFront();
-            pnAgregarEmpleados.toFront();
-            
-        } 
-                
-        if(actionEvent.getSource() == btnLimpiarProduccion){
-                Alert alert = new Alert(AlertType.CONFIRMATION, "Desea limpiar los campos?", ButtonType.YES, ButtonType.CANCEL);
-                Button yesButton = (Button) alert.getDialogPane().lookupButton( ButtonType.YES );
-                yesButton.setDefaultButton( false );
-                Button noButton = (Button) alert.getDialogPane().lookupButton( ButtonType.CANCEL );
-                noButton.setDefaultButton( true );
-                Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-                stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                alert.showAndWait();
-                if (alert.getResult() == ButtonType.YES) {
-                cleanProduccion();
-            }
-        }  
-        
-        if(actionEvent.getSource() == btnNuevoProduccion){
+    private void onBtnEditarEmpleado2() {
+        PerfilEmpleadoProduccion();
+        navigate("Editar empleado", pnAgregarEmpleados);
+    }
 
-            if(tbMetros.getText().isEmpty() || tbCantidadProduccion.getText().isEmpty() || tbFechaRegistro.getValue() == null || cbMaterial.getValue() == null || cbCalibre.getValue() == null || cbAltura.getValue() == null || cbRombo.getValue() == null){
-                Alert error = new Alert(AlertType.ERROR);
-                    error.setHeaderText("Uno o mas campos vacios!");
-                    Stage stage = (Stage) error.getDialogPane().getScene().getWindow();
-                    stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                    error.showAndWait();
-                    cleanProduccion();           
-            }else if (lbHCodigo2.getText().isEmpty() || tbCodigoProduccion.getText().isEmpty()){
-                Alert error = new Alert(AlertType.ERROR);
-                    error.setHeaderText("No se ha seleccionado ningun empleado");
-                    Stage stage = (Stage) error.getDialogPane().getScene().getWindow();
-                    stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                    error.showAndWait();
-                    cleanProduccion(); 
-            }else{
-                Alert alert = new Alert(AlertType.CONFIRMATION, "Desea guardar produccion?", ButtonType.YES, ButtonType.CANCEL);
-                Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-                stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                alert.showAndWait();
-                if (alert.getResult() == ButtonType.YES) {
+    private void onBtnLimpiarProduccion() {
+        confirmarYEjecutar("Desea limpiar los campos?", this::cleanProduccion);
+    }
+
+    private void onBtnGuardarProduccion() {
+        if (tbMetros.getText().isEmpty() || tbCantidadProduccion.getText().isEmpty()
+                || tbFechaRegistro.getValue() == null
+                || cbMaterial.getValue() == null || cbCalibre.getValue() == null
+                || cbAltura.getValue() == null || cbRombo.getValue() == null) {
+            showAlert(AlertType.ERROR, null, "Uno o mas campos vacios!", null);
+            cleanProduccion();
+        } else if (lbHCodigo2.getText().isEmpty() || tbCodigoProduccion.getText().isEmpty()) {
+            showAlert(AlertType.ERROR, null, "No se ha seleccionado ningun empleado", null);
+            cleanProduccion();
+        } else {
+            confirmarYEjecutar("Desea guardar produccion?", () -> {
                 AgregarProduccion();
                 UpdateProduccionSemanal();
                 DiasSemana();
-                }
-            }
-            
-        }        
-        
-        if(actionEvent.getSource() == btnHistorial){
-            
-            new animatefx.animation.BounceIn(lbTitulo).play();
-            
-            lbTitulo.setText("HISTORIAL Y REPORTES");
-            
-            if(lbHCodigo2.getText().isEmpty()){
-                
-            }else{
-                tbCodigoHistorial.setText(lbHCodigo2.getText());
-                BuscarEmpleadoHistorial();
-                UpdateHistorial();
-            }
-            
-            pnBlanco.toFront();
-            pnHistorial.toFront();
-            
+            });
         }
-        
-        if(actionEvent.getSource() == btnVolverHistorial){
-            
-            new animatefx.animation.BounceIn(lbTitulo).play();
-            
-            lbTitulo.setText("PRODUCCION");
-            
-            pnBlanco.toFront();
-            pnProduccion.toFront();
-            
-        }
-        
-        if(actionEvent.getSource() == btnVolverHistorial2){
-            
-            Alert alert = new Alert(AlertType.CONFIRMATION, "Desea volver a la pantalla anterior?", ButtonType.YES, ButtonType.CANCEL);
-            Button yesButton = (Button) alert.getDialogPane().lookupButton( ButtonType.YES );
-            yesButton.setDefaultButton( false );
-            Button noButton = (Button) alert.getDialogPane().lookupButton( ButtonType.CANCEL );
-            noButton.setDefaultButton( true );
-            Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-            stage.getIcons().add(new Image("icons/IconBlanco.png"));
-            alert.showAndWait();
-            
-            if (alert.getResult() == ButtonType.YES) {
-            
-            new animatefx.animation.BounceIn(lbTitulo).play();        
-            
-            lbTitulo.setText("PRODUCCION");
-            
-            LimpiarPerfil();
-            
-            pnBlanco.toFront();
-            pnProduccion.toFront();
-            
-            }            
-        }
-        
-        if(actionEvent.getSource() == btnVolverEditartProduccion){
-            pnEditarProduccion.toBack();
-        }
-        
-        if(actionEvent.getSource() == btnModificarProduccion){
-            pnEditarProduccion.toFront();
-        }
-        
-        if(actionEvent.getSource() == btnGuardarEditartProduccion){
-            ModificarProduccion();
-            UpdateProduccionSemanal();
-            pnEditarProduccion.toBack();
-        }
-        
-        if(actionEvent.getSource() == btnEditarHistorial){
-            pnEditarProduccion.toFront();
-        }
-        
-        // FIN PANTALLA PRODUCCION
-        // PANTALLA HISTORIAL
-        
-        if(actionEvent.getSource() == btnBuscarHistorial){
-            
-            if(tbCodigoHistorial.getText().isEmpty()){
-                Alert error = new Alert(AlertType.ERROR);
-                    error.setTitle("Codigo de usuario vacio");
-                    error.setHeaderText("Llenar los datos correctamente");
-                    Stage stage = (Stage) error.getDialogPane().getScene().getWindow();
-                    stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                    error.showAndWait();
-                    tbCodigoHistorial.clear();           
-            }else{
-                BuscarEmpleadoHistorial();
-                UpdateHistorial();
-            }
-            
-        }
-        
-        if(actionEvent.getSource() == btnReporte){
-            
-            ImprimirReporte();
-            
-        }
-        
-        // FIN PANTALLA HISTORIAL
-        // PANTALLA MATERIALES
-        if(actionEvent.getSource() == btnGuardarMaterial){
-
-            if(tbNombreMaterial.getText().isEmpty()){
-                Alert error = new Alert(AlertType.ERROR);
-                    //error.setTitle("Uno o mas campos vacios!");
-                    error.setHeaderText("Uno o mas campos vacios!");
-                    Stage stage = (Stage) error.getDialogPane().getScene().getWindow();
-                    stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                    error.showAndWait();
-            
-            }else{
-                Alert alert = new Alert(AlertType.CONFIRMATION, "Desea guardar material?", ButtonType.YES, ButtonType.CANCEL);
-                Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-                stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                alert.showAndWait();
-                if (alert.getResult() == ButtonType.YES) {
-                AgregarMaterial();
-                }
-            }
-            
-        }
-        
-        if(actionEvent.getSource() == btnEliminarMaterial){
-            
-            Alert alert = new Alert(AlertType.CONFIRMATION, "Desea eliminar material?", ButtonType.YES, ButtonType.CANCEL);
-            Button yesButton = (Button) alert.getDialogPane().lookupButton( ButtonType.YES );
-            yesButton.setDefaultButton( false );
-            Button noButton = (Button) alert.getDialogPane().lookupButton( ButtonType.CANCEL );
-            noButton.setDefaultButton( true );
-            Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-            stage.getIcons().add(new Image("icons/IconBlanco.png"));
-            alert.showAndWait();
-            
-            if (alert.getResult() == ButtonType.YES) {
-                EliminarMaterial();
-            }
-            
-        }
-        
-        if(actionEvent.getSource() == btnGuardarAltura){
-
-            if(tbNombreAltura.getText().isEmpty() || tbAltura.getText().isEmpty()){
-                Alert error = new Alert(AlertType.ERROR);
-                    error.setHeaderText("Uno o mas campos vacios!");
-                    Stage stage = (Stage) error.getDialogPane().getScene().getWindow();
-                    stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                    error.showAndWait();
-                    tbNombreAltura.clear();
-                    tbAltura.clear();
-            }else{
-                Alert alert = new Alert(AlertType.CONFIRMATION, "Desea guardar altura?", ButtonType.YES, ButtonType.CANCEL);
-                Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-                stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                alert.showAndWait();
-                if (alert.getResult() == ButtonType.YES) {
-                AgregarAltura();
-                }
-            }
-            
-        }
-        
-        if(actionEvent.getSource() == btnEliminarAltura){
-            
-            Alert alert = new Alert(AlertType.CONFIRMATION, "Desea eliminar altura?", ButtonType.YES, ButtonType.CANCEL);
-            Button yesButton = (Button) alert.getDialogPane().lookupButton( ButtonType.YES );
-            yesButton.setDefaultButton( false );
-            Button noButton = (Button) alert.getDialogPane().lookupButton( ButtonType.CANCEL );
-            noButton.setDefaultButton( true );
-            Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-            stage.getIcons().add(new Image("icons/IconBlanco.png"));
-            alert.showAndWait();
-            
-            if (alert.getResult() == ButtonType.YES) {
-                EliminarAltura();
-            }
-            
-        }
-        
-        if(actionEvent.getSource() == btnGuardarCalibre){
-
-            if(tbNombreCalibre.getText().isEmpty() || tbCalibre.getText().isEmpty()){
-                Alert error = new Alert(AlertType.ERROR);
-                    error.setHeaderText("Uno o mas campos vacios!");
-                    Stage stage = (Stage) error.getDialogPane().getScene().getWindow();
-                    stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                    error.showAndWait();
-                    tbNombreCalibre.clear();
-                    tbCalibre.clear();            
-            }else{
-                Alert alert = new Alert(AlertType.CONFIRMATION, "Desea guardar calibre?", ButtonType.YES, ButtonType.CANCEL);
-                Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-                stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                alert.showAndWait();
-                if (alert.getResult() == ButtonType.YES) {
-                AgregarCalibre();
-                }
-            }
-            
-        }
-        
-        if(actionEvent.getSource() == btnEliminarCalibre){
-            
-            Alert alert = new Alert(AlertType.CONFIRMATION, "Desea eliminar calibre?", ButtonType.YES, ButtonType.CANCEL);
-            Button yesButton = (Button) alert.getDialogPane().lookupButton( ButtonType.YES );
-            yesButton.setDefaultButton( false );
-            Button noButton = (Button) alert.getDialogPane().lookupButton( ButtonType.CANCEL );
-            noButton.setDefaultButton( true );
-            Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-            stage.getIcons().add(new Image("icons/IconBlanco.png"));
-            alert.showAndWait();
-            
-            if (alert.getResult() == ButtonType.YES) {
-                EliminarCalibre();
-            }
-            
-        }
-        
-        if(actionEvent.getSource() == btnGuardarRombo){
-
-            if(tbNombreRombo.getText().isEmpty() || tbRombo.getText().isEmpty()){
-                Alert error = new Alert(AlertType.ERROR);
-                    error.setHeaderText("Uno o mas campos vacios!");
-                    Stage stage = (Stage) error.getDialogPane().getScene().getWindow();
-                    stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                    error.showAndWait();
-                    tbNombreRombo.clear();
-                    tbRombo.clear();            
-            }else{
-                Alert alert = new Alert(AlertType.CONFIRMATION, "Desea guardar separacion de rombos?", ButtonType.YES, ButtonType.CANCEL);
-                Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-                stage.getIcons().add(new Image("icons/IconBlanco.png"));
-                alert.showAndWait();
-                if (alert.getResult() == ButtonType.YES) {
-                AgregarRombos();
-                }
-            }
-            
-        }
-        
-        if(actionEvent.getSource() == btnEliminarRombo){
-            
-            Alert alert = new Alert(AlertType.CONFIRMATION, "Desea eliminar rombos?", ButtonType.YES, ButtonType.CANCEL);
-            Button yesButton = (Button) alert.getDialogPane().lookupButton( ButtonType.YES );
-            yesButton.setDefaultButton( false );
-            Button noButton = (Button) alert.getDialogPane().lookupButton( ButtonType.CANCEL );
-            noButton.setDefaultButton( true );
-            Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-            stage.getIcons().add(new Image("icons/IconBlanco.png"));
-            alert.showAndWait();
-            
-            if (alert.getResult() == ButtonType.YES) {
-                EliminarRombo();
-            }
-            
-        }
-        
-        if(actionEvent.getSource() == btnEditarMaterial){
-            pnEditarMaterial.toFront();
-        }
-        if(actionEvent.getSource() == btnVolverEdiatMaterial){
-            pnEditarMaterial.toBack();
-        }
-        if(actionEvent.getSource() == btnGuardarEdiatMaterial){
-            ModificarMaterial();
-            pnEditarMaterial.toBack();
-        }
-        
-        if(actionEvent.getSource() == btnVolverEditartMaterial2){
-            clearCambiarMaterial();
-            pnEditarMaterial2.toBack();
-        }
-        
-        if(actionEvent.getSource() == btnEditarAltura){
-            pnEditarMaterial2.toFront();
-            btnGuardarEditarAltura.toFront();
-            lbMedidaMaterialEditar.setText("ALTURA");
-            tbMedidaMaterialEditar.setPromptText("ALTURA");
-        }
-        if(actionEvent.getSource() == btnGuardarEditarAltura){
-            ModificarAltura();
-            pnEditarMaterial2.toBack();
-            clearCambiarMaterial();
-        }
-        
-        if(actionEvent.getSource() == btnEditarCalibre){
-            pnEditarMaterial2.toFront();
-            btnGuardarEditarCalibre.toFront();
-            lbMedidaMaterialEditar.setText("CALIBRE");
-            tbMedidaMaterialEditar.setPromptText("CALIBRE");
-        }
-        if(actionEvent.getSource() == btnGuardarEditarCalibre){
-            ModificarCalibre();
-            pnEditarMaterial2.toBack();
-            clearCambiarMaterial();
-        }
-        
-        if(actionEvent.getSource() == btnEditarRombo){
-            pnEditarMaterial2.toFront();
-            btnGuardarEditarRombos.toFront();
-            lbMedidaMaterialEditar.setText("SEPARACIÓN DE ROMBOS");
-            tbMedidaMaterialEditar.setPromptText("SEPARACIÓN DE ROMBOS");
-        }
-        if(actionEvent.getSource() == btnGuardarEditarRombos){
-            ModificarRombos();
-            pnEditarMaterial2.toBack();
-            clearCambiarMaterial();
-        }
-        
-       // FIN DE PANTALLA MATERIALES 
     }
-    
+
+    private void onBtnHistorial() {
+        navigate("HISTORIAL Y REPORTES", pnHistorial);
+        if (!lbHCodigo2.getText().isEmpty()) {
+            tbCodigoHistorial.setText(lbHCodigo2.getText());
+            BuscarEmpleadoHistorial();
+            UpdateHistorial();
+        }
+    }
+
+    private void onBtnVolverHistorial()  { navigate("PRODUCCION", pnProduccion); }
+
+    private void onBtnVolverHistorial2() {
+        confirmarYEjecutar("Desea volver a la pantalla anterior?", () -> {
+            LimpiarPerfil();
+            navigate("PRODUCCION", pnProduccion);
+        });
+    }
+
+    private void onBtnGuardarEdicionProduccion() {
+        ModificarProduccion();
+        UpdateProduccionSemanal();
+        pnEditarProduccion.toBack();
+    }
+
+    // ── HISTORIAL ─────────────────────────────────────────────────────────────
+
+    private void onBtnBuscarHistorial() {
+        if (tbCodigoHistorial.getText().isEmpty()) {
+            showAlert(AlertType.ERROR, "Codigo de usuario vacio", "Llenar los datos correctamente", null);
+            tbCodigoHistorial.clear();
+        } else {
+            BuscarEmpleadoHistorial();
+            UpdateHistorial();
+        }
+    }
+
+    // ── CATALOGOS ─────────────────────────────────────────────────────────────
+
+    private void onBtnGuardarMaterial() {
+        if (tbNombreMaterial.getText().isEmpty()) {
+            showAlert(AlertType.ERROR, null, "Uno o mas campos vacios!", null);
+        } else {
+            confirmarYEjecutar("Desea guardar material?", this::AgregarMaterial);
+        }
+    }
+
+    private void onBtnGuardarAltura() {
+        if (tbNombreAltura.getText().isEmpty() || tbAltura.getText().isEmpty()) {
+            tbNombreAltura.clear(); tbAltura.clear();
+            showAlert(AlertType.ERROR, null, "Uno o mas campos vacios!", null);
+        } else {
+            confirmarYEjecutar("Desea guardar altura?", this::AgregarAltura);
+        }
+    }
+
+    private void onBtnGuardarCalibre() {
+        if (tbNombreCalibre.getText().isEmpty() || tbCalibre.getText().isEmpty()) {
+            tbNombreCalibre.clear(); tbCalibre.clear();
+            showAlert(AlertType.ERROR, null, "Uno o mas campos vacios!", null);
+        } else {
+            confirmarYEjecutar("Desea guardar calibre?", this::AgregarCalibre);
+        }
+    }
+
+    private void onBtnGuardarRombo() {
+        if (tbNombreRombo.getText().isEmpty() || tbRombo.getText().isEmpty()) {
+            tbNombreRombo.clear(); tbRombo.clear();
+            showAlert(AlertType.ERROR, null, "Uno o mas campos vacios!", null);
+        } else {
+            confirmarYEjecutar("Desea guardar separacion de rombos?", this::AgregarRombos);
+        }
+    }
+
+    private void onBtnEditarAltura() {
+        pnEditarMaterial2.toFront();
+        btnGuardarEditarAltura.toFront();
+        lbMedidaMaterialEditar.setText("ALTURA");
+        tbMedidaMaterialEditar.setPromptText("ALTURA");
+    }
+
+    private void onBtnEditarCalibre() {
+        pnEditarMaterial2.toFront();
+        btnGuardarEditarCalibre.toFront();
+        lbMedidaMaterialEditar.setText("CALIBRE");
+        tbMedidaMaterialEditar.setPromptText("CALIBRE");
+    }
+
+    private void onBtnEditarRombo() {
+        pnEditarMaterial2.toFront();
+        btnGuardarEditarRombos.toFront();
+        lbMedidaMaterialEditar.setText("SEPARACION DE ROMBOS");
+        tbMedidaMaterialEditar.setPromptText("SEPARACION DE ROMBOS");
+    }
+
+    // ── MANEJO DE EVENTOS ─────────────────────────────────────────────────────
+
+    @FXML
+    private void handleClicks(ActionEvent actionEvent) throws IOException {
+        Object src = actionEvent.getSource();
+
+        // Navegación — retorno inmediato para omitir el resto de las comprobaciones
+        if (src == btnPefil)      { onNavPerfil();         return; }
+        if (src == btnInicio)     { onNavInicio();          return; }
+        if (src == btnEmpleados)  { onNavEmpleados();       return; }
+        if (src == btnProduccion) { onNavProduccion();      return; }
+        if (src == btnMateriales) { onNavMateriales();      return; }
+        if (src == btnExit)       { onNavExit(actionEvent); return; }
+
+        // Perfil
+        if (src == btncambiarContraseña) onBtnCambiarPassword();
+        if (src == btnVolverContraseña)  onBtnVolverPassword();
+        if (src == btnGuardarContraseña) onBtnGuardarPassword();
+
+        // Empleados
+        if (src == btnNuevoEmpleado)      onBtnNuevoEmpleado();
+        if (src == btnEditarEmpleado)     onBtnEditarEmpleado();
+        if (src == btnVolverEmpleados)    onBtnVolverEmpleados();
+        if (src == btnGuardarEmpleado)    onBtnGuardarEmpleado();
+        if (src == btnModificarEmpleado)  onBtnModificarEmpleado();
+        if (src == btnEliminarEmpleado)   onBtnEliminarEmpleado();
+        if (src == btnActualizarEmpleado) UpdateTable();
+        if (src == btnProduccionEmpleado) onBtnProduccionEmpleado();
+        if (src == btnSubirImagen)        onBtnSubirImagen(actionEvent);
+
+        // Producción
+        if (src == btnBuscarEmpleado)           onBtnBuscarEmpleadoProduccion();
+        if (src == btnEditarEmpleado2)           onBtnEditarEmpleado2();
+        if (src == btnLimpiarProduccion)         onBtnLimpiarProduccion();
+        if (src == btnNuevoProduccion)           onBtnGuardarProduccion();
+        if (src == btnHistorial)                 onBtnHistorial();
+        if (src == btnVolverHistorial)           onBtnVolverHistorial();
+        if (src == btnVolverHistorial2)          onBtnVolverHistorial2();
+        if (src == btnVolverEditartProduccion)   pnEditarProduccion.toBack();
+        if (src == btnModificarProduccion)       pnEditarProduccion.toFront();
+        if (src == btnGuardarEditartProduccion)  onBtnGuardarEdicionProduccion();
+        if (src == btnEditarHistorial)           pnEditarProduccion.toFront();
+
+        // Historial
+        if (src == btnBuscarHistorial) onBtnBuscarHistorial();
+        if (src == btnReporte)         ImprimirReporte();
+
+        // Catálogos — guardar
+        if (src == btnGuardarMaterial) onBtnGuardarMaterial();
+        if (src == btnGuardarAltura)   onBtnGuardarAltura();
+        if (src == btnGuardarCalibre)  onBtnGuardarCalibre();
+        if (src == btnGuardarRombo)    onBtnGuardarRombo();
+
+        // Catálogos — eliminar
+        if (src == btnEliminarMaterial) confirmarYEjecutar("Desea eliminar material?",  this::EliminarMaterial);
+        if (src == btnEliminarAltura)   confirmarYEjecutar("Desea eliminar altura?",    this::EliminarAltura);
+        if (src == btnEliminarCalibre)  confirmarYEjecutar("Desea eliminar calibre?",   this::EliminarCalibre);
+        if (src == btnEliminarRombo)    confirmarYEjecutar("Desea eliminar rombos?",    this::EliminarRombo);
+
+        // Catálogos — panel de edición (Materiales)
+        if (src == btnEditarMaterial)       pnEditarMaterial.toFront();
+        if (src == btnVolverEdiatMaterial)  pnEditarMaterial.toBack();
+        if (src == btnGuardarEdiatMaterial) { ModificarMaterial(); pnEditarMaterial.toBack(); }
+
+        // Catálogos — panel de edición compartido (Alturas / Calibres / Rombos)
+        if (src == btnVolverEditartMaterial2) { clearCambiarMaterial(); pnEditarMaterial2.toBack(); }
+        if (src == btnEditarAltura)            onBtnEditarAltura();
+        if (src == btnGuardarEditarAltura)     { ModificarAltura();  pnEditarMaterial2.toBack(); clearCambiarMaterial(); }
+        if (src == btnEditarCalibre)           onBtnEditarCalibre();
+        if (src == btnGuardarEditarCalibre)    { ModificarCalibre(); pnEditarMaterial2.toBack(); clearCambiarMaterial(); }
+        if (src == btnEditarRombo)             onBtnEditarRombo();
+        if (src == btnGuardarEditarRombos)     { ModificarRombos();  pnEditarMaterial2.toBack(); clearCambiarMaterial(); }
+    }
+
 }

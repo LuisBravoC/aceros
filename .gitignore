@@ -1,0 +1,51 @@
+# .gitignore for Java / NetBeans projects
+
+# NetBeans
+nbproject/private/
+nbbuild/
+nbdist/
+build/
+dist/
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+
+# Build tools
+target/
+out/
+.gradle/
+gradle/
+
+# Logs
+*.log
+logs/
+
+# Archives
+*.zip
+*.tar.gz
+*.rar
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temp / swap
+*~
+*.swp
+*.tmp
+*.bak
+
+# Crash logs
+hs_err_pid*

@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="null" pageWidth="595" pageHeight="842" columnWidth="555" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" uuid="28299009-4b0f-4941-b27f-cb99731e768c">
+	<property name="ireport.zoom" value="1.4641000000000008"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<style name="Heading 1" fontSize="16" isBold="true"/>
+	<parameter name="LOGO" class="java.io.InputStream"/>
+	<queryString language="SQL">
+		<![CDATA[SELECT
+*
+FROM
+ produccion
+ORDER BY
+     fecha_registro ASC]]>
+	</queryString>
+	<field name="id" class="java.lang.Integer">
+		<fieldDescription><![CDATA[]]></fieldDescription>
+	</field>
+	<field name="material" class="java.lang.String">
+		<fieldDescription><![CDATA[]]></fieldDescription>
+	</field>
+	<field name="calibre" class="java.lang.String">
+		<fieldDescription><![CDATA[]]></fieldDescription>
+	</field>
+	<field name="altura" class="java.lang.String">
+		<fieldDescription><![CDATA[]]></fieldDescription>
+	</field>
+	<field name="rombos" class="java.lang.String">
+		<fieldDescription><![CDATA[]]></fieldDescription>
+	</field>
+	<field name="metros" class="java.lang.String">
+		<fieldDescription><![CDATA[]]></fieldDescription>
+	</field>
+	<field name="cantidad" class="java.lang.String">
+		<fieldDescription><![CDATA[]]></fieldDescription>
+	</field>
+	<field name="autor_id" class="java.lang.String">
+		<fieldDescription><![CDATA[]]></fieldDescription>
+	</field>
+	<field name="autor" class="java.lang.String">
+		<fieldDescription><![CDATA[]]></fieldDescription>
+	</field>
+	<field name="fecha_registro" class="java.lang.String">
+		<fieldDescription><![CDATA[]]></fieldDescription>
+	</field>
+	<field name="dia" class="java.lang.String">
+		<fieldDescription><![CDATA[]]></fieldDescription>
+	</field>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<title>
+		<band height="79" splitType="Stretch">
+			<staticText>
+				<reportElement x="227" y="29" width="328" height="33" uuid="078d6a74-4919-417f-a76f-35b0cf17d98a"/>
+				<textElement>
+					<font size="24"/>
+				</textElement>
+				<text><![CDATA[REPORTE DE PRODUCCION]]></text>
+			</staticText>
+			<image>
+				<reportElement x="2" y="0" width="248" height="79" uuid="1e8a50f9-3073-4aa3-a89f-4a0a26d87895"/>
+				<imageExpression><![CDATA[$P{LOGO}]]></imageExpression>
+			</image>
+		</band>
+	</title>
+	<pageHeader>
+		<band height="36" splitType="Stretch"/>
+	</pageHeader>
+	<columnHeader>
+		<band height="61" splitType="Stretch">
+			<staticText>
+				<reportElement x="102" y="41" width="73" height="20" uuid="c7f72e6a-05e8-46ea-9c01-7450ba26685a"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle"/>
+				<text><![CDATA[MATERIAL]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="189" y="41" width="73" height="20" uuid="15adf603-219c-466d-bed4-e9425d85b15e"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle"/>
+				<text><![CDATA[CALIBRE]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="262" y="41" width="73" height="20" uuid="dd339101-5e85-448e-a218-70b1374ad2a9"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle"/>
+				<text><![CDATA[ALTURA]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="335" y="41" width="73" height="20" uuid="fe555fbc-2f59-4846-ab68-83be47fbd834"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle"/>
+				<text><![CDATA[ROMBOS]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="408" y="41" width="73" height="20" uuid="09db456a-d069-47ae-8c9e-dfff332971d9"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle"/>
+				<text><![CDATA[METROS]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="481" y="41" width="73" height="20" uuid="bf7a4de8-b3e8-4aab-95a5-0ad088c8877e"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle"/>
+				<text><![CDATA[CANTIDAD]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="66" y="0" width="147" height="20" uuid="83feb503-6327-4d38-ba98-3d36d93fdf42"/>
+				<textElement verticalAlignment="Middle"/>
+				<textFieldExpression><![CDATA[$F{autor}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="0" y="41" width="84" height="20" uuid="b3781aa6-978b-4a3b-b18d-867957c4ac07"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle"/>
+				<text><![CDATA[Fecha de registro]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="2" y="0" width="64" height="20" uuid="68b0612c-ec50-493d-b4c5-afdefee9a938"/>
+				<textElement textAlignment="Left" verticalAlignment="Middle"/>
+				<text><![CDATA[EMPLEADO:  ]]></text>
+			</staticText>
+			<textField pattern="dd MMMMM yyyy">
+				<reportElement x="451" y="0" width="100" height="20" uuid="bd60efc3-330f-4f52-8be9-bff1f609dd0b"/>
+				<textElement verticalAlignment="Middle"/>
+				<textFieldExpression><![CDATA[new java.util.Date()]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="387" y="0" width="64" height="20" uuid="1a2095dc-2379-4adf-9640-fb85f6639ede"/>
+				<textElement textAlignment="Left" verticalAlignment="Middle"/>
+				<text><![CDATA[FECHA:  ]]></text>
+			</staticText>
+		</band>
+	</columnHeader>
+	<detail>
+		<band height="20" splitType="Stretch">
+			<textField>
+				<reportElement x="102" y="0" width="73" height="20" uuid="933e5121-ba28-4e79-aece-8c3f2b16f6f2"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle"/>
+				<textFieldExpression><![CDATA[$F{material}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="189" y="0" width="73" height="20" uuid="a9012f4b-6b76-4706-99ec-8423634eed63"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle"/>
+				<textFieldExpression><![CDATA[$F{calibre}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="262" y="0" width="73" height="20" uuid="7f0053a9-740a-4dc2-949a-98e5c7a3a0c4"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle"/>
+				<textFieldExpression><![CDATA[$F{altura}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="335" y="0" width="73" height="20" uuid="aad110f4-2c07-4c9f-b33e-6bd9f371c96a"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle"/>
+				<textFieldExpression><![CDATA[$F{rombos}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="408" y="0" width="73" height="20" uuid="216be768-1638-4e05-b09d-4a8337ca012a"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle"/>
+				<textFieldExpression><![CDATA[$F{metros}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="481" y="0" width="73" height="20" uuid="ed63e67b-918e-4310-9db0-6df150ccaea2"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle"/>
+				<textFieldExpression><![CDATA[$F{cantidad}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="0" y="0" width="84" height="20" uuid="47b5c701-0f34-48ce-8942-a5d9193d2c6a"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle"/>
+				<textFieldExpression><![CDATA[$F{fecha_registro}]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+	<columnFooter>
+		<band height="43" splitType="Stretch"/>
+	</columnFooter>
+	<pageFooter>
+		<band height="54" splitType="Stretch">
+			<textField>
+				<reportElement x="499" y="34" width="17" height="20" uuid="00fbec31-fa99-4508-b21c-402ec9222315"/>
+				<textElement verticalAlignment="Middle"/>
+				<textFieldExpression><![CDATA[$V{PAGE_NUMBER}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="461" y="34" width="36" height="20" uuid="fd0b1ec1-df14-44ca-9021-40696e1706b0"/>
+				<textElement textAlignment="Left" verticalAlignment="Middle"/>
+				<text><![CDATA[Pagina  ]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="516" y="34" width="17" height="20" uuid="77ab40f9-b290-420e-8c55-9eda0c639ab2"/>
+				<textElement textAlignment="Left" verticalAlignment="Middle"/>
+				<text><![CDATA[de]]></text>
+			</staticText>
+			<textField evaluationTime="Report">
+				<reportElement x="533" y="34" width="21" height="20" uuid="4cc4623b-f2f6-434a-8029-6a664958a711"/>
+				<textElement verticalAlignment="Middle"/>
+				<textFieldExpression><![CDATA[$V{PAGE_NUMBER}]]></textFieldExpression>
+			</textField>
+		</band>
+	</pageFooter>
+	<summary>
+		<band height="22" splitType="Stretch"/>
+	</summary>
+</jasperReport>
